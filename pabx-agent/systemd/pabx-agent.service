@@ -1,0 +1,17 @@
+[Unit]
+Description=PABX Agent (HTTP bridge para o painel Lovable)
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=asterisk
+WorkingDirectory=/opt/pabx-agent
+EnvironmentFile=/opt/pabx-agent/.env
+ExecStart=/usr/bin/node /opt/pabx-agent/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
