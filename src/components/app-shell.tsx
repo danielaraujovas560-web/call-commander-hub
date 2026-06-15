@@ -9,12 +9,14 @@ import {
   Music,
   LogOut,
   LayoutDashboard,
+  ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useIsAdmin } from "@/hooks/use-role";
 
 interface NavItem {
   to: string;
@@ -29,6 +31,10 @@ const nav: NavItem[] = [
   { to: "/servidor", label: "Servidor", icon: Server },
 ];
 
+const adminNav: NavItem[] = [
+  { to: "/admin/usuarios", label: "Usuários", icon: ShieldCheck },
+];
+
 const soon: NavItem[] = [
   { to: "#", label: "Relatórios", icon: BarChart3, disabled: true },
   { to: "#", label: "Troncos", icon: Cable, disabled: true },
@@ -39,6 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isAdmin } = useIsAdmin();
 
   async function handleLogout() {
     await queryClient.cancelQueries();
@@ -78,6 +85,33 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               );
             })}
+
+            {isAdmin && (
+              <div className="pt-4">
+                <p className="px-3 pb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                  Administração
+                </p>
+                {adminNav.map((item) => {
+                  const Icon = item.icon;
+                  const active = pathname.startsWith(item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground/70 hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="pt-4">
               <p className="px-3 pb-1 text-xs uppercase tracking-wide text-muted-foreground">
