@@ -41,6 +41,45 @@ export type Database = {
         }
         Relationships: []
       }
+      clientes: {
+        Row: {
+          cnpj: string
+          created_at: string
+          email: string
+          id: string
+          login: string | null
+          quantidade_ramais: number
+          razao_social: string
+          tenant_id: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          cnpj: string
+          created_at?: string
+          email: string
+          id?: string
+          login?: string | null
+          quantidade_ramais?: number
+          razao_social: string
+          tenant_id: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          cnpj?: string
+          created_at?: string
+          email?: string
+          id?: string
+          login?: string | null
+          quantidade_ramais?: number
+          razao_social?: string
+          tenant_id?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

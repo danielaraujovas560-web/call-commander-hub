@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface Ramal {
@@ -38,46 +39,90 @@ const RamalInput = z.object({
   ddi: z.boolean().default(false),
   especial: z.boolean().default(false),
   cng: z.boolean().default(false),
+  tenant_id: z.number().int().positive().optional(),
 });
+
+const TenantOnly = z
+  .object({ tenant_id: z.number().int().positive().optional() })
+  .optional()
+  .transform((v) => v ?? {});
+
+// Resolve the tenant for an operation. Admins can pass any tenant_id;
+// clients can only pass a tenant they're linked to (or omit it to use default).
+async function resolveScopedTenant(
+  supabase: SupabaseClient,
+  userId: string,
+  override?: number,
+): Promise<number> {
+  if (override == null) {
+    const { resolveTenantId } = await import("./tenant.server");
+    return resolveTenantId(supabase, userId);
+  }
+  const { data: isAdmin } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (isAdmin) return override;
+  const { data } = await supabase
+    .from("tenants_link")
+    .select("tenant_id")
+    .eq("user_id", userId)
+    .eq("tenant_id", override)
+    .maybeSingle();
+  if (!data) throw new Error("Sem permissão para este tenant.");
+  return override;
+}
 
 export const listRamais = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { resolveTenantId } = await import("./tenant.server");
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.supabase, context.userId);
-    const data = await agentFetch<{ ramais: Ramal[] }>(
+    const tenantId = await resolveScopedTenant(
+      context.supabase,
+      context.userId,
+      data.tenant_id,
+    );
+    const res = await agentFetch<{ ramais: Ramal[] }>(
       `/ramais?tenant=${tenantId}`,
       { tenantId },
     );
-    return { tenantId, ramais: data.ramais ?? [] };
+    return { tenantId, ramais: res.ramais ?? [] };
   });
 
 export const listTroncos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { resolveTenantId } = await import("./tenant.server");
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.supabase, context.userId);
-    const data = await agentFetch<{ troncos: Tronco[] }>(
+    const tenantId = await resolveScopedTenant(
+      context.supabase,
+      context.userId,
+      data.tenant_id,
+    );
+    const res = await agentFetch<{ troncos: Tronco[] }>(
       `/troncos?tenant=${tenantId}`,
       { tenantId },
     );
-    return { troncos: data.troncos ?? [] };
+    return { troncos: res.troncos ?? [] };
   });
 
 export const createRamal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RamalInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { resolveTenantId } = await import("./tenant.server");
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.supabase, context.userId);
+    const tenantId = await resolveScopedTenant(
+      context.supabase,
+      context.userId,
+      data.tenant_id,
+    );
+    const { tenant_id: _ignore, ...payload } = data;
 
     const created = await agentFetch<{ ramal: Ramal }>("/ramais", {
       method: "POST",
       tenantId,
-      body: data,
+      body: payload,
     });
 
     await context.supabase.from("audit_log").insert({
@@ -93,12 +138,20 @@ export const createRamal = createServerFn({ method: "POST" })
 export const deleteRamal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ id: z.number().int().positive() }).parse(input),
+    z
+      .object({
+        id: z.number().int().positive(),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { resolveTenantId } = await import("./tenant.server");
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.supabase, context.userId);
+    const tenantId = await resolveScopedTenant(
+      context.supabase,
+      context.userId,
+      data.tenant_id,
+    );
 
     await agentFetch(`/ramais/${data.id}`, { method: "DELETE", tenantId });
     await context.supabase.from("audit_log").insert({
