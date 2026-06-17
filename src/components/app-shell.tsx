@@ -2,7 +2,7 @@ import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   PhoneCall,
-  Users,
+  Building2,
   Server,
   BarChart3,
   Cable,
@@ -10,6 +10,7 @@ import {
   LogOut,
   LayoutDashboard,
   ShieldCheck,
+  Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ interface NavItem {
 
 const nav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/ramais", label: "Ramais", icon: Users },
+  { to: "/clientes", label: "Clientes", icon: Building2 },
   { to: "/servidor", label: "Servidor", icon: Server },
 ];
 

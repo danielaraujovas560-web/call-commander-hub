@@ -1,15 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, Plus, Trash2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Plus, RefreshCw, Trash2 } from "lucide-react";
 import {
   listRamais,
   listTroncos,
   createRamal,
   deleteRamal,
 } from "@/lib/ramais.functions";
+import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,44 +53,70 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const Route = createFileRoute("/_authenticated/ramais")({
-  head: () => ({ meta: [{ title: "Ramais — Painel PABX" }] }),
-  component: RamaisPage,
+export const Route = createFileRoute("/_authenticated/clientes/$tenantId")({
+  head: () => ({ meta: [{ title: "Ramais — Cliente" }] }),
+  component: ClienteRamaisPage,
 });
 
-function RamaisPage() {
+function ClienteRamaisPage() {
+  const { tenantId: tenantParam } = Route.useParams();
+  const tenantId = Number(tenantParam);
+
+  const clienteFn = useServerFn(getClienteByTenant);
+  const { data: clienteData } = useQuery({
+    queryKey: ["cliente", tenantId],
+    queryFn: () => clienteFn({ data: { tenant_id: tenantId } }),
+  });
+  const cliente = clienteData?.cliente;
+
   const list = useServerFn(listRamais);
   const queryClient = useQueryClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["ramais"],
-    queryFn: () => list(),
+    queryKey: ["ramais", tenantId],
+    queryFn: () => list({ data: { tenant_id: tenantId } }),
   });
 
   const del = useServerFn(deleteRamal);
   const delMut = useMutation({
-    mutationFn: (id: number) => del({ data: { id } }),
+    mutationFn: (id: number) => del({ data: { id, tenant_id: tenantId } }),
     onSuccess: () => {
       toast.success("Ramal removido");
-      queryClient.invalidateQueries({ queryKey: ["ramais"] });
+      queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   return (
     <div className="space-y-4">
+      <Button asChild variant="ghost" size="sm" className="-ml-2">
+        <Link to="/clientes">
+          <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para clientes
+        </Link>
+      </Button>
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Ramais</h1>
+          <h1 className="text-2xl font-bold">
+            {cliente?.razao_social ?? `Tenant #${tenantId}`}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Gerencie ramais SIP do seu tenant
-            {data?.tenantId != null ? ` (tenant ${data.tenantId})` : ""}
+            Ramais SIP do cliente
+            {cliente?.cnpj ? ` — CNPJ ${cliente.cnpj}` : ""}
+            {cliente
+              ? ` · ${data?.ramais.length ?? 0} / ${cliente.quantidade_ramais} ramais`
+              : ""}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <NewRamalDialog />
+          <NewRamalDialog tenantId={tenantId} />
         </div>
       </div>
 
@@ -204,12 +231,12 @@ function genPassword() {
   return out;
 }
 
-function NewRamalDialog() {
+function NewRamalDialog({ tenantId }: { tenantId: number }) {
   const [open, setOpen] = useState(false);
   const troncosFn = useServerFn(listTroncos);
   const { data: troncosData } = useQuery({
-    queryKey: ["troncos"],
-    queryFn: () => troncosFn(),
+    queryKey: ["troncos", tenantId],
+    queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
     enabled: open,
   });
 
@@ -230,10 +257,10 @@ function NewRamalDialog() {
   });
 
   const mut = useMutation({
-    mutationFn: () => create({ data: form }),
+    mutationFn: () => create({ data: { ...form, tenant_id: tenantId } }),
     onSuccess: () => {
       toast.success("Ramal criado");
-      queryClient.invalidateQueries({ queryKey: ["ramais"] });
+      queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
       setOpen(false);
       setForm({
         nome: "", ramal: "", senha: "", tronco: "", ddd: "", callerid: "",
