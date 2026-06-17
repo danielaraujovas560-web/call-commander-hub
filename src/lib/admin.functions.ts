@@ -184,3 +184,53 @@ export const removeTenantLink = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ---------- UPDATE USER (email / password / nome / role) ----------
+const updateSchema = z.object({
+  user_id: z.string().uuid(),
+  email: z.string().email().max(255).optional(),
+  password: z.string().min(8).max(72).optional(),
+  nome: z.string().min(1).max(120).optional(),
+  role: z.enum(["admin", "cliente"]).optional(),
+});
+
+export const updateUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => updateSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const authPatch: { email?: string; password?: string; user_metadata?: any } = {};
+    if (data.email) authPatch.email = data.email;
+    if (data.password) authPatch.password = data.password;
+    if (data.nome) authPatch.user_metadata = { nome: data.nome };
+
+    if (Object.keys(authPatch).length > 0) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        data.user_id,
+        authPatch,
+      );
+      if (error) throw new Error(error.message);
+    }
+
+    if (data.nome || data.email) {
+      const profilePatch: { nome?: string; email?: string } = {};
+      if (data.nome) profilePatch.nome = data.nome;
+      if (data.email) profilePatch.email = data.email;
+      await supabaseAdmin
+        .from("profiles")
+        .update(profilePatch)
+        .eq("id", data.user_id);
+    }
+
+    if (data.role) {
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: data.user_id, role: data.role });
+      if (error) throw new Error(error.message);
+    }
+
+    return { ok: true };
+  });
