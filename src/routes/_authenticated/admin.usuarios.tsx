@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import {
   listUsers,
   createUser,
+  updateUser,
   deleteUser,
   setRole,
   addTenantLink,
   removeTenantLink,
 } from "@/lib/admin.functions";
-import { AppShell } from "@/components/app-shell";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,27 +41,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trash2, Plus, ShieldCheck, UserPlus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2, Plus, Pencil, UserPlus, ShieldCheck, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
   head: () => ({ meta: [{ title: "Administração — Usuários" }] }),
   component: Page,
 });
 
+type AdminUser = {
+  id: string;
+  email: string | undefined;
+  nome: string | null;
+  role: "admin" | "cliente";
+  tenants: { tenant_id: number; label: string | null; is_default: boolean }[];
+};
+
 function Page() {
   const { isAdmin, isLoading } = useIsAdmin();
-  if (isLoading) return <AppShell><p>Carregando…</p></AppShell>;
+  if (isLoading) return <p>Carregando…</p>;
   if (!isAdmin)
-    return (
-      <AppShell>
-        <p className="text-destructive">Acesso restrito a administradores.</p>
-      </AppShell>
-    );
-  return (
-    <AppShell>
-      <UsersAdmin />
-    </AppShell>
-  );
+    return <p className="text-destructive">Acesso restrito a administradores.</p>;
+  return <UsersAdmin />;
 }
 
 function UsersAdmin() {
@@ -72,60 +73,102 @@ function UsersAdmin() {
     queryFn: () => fetchUsers({}),
   });
 
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-users"] });
+  const users: AdminUser[] = data?.users ?? [];
+  const clientes = users.filter((u) => u.role === "cliente");
+  const admins = users.filter((u) => u.role === "admin");
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Usuários</h1>
+          <h1 className="text-2xl font-bold">Administração</h1>
           <p className="text-muted-foreground">
-            Crie usuários, ajuste perfis e vincule tenants do PABX.
+            Gerencie usuários clientes e administradores do painel.
           </p>
         </div>
-        <NewUserDialog onDone={() => qc.invalidateQueries({ queryKey: ["admin-users"] })} />
+        <NewUserDialog onDone={invalidate} />
       </div>
 
       {isLoading ? (
         <p>Carregando…</p>
       ) : (
-        <div className="rounded-md border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Perfil</TableHead>
-                <TableHead>Tenants</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.users.map((u) => (
-                <UserRow
-                  key={u.id}
-                  user={u}
-                  onChange={() => qc.invalidateQueries({ queryKey: ["admin-users"] })}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <Tabs defaultValue="clientes" className="w-full">
+          <TabsList>
+            <TabsTrigger value="clientes" className="gap-2">
+              <Users className="h-4 w-4" />
+              Usuários ({clientes.length})
+            </TabsTrigger>
+            <TabsTrigger value="admins" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Administradores ({admins.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="clientes">
+            <UsersTable users={clientes} showTenants onChange={invalidate} />
+          </TabsContent>
+          <TabsContent value="admins">
+            <UsersTable users={admins} showTenants={false} onChange={invalidate} />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
 }
 
-type UserRowProps = {
-  user: {
-    id: string;
-    email: string | undefined;
-    nome: string | null;
-    role: "admin" | "cliente";
-    tenants: { tenant_id: number; label: string | null; is_default: boolean }[];
-  };
+function UsersTable({
+  users,
+  showTenants,
+  onChange,
+}: {
+  users: AdminUser[];
+  showTenants: boolean;
   onChange: () => void;
-};
+}) {
+  if (users.length === 0) {
+    return (
+      <div className="rounded-md border bg-card p-6 text-sm text-muted-foreground">
+        Nenhum usuário neste grupo.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-md border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Nome</TableHead>
+            <TableHead>Perfil</TableHead>
+            {showTenants && <TableHead>Tenants</TableHead>}
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {users.map((u) => (
+            <UserRow
+              key={u.id}
+              user={u}
+              showTenants={showTenants}
+              onChange={onChange}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
-function UserRow({ user, onChange }: UserRowProps) {
+function UserRow({
+  user,
+  showTenants,
+  onChange,
+}: {
+  user: AdminUser;
+  showTenants: boolean;
+  onChange: () => void;
+}) {
   const setRoleFn = useServerFn(setRole);
   const deleteFn = useServerFn(deleteUser);
 
@@ -170,21 +213,140 @@ function UserRow({ user, onChange }: UserRowProps) {
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell>
-        <TenantCell userId={user.id} tenants={user.tenants} onChange={onChange} />
-      </TableCell>
+      {showTenants && (
+        <TableCell>
+          <TenantCell userId={user.id} tenants={user.tenants} onChange={onChange} />
+        </TableCell>
+      )}
       <TableCell className="text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            if (confirm(`Remover ${user.email}?`)) delMut.mutate();
-          }}
-        >
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
+        <div className="flex items-center justify-end gap-1">
+          <EditUserDialog user={user} onDone={onChange} />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (confirm(`Remover ${user.email}?`)) delMut.mutate();
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+function EditUserDialog({
+  user,
+  onDone,
+}: {
+  user: AdminUser;
+  onDone: () => void;
+}) {
+  const fn = useServerFn(updateUser);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({
+    nome: user.nome ?? "",
+    email: user.email ?? "",
+    password: "",
+    role: user.role,
+  });
+
+  const mut = useMutation({
+    mutationFn: () => {
+      const patch: any = { user_id: user.id };
+      if (form.nome && form.nome !== user.nome) patch.nome = form.nome;
+      if (form.email && form.email !== user.email) patch.email = form.email;
+      if (form.password) patch.password = form.password;
+      if (form.role !== user.role) patch.role = form.role;
+      return fn({ data: patch });
+    },
+    onSuccess: () => {
+      toast.success("Usuário atualizado");
+      setForm({ ...form, password: "" });
+      setOpen(false);
+      onDone();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setForm({
+            nome: user.nome ?? "",
+            email: user.email ?? "",
+            password: "",
+            role: user.role,
+          });
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar usuário</DialogTitle>
+          <DialogDescription>
+            Altere nome, email, senha ou perfil. Deixe a senha em branco para mantê-la.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div>
+            <Label>Nome</Label>
+            <Input
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Nova senha (opcional)</Label>
+            <Input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="mín. 8 caracteres"
+            />
+          </div>
+          <div>
+            <Label>Perfil</Label>
+            <Select
+              value={form.role}
+              onValueChange={(v) =>
+                setForm({ ...form, role: v as "admin" | "cliente" })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cliente">cliente</SelectItem>
+                <SelectItem value="admin">admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button disabled={mut.isPending} onClick={() => mut.mutate()}>
+            Salvar alterações
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -327,8 +489,12 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
           password: form.password,
           nome: form.nome,
           role: form.role,
-          tenant_id: form.tenant_id ? Number(form.tenant_id) : undefined,
-          tenant_label: form.tenant_label || undefined,
+          tenant_id:
+            form.role === "cliente" && form.tenant_id
+              ? Number(form.tenant_id)
+              : undefined,
+          tenant_label:
+            form.role === "cliente" ? form.tenant_label || undefined : undefined,
         },
       }),
     onSuccess: () => {
@@ -359,6 +525,7 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
           <DialogTitle>Criar usuário</DialogTitle>
           <DialogDescription>
             O usuário receberá acesso imediato (email já confirmado).
+            Administradores têm acesso a todos os tenants automaticamente.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
@@ -401,25 +568,27 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Tenant ID (opcional)</Label>
-              <Input
-                type="number"
-                value={form.tenant_id}
-                onChange={(e) => setForm({ ...form, tenant_id: e.target.value })}
-                placeholder="ex: 7"
-              />
+          {form.role === "cliente" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Tenant ID</Label>
+                <Input
+                  type="number"
+                  value={form.tenant_id}
+                  onChange={(e) => setForm({ ...form, tenant_id: e.target.value })}
+                  placeholder="ex: 7"
+                />
+              </div>
+              <div>
+                <Label>Rótulo</Label>
+                <Input
+                  value={form.tenant_label}
+                  onChange={(e) => setForm({ ...form, tenant_label: e.target.value })}
+                  placeholder="Empresa X"
+                />
+              </div>
             </div>
-            <div>
-              <Label>Rótulo</Label>
-              <Input
-                value={form.tenant_label}
-                onChange={(e) => setForm({ ...form, tenant_label: e.target.value })}
-                placeholder="Empresa X"
-              />
-            </div>
-          </div>
+          )}
         </div>
         <DialogFooter>
           <Button
