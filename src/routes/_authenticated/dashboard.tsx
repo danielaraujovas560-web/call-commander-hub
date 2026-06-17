@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Server, BarChart3 } from "lucide-react";
+import { Building2, Server, BarChart3 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Painel PABX" }] }),
@@ -13,17 +13,17 @@ function Dashboard() {
       <div>
         <h1 className="text-2xl font-bold">Bem-vindo ao seu painel</h1>
         <p className="text-muted-foreground">
-          Gerencie ramais, troncos e relatórios do seu PABX virtual.
+          Gerencie clientes, ramais e troncos do seu PABX virtual.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Link to="/ramais">
+        <Link to="/clientes">
           <Card className="transition-shadow hover:shadow-md">
             <CardHeader>
-              <Users className="h-8 w-8 text-primary" />
-              <CardTitle className="mt-2">Ramais</CardTitle>
-              <CardDescription>Listar, criar e remover ramais SIP</CardDescription>
+              <Building2 className="h-8 w-8 text-primary" />
+              <CardTitle className="mt-2">Clientes</CardTitle>
+              <CardDescription>Cadastre clientes e acesse seus ramais</CardDescription>
             </CardHeader>
           </Card>
         </Link>
