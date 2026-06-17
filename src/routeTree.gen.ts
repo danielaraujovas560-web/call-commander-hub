@@ -13,8 +13,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedServidorRouteImport } from './routes/_authenticated/servidor'
-import { Route as AuthenticatedRamaisRouteImport } from './routes/_authenticated/ramais'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedClientesTenantIdRouteImport } from './routes/_authenticated/clientes.$tenantId'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
 
 const AuthRoute = AuthRouteImport.update({
@@ -36,16 +37,22 @@ const AuthenticatedServidorRoute = AuthenticatedServidorRouteImport.update({
   path: '/servidor',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedRamaisRoute = AuthenticatedRamaisRouteImport.update({
-  id: '/ramais',
-  path: '/ramais',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedClientesTenantIdRoute =
+  AuthenticatedClientesTenantIdRouteImport.update({
+    id: '/$tenantId',
+    path: '/$tenantId',
+    getParentRoute: () => AuthenticatedClientesRoute,
+  } as any)
 const AuthenticatedAdminUsuariosRoute =
   AuthenticatedAdminUsuariosRouteImport.update({
     id: '/admin/usuarios',
@@ -56,49 +63,61 @@ const AuthenticatedAdminUsuariosRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/clientes': typeof AuthenticatedClientesRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/ramais': typeof AuthenticatedRamaisRoute
   '/servidor': typeof AuthenticatedServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/clientes': typeof AuthenticatedClientesRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/ramais': typeof AuthenticatedRamaisRoute
   '/servidor': typeof AuthenticatedServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/clientes': typeof AuthenticatedClientesRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/ramais': typeof AuthenticatedRamaisRoute
   '/_authenticated/servidor': typeof AuthenticatedServidorRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/_authenticated/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/clientes'
     | '/dashboard'
-    | '/ramais'
     | '/servidor'
     | '/admin/usuarios'
+    | '/clientes/$tenantId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/ramais' | '/servidor' | '/admin/usuarios'
+  to:
+    | '/'
+    | '/auth'
+    | '/clientes'
+    | '/dashboard'
+    | '/servidor'
+    | '/admin/usuarios'
+    | '/clientes/$tenantId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
-    | '/_authenticated/ramais'
     | '/_authenticated/servidor'
     | '/_authenticated/admin/usuarios'
+    | '/_authenticated/clientes/$tenantId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -137,19 +156,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServidorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/ramais': {
-      id: '/_authenticated/ramais'
-      path: '/ramais'
-      fullPath: '/ramais'
-      preLoaderRoute: typeof AuthenticatedRamaisRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/clientes': {
+      id: '/_authenticated/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof AuthenticatedClientesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/clientes/$tenantId': {
+      id: '/_authenticated/clientes/$tenantId'
+      path: '/$tenantId'
+      fullPath: '/clientes/$tenantId'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdRouteImport
+      parentRoute: typeof AuthenticatedClientesRoute
     }
     '/_authenticated/admin/usuarios': {
       id: '/_authenticated/admin/usuarios'
@@ -161,16 +187,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedClientesRouteChildren {
+  AuthenticatedClientesTenantIdRoute: typeof AuthenticatedClientesTenantIdRoute
+}
+
+const AuthenticatedClientesRouteChildren: AuthenticatedClientesRouteChildren = {
+  AuthenticatedClientesTenantIdRoute: AuthenticatedClientesTenantIdRoute,
+}
+
+const AuthenticatedClientesRouteWithChildren =
+  AuthenticatedClientesRoute._addFileChildren(
+    AuthenticatedClientesRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedClientesRoute: typeof AuthenticatedClientesRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedRamaisRoute: typeof AuthenticatedRamaisRoute
   AuthenticatedServidorRoute: typeof AuthenticatedServidorRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedClientesRoute: AuthenticatedClientesRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedRamaisRoute: AuthenticatedRamaisRoute,
   AuthenticatedServidorRoute: AuthenticatedServidorRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
 }
