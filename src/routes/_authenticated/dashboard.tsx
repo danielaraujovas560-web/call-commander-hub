@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Building2, Server, BarChart3 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Building2, Server } from "lucide-react";
+import { useIsAdmin } from "@/hooks/use-role";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Painel PABX" }] }),
@@ -8,12 +9,13 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
+  const { isAdmin } = useIsAdmin();
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Bem-vindo ao seu painel</h1>
         <p className="text-muted-foreground">
-          Gerencie clientes, ramais e troncos do seu PABX virtual.
+          Gerencie clientes e ramais do seu PABX virtual.
         </p>
       </div>
 
@@ -27,23 +29,17 @@ function Dashboard() {
             </CardHeader>
           </Card>
         </Link>
-        <Link to="/servidor">
-          <Card className="transition-shadow hover:shadow-md">
-            <CardHeader>
-              <Server className="h-8 w-8 text-primary" />
-              <CardTitle className="mt-2">Servidor</CardTitle>
-              <CardDescription>Status do agente e dados do servidor</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        <Card className="opacity-60">
-          <CardHeader>
-            <BarChart3 className="h-8 w-8 text-muted-foreground" />
-            <CardTitle className="mt-2">Relatórios</CardTitle>
-            <CardDescription>DDD, filas, URA, pesquisa (em breve)</CardDescription>
-          </CardHeader>
-          <CardContent />
-        </Card>
+        {isAdmin && (
+          <Link to="/servidor">
+            <Card className="transition-shadow hover:shadow-md">
+              <CardHeader>
+                <Server className="h-8 w-8 text-primary" />
+                <CardTitle className="mt-2">Servidor</CardTitle>
+                <CardDescription>Status do agente e dados do servidor</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        )}
       </div>
     </div>
   );

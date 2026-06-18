@@ -4,9 +4,6 @@ import {
   PhoneCall,
   Building2,
   Server,
-  BarChart3,
-  Cable,
-  Music,
   LogOut,
   LayoutDashboard,
   ShieldCheck,
@@ -14,7 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/use-role";
@@ -23,23 +20,17 @@ interface NavItem {
   to: string;
   label: string;
   icon: typeof Users;
-  disabled?: boolean;
+  adminOnly?: boolean;
 }
 
 const nav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/clientes", label: "Clientes", icon: Building2 },
-  { to: "/servidor", label: "Servidor", icon: Server },
+  { to: "/servidor", label: "Servidor", icon: Server, adminOnly: true },
 ];
 
 const adminNav: NavItem[] = [
   { to: "/admin/usuarios", label: "Usuários", icon: ShieldCheck },
-];
-
-const soon: NavItem[] = [
-  { to: "#", label: "Relatórios", icon: BarChart3, disabled: true },
-  { to: "#", label: "Troncos", icon: Cable, disabled: true },
-  { to: "#", label: "Áudios", icon: Music, disabled: true },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -55,6 +46,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.navigate({ to: "/auth", replace: true });
   }
 
+  const visibleNav = nav.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex min-h-screen bg-muted/20">
@@ -67,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="flex-1 space-y-1 p-3">
-            {nav.map((item) => {
+            {visibleNav.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.to || pathname.startsWith(item.to + "/");
               return (
@@ -113,26 +106,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 })}
               </div>
             )}
-
-            <div className="pt-4">
-              <p className="px-3 pb-1 text-xs uppercase tracking-wide text-muted-foreground">
-                Em breve
-              </p>
-              {soon.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Tooltip key={item.label}>
-                    <TooltipTrigger asChild>
-                      <div className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/60">
-                        <Icon className="h-4 w-4" />
-                        {item.label}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">Disponível em breve</TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </div>
           </nav>
 
           <div className="border-t p-3">
