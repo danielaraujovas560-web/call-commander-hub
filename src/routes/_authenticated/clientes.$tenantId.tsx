@@ -3,7 +3,22 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Plus, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Plus,
+  RefreshCw,
+  Trash2,
+  PhoneCall,
+  ListOrdered,
+  Workflow,
+  Music,
+  BarChart3,
+  PhoneIncoming,
+  PhoneOutgoing,
+  Star,
+} from "lucide-react";
 import {
   listRamais,
   listTroncos,
@@ -52,13 +67,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId")({
-  head: () => ({ meta: [{ title: "Ramais — Cliente" }] }),
-  component: ClienteRamaisPage,
+  head: () => ({ meta: [{ title: "Cliente — Painel PABX" }] }),
+  component: ClienteDetailPage,
 });
 
-function ClienteRamaisPage() {
+function ClienteDetailPage() {
   const { tenantId: tenantParam } = Route.useParams();
   const tenantId = Number(tenantParam);
 
@@ -69,6 +85,165 @@ function ClienteRamaisPage() {
   });
   const cliente = clienteData?.cliente;
 
+  return (
+    <div className="space-y-4">
+      <Button asChild variant="ghost" size="sm" className="-ml-2">
+        <Link to="/clientes">
+          <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para clientes
+        </Link>
+      </Button>
+
+      <div>
+        <h1 className="text-2xl font-bold">
+          {cliente?.razao_social ?? `Tenant #${tenantId}`}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Tenant #{tenantId}
+          {cliente?.cnpj ? ` · CNPJ ${cliente.cnpj}` : ""}
+          {cliente ? ` · até ${cliente.quantidade_ramais} ramais` : ""}
+        </p>
+      </div>
+
+      <Tabs defaultValue="ramais" className="w-full">
+        <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="ramais" className="gap-2">
+            <PhoneCall className="h-4 w-4" /> Ramais
+          </TabsTrigger>
+          <TabsTrigger value="filas" className="gap-2">
+            <ListOrdered className="h-4 w-4" /> Filas
+          </TabsTrigger>
+          <TabsTrigger value="uras" className="gap-2">
+            <Workflow className="h-4 w-4" /> URAs
+          </TabsTrigger>
+          <TabsTrigger value="audios" className="gap-2">
+            <Music className="h-4 w-4" /> Áudios
+          </TabsTrigger>
+          <TabsTrigger value="relatorios" className="gap-2">
+            <BarChart3 className="h-4 w-4" /> Relatórios
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ramais" className="mt-4">
+          <RamaisTab tenantId={tenantId} max={cliente?.quantidade_ramais ?? 0} />
+        </TabsContent>
+        <TabsContent value="filas" className="mt-4">
+          <ComingSoon
+            icon={<ListOrdered className="h-10 w-10 text-muted-foreground" />}
+            title="Filas de atendimento"
+            description="Crie e gerencie filas, estratégias de distribuição e agentes."
+          />
+        </TabsContent>
+        <TabsContent value="uras" className="mt-4">
+          <ComingSoon
+            icon={<Workflow className="h-10 w-10 text-muted-foreground" />}
+            title="URAs (menus de atendimento)"
+            description="Monte fluxos de atendimento com opções, horários e transferências."
+          />
+        </TabsContent>
+        <TabsContent value="audios" className="mt-4">
+          <ComingSoon
+            icon={<Music className="h-10 w-10 text-muted-foreground" />}
+            title="Áudios"
+            description="Faça upload de prompts, saudações e mensagens da URA."
+          />
+        </TabsContent>
+        <TabsContent value="relatorios" className="mt-4">
+          <RelatoriosTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ---------- Coming-soon placeholder ----------
+function ComingSoon({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-md border bg-card p-10 text-center">
+      <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold">{title}</h3>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+        {description}
+      </p>
+      <Badge variant="secondary" className="mt-3">
+        Em breve
+      </Badge>
+    </div>
+  );
+}
+
+// ---------- Relatórios (sub-abas) ----------
+function RelatoriosTab() {
+  return (
+    <Tabs defaultValue="entrada" className="w-full">
+      <TabsList className="flex flex-wrap h-auto">
+        <TabsTrigger value="entrada" className="gap-2">
+          <PhoneIncoming className="h-4 w-4" /> Entrada
+        </TabsTrigger>
+        <TabsTrigger value="saida" className="gap-2">
+          <PhoneOutgoing className="h-4 w-4" /> Saída
+        </TabsTrigger>
+        <TabsTrigger value="filas" className="gap-2">
+          <ListOrdered className="h-4 w-4" /> Filas
+        </TabsTrigger>
+        <TabsTrigger value="ramais" className="gap-2">
+          <PhoneCall className="h-4 w-4" /> Ramais
+        </TabsTrigger>
+        <TabsTrigger value="satisfacao" className="gap-2">
+          <Star className="h-4 w-4" /> Satisfação
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="entrada" className="mt-4">
+        <ComingSoon
+          icon={<PhoneIncoming className="h-10 w-10 text-muted-foreground" />}
+          title="Relatório de chamadas de entrada"
+          description="Volume, duração e taxa de atendimento das chamadas recebidas."
+        />
+      </TabsContent>
+      <TabsContent value="saida" className="mt-4">
+        <ComingSoon
+          icon={<PhoneOutgoing className="h-10 w-10 text-muted-foreground" />}
+          title="Relatório de chamadas de saída"
+          description="Chamadas originadas por ramal, custo e destino."
+        />
+      </TabsContent>
+      <TabsContent value="filas" className="mt-4">
+        <ComingSoon
+          icon={<ListOrdered className="h-10 w-10 text-muted-foreground" />}
+          title="Relatório das filas"
+          description="SLA, tempo médio de espera e abandono por fila."
+        />
+      </TabsContent>
+      <TabsContent value="ramais" className="mt-4">
+        <ComingSoon
+          icon={<PhoneCall className="h-10 w-10 text-muted-foreground" />}
+          title="Relatório dos ramais"
+          description="Produtividade, login/logout e estatísticas por ramal."
+        />
+      </TabsContent>
+      <TabsContent value="satisfacao" className="mt-4">
+        <ComingSoon
+          icon={<Star className="h-10 w-10 text-muted-foreground" />}
+          title="Pesquisa de satisfação"
+          description="Notas e comentários das pesquisas pós-atendimento."
+        />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+// ---------- Ramais (functional tab) ----------
+function RamaisTab({ tenantId, max }: { tenantId: number; max: number }) {
   const list = useServerFn(listRamais);
   const queryClient = useQueryClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
@@ -86,27 +261,15 @@ function ClienteRamaisPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return (
-    <div className="space-y-4">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link to="/clientes">
-          <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para clientes
-        </Link>
-      </Button>
+  const count = data?.ramais.length ?? 0;
+  const atLimit = max > 0 && count >= max;
 
+  return (
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {cliente?.razao_social ?? `Tenant #${tenantId}`}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Ramais SIP do cliente
-            {cliente?.cnpj ? ` — CNPJ ${cliente.cnpj}` : ""}
-            {cliente
-              ? ` · ${data?.ramais.length ?? 0} / ${cliente.quantidade_ramais} ramais`
-              : ""}
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {count} {max > 0 ? `/ ${max}` : ""} ramais cadastrados
+        </p>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -116,9 +279,15 @@ function ClienteRamaisPage() {
           >
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <NewRamalDialog tenantId={tenantId} />
+          <NewRamalDialog tenantId={tenantId} disabled={atLimit} />
         </div>
       </div>
+
+      {atLimit && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700">
+          Limite de {max} ramais atingido para este cliente.
+        </div>
+      )}
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
@@ -231,7 +400,7 @@ function genPassword() {
   return out;
 }
 
-function NewRamalDialog({ tenantId }: { tenantId: number }) {
+function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const troncosFn = useServerFn(listTroncos);
   const { data: troncosData } = useQuery({
@@ -273,7 +442,7 @@ function NewRamalDialog({ tenantId }: { tenantId: number }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button disabled={disabled}>
           <Plus className="mr-2 h-4 w-4" />
           Adicionar ramal
         </Button>
