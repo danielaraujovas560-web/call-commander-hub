@@ -60,8 +60,8 @@ function ClientesPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {isAdmin
-              ? "Cadastre clientes (tenants do PABX) e acesse os ramais de cada um."
-              : "Sua conta de cliente."}
+              ? "Cadastre clientes (tenants do PABX). Os logins de acesso são criados em Administração → Usuários e vinculados pelo Tenant ID."
+              : "Seus clientes."}
           </p>
         </div>
         {isAdmin && <NewClienteDialog onDone={invalidate} />}
@@ -78,10 +78,9 @@ function ClientesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Razão social</TableHead>
-              <TableHead>CNPJ</TableHead>
+              <TableHead>CNPJ/CPF</TableHead>
               <TableHead>Tenant</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Login</TableHead>
               <TableHead className="text-right">Ramais</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -90,7 +89,7 @@ function ClientesPage() {
             {isLoading &&
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 6 }).map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -101,7 +100,7 @@ function ClientesPage() {
             {!isLoading && clientes.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="text-center text-muted-foreground py-10"
                 >
                   Nenhum cliente cadastrado ainda.
@@ -115,7 +114,6 @@ function ClientesPage() {
                 <TableCell className="font-mono text-xs">{c.cnpj}</TableCell>
                 <TableCell>#{c.tenant_id}</TableCell>
                 <TableCell className="font-mono text-xs">{c.email}</TableCell>
-                <TableCell>{c.login ?? "—"}</TableCell>
                 <TableCell className="text-right">{c.quantidade_ramais}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -166,12 +164,7 @@ function DeleteButton({
       variant="ghost"
       size="icon"
       onClick={() => {
-        if (
-          confirm(
-            `Remover cliente "${cliente.razao_social}"? O login de acesso também será excluído.`,
-          )
-        )
-          mut.mutate();
+        if (confirm(`Remover cliente "${cliente.razao_social}"?`)) mut.mutate();
       }}
     >
       <Trash2 className="h-4 w-4 text-destructive" />
@@ -186,8 +179,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
     cnpj: "",
     razao_social: "",
     email: "",
-    senha: "",
-    login: "",
     tenant_id: "",
     quantidade_ramais: "0",
   });
@@ -199,8 +190,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
           cnpj: form.cnpj,
           razao_social: form.razao_social,
           email: form.email,
-          senha: form.senha,
-          login: form.login || undefined,
           tenant_id: Number(form.tenant_id),
           quantidade_ramais: Number(form.quantidade_ramais) || 0,
         },
@@ -211,8 +200,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
         cnpj: "",
         razao_social: "",
         email: "",
-        senha: "",
-        login: "",
         tenant_id: "",
         quantidade_ramais: "0",
       });
@@ -226,7 +213,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
     !form.cnpj ||
     !form.razao_social ||
     !form.email ||
-    !form.senha ||
     !form.tenant_id ||
     mut.isPending;
 
@@ -241,19 +227,21 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
         <DialogHeader>
           <DialogTitle>Cadastrar cliente</DialogTitle>
           <DialogDescription>
-            Cria a empresa e um login de acesso ao painel (vinculado ao tenant do PABX).
+            Cadastra a empresa e o tenant do PABX. O login de acesso é criado
+            separadamente em <strong>Administração → Usuários</strong> e
+            vinculado por este Tenant ID.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <Label>Razão social</Label>
+            <Label>Nome / Razão social</Label>
             <Input
               value={form.razao_social}
               onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
             />
           </div>
           <div>
-            <Label>CNPJ</Label>
+            <Label>CPF / CNPJ</Label>
             <Input
               value={form.cnpj}
               onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
@@ -269,29 +257,12 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
               placeholder="ex: 7"
             />
           </div>
-          <div>
-            <Label>Email (login)</Label>
+          <div className="col-span-2">
+            <Label>Email</Label>
             <Input
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Senha</Label>
-            <Input
-              type="password"
-              value={form.senha}
-              onChange={(e) => setForm({ ...form, senha: e.target.value })}
-              placeholder="mín. 8 caracteres"
-            />
-          </div>
-          <div>
-            <Label>Login (opcional)</Label>
-            <Input
-              value={form.login}
-              onChange={(e) => setForm({ ...form, login: e.target.value })}
-              placeholder="nome de usuário"
             />
           </div>
           <div>
@@ -328,8 +299,6 @@ function EditClienteDialog({
     cnpj: cliente.cnpj,
     razao_social: cliente.razao_social,
     email: cliente.email,
-    senha: "",
-    login: cliente.login ?? "",
     quantidade_ramais: String(cliente.quantidade_ramais),
   });
 
@@ -340,15 +309,12 @@ function EditClienteDialog({
       if (form.razao_social !== cliente.razao_social)
         patch.razao_social = form.razao_social;
       if (form.email !== cliente.email) patch.email = form.email;
-      if (form.senha) patch.senha = form.senha;
-      if ((cliente.login ?? "") !== form.login) patch.login = form.login || null;
       if (Number(form.quantidade_ramais) !== cliente.quantidade_ramais)
         patch.quantidade_ramais = Number(form.quantidade_ramais);
       return fn({ data: patch });
     },
     onSuccess: () => {
       toast.success("Cliente atualizado");
-      setForm({ ...form, senha: "" });
       setOpen(false);
       onDone();
     },
@@ -365,8 +331,6 @@ function EditClienteDialog({
             cnpj: cliente.cnpj,
             razao_social: cliente.razao_social,
             email: cliente.email,
-            senha: "",
-            login: cliente.login ?? "",
             quantidade_ramais: String(cliente.quantidade_ramais),
           });
         }
@@ -380,20 +344,18 @@ function EditClienteDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Editar cliente</DialogTitle>
-          <DialogDescription>
-            Tenant #{cliente.tenant_id}. Deixe a senha em branco para mantê-la.
-          </DialogDescription>
+          <DialogDescription>Tenant #{cliente.tenant_id}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <Label>Razão social</Label>
+            <Label>Nome / Razão social</Label>
             <Input
               value={form.razao_social}
               onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
             />
           </div>
           <div>
-            <Label>CNPJ</Label>
+            <Label>CPF / CNPJ</Label>
             <Input
               value={form.cnpj}
               onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
@@ -409,28 +371,12 @@ function EditClienteDialog({
               }
             />
           </div>
-          <div>
+          <div className="col-span-2">
             <Label>Email</Label>
             <Input
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Nova senha (opcional)</Label>
-            <Input
-              type="password"
-              value={form.senha}
-              onChange={(e) => setForm({ ...form, senha: e.target.value })}
-              placeholder="mín. 8 caracteres"
-            />
-          </div>
-          <div className="col-span-2">
-            <Label>Login</Label>
-            <Input
-              value={form.login}
-              onChange={(e) => setForm({ ...form, login: e.target.value })}
             />
           </div>
         </div>

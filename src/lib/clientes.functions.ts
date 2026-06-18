@@ -28,7 +28,7 @@ export type Cliente = {
 export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    // Admins see all; clientes see only their own (RLS-enforced).
+    // Admins see all; clientes see only tenants they are linked to (via RLS).
     const { data, error } = await context.supabase
       .from("clientes")
       .select("*")
@@ -38,12 +38,12 @@ export const listClientes = createServerFn({ method: "GET" })
   });
 
 // ---------- CREATE ----------
+// Clientes são criados sem usuário. O admin cria o usuário separadamente
+// em "Administração → Usuários" e vincula ao tenant deste cliente.
 const createSchema = z.object({
   cnpj: z.string().trim().min(11).max(20),
   razao_social: z.string().trim().min(1).max(180),
   email: z.string().trim().email().max(255),
-  senha: z.string().min(8).max(72),
-  login: z.string().trim().min(1).max(80).optional(),
   tenant_id: z.number().int().positive(),
   quantidade_ramais: z.number().int().min(0).max(10000).default(0),
 });
@@ -55,48 +55,21 @@ export const createCliente = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // 1. Create Supabase auth user (handle_new_user trigger assigns role=cliente)
-    const { data: created, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.senha,
-      email_confirm: true,
-      user_metadata: { nome: data.razao_social },
-    });
-    if (authErr) throw new Error(authErr.message);
-    const uid = created.user!.id;
-
-    try {
-      // 2. Link user to tenant
-      const { error: linkErr } = await supabaseAdmin.from("tenants_link").insert({
-        user_id: uid,
+    const { data: row, error: insErr } = await supabaseAdmin
+      .from("clientes")
+      .insert({
+        user_id: null,
         tenant_id: data.tenant_id,
-        label: data.razao_social,
-        is_default: true,
-      });
-      if (linkErr) throw new Error(linkErr.message);
-
-      // 3. Insert cliente row
-      const { data: row, error: insErr } = await supabaseAdmin
-        .from("clientes")
-        .insert({
-          user_id: uid,
-          tenant_id: data.tenant_id,
-          cnpj: data.cnpj,
-          razao_social: data.razao_social,
-          email: data.email,
-          login: data.login ?? null,
-          quantidade_ramais: data.quantidade_ramais,
-        })
-        .select()
-        .single();
-      if (insErr) throw new Error(insErr.message);
-
-      return { ok: true, cliente: row };
-    } catch (e) {
-      // Roll back the auth user so the form can be retried
-      await supabaseAdmin.auth.admin.deleteUser(uid).catch(() => {});
-      throw e;
-    }
+        cnpj: data.cnpj,
+        razao_social: data.razao_social,
+        email: data.email,
+        login: null,
+        quantidade_ramais: data.quantidade_ramais,
+      })
+      .select()
+      .single();
+    if (insErr) throw new Error(insErr.message);
+    return { ok: true, cliente: row };
   });
 
 // ---------- UPDATE ----------
@@ -105,8 +78,6 @@ const updateSchema = z.object({
   cnpj: z.string().trim().min(11).max(20).optional(),
   razao_social: z.string().trim().min(1).max(180).optional(),
   email: z.string().trim().email().max(255).optional(),
-  senha: z.string().min(8).max(72).optional(),
-  login: z.string().trim().min(1).max(80).nullable().optional(),
   quantidade_ramais: z.number().int().min(0).max(10000).optional(),
 });
 
@@ -117,39 +88,10 @@ export const updateCliente = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: existing, error: getErr } = await supabaseAdmin
-      .from("clientes")
-      .select("user_id")
-      .eq("id", data.id)
-      .single();
-    if (getErr) throw new Error(getErr.message);
-
-    // Auth side
-    if (existing.user_id && (data.email || data.senha || data.razao_social)) {
-      const patch: any = {};
-      if (data.email) patch.email = data.email;
-      if (data.senha) patch.password = data.senha;
-      if (data.razao_social) patch.user_metadata = { nome: data.razao_social };
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(
-        existing.user_id,
-        patch,
-      );
-      if (error) throw new Error(error.message);
-
-      if (data.razao_social || data.email) {
-        const pp: any = {};
-        if (data.razao_social) pp.nome = data.razao_social;
-        if (data.email) pp.email = data.email;
-        await supabaseAdmin.from("profiles").update(pp).eq("id", existing.user_id);
-      }
-    }
-
-    // Cliente row
     const rowPatch: any = {};
     if (data.cnpj !== undefined) rowPatch.cnpj = data.cnpj;
     if (data.razao_social !== undefined) rowPatch.razao_social = data.razao_social;
     if (data.email !== undefined) rowPatch.email = data.email;
-    if (data.login !== undefined) rowPatch.login = data.login;
     if (data.quantidade_ramais !== undefined)
       rowPatch.quantidade_ramais = data.quantidade_ramais;
 
@@ -160,7 +102,6 @@ export const updateCliente = createServerFn({ method: "POST" })
         .eq("id", data.id);
       if (error) throw new Error(error.message);
     }
-
     return { ok: true };
   });
 
@@ -171,18 +112,8 @@ export const deleteCliente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: existing, error: getErr } = await supabaseAdmin
-      .from("clientes")
-      .select("user_id")
-      .eq("id", data.id)
-      .single();
-    if (getErr) throw new Error(getErr.message);
-
-    await supabaseAdmin.from("clientes").delete().eq("id", data.id);
-    if (existing.user_id) {
-      await supabaseAdmin.auth.admin.deleteUser(existing.user_id).catch(() => {});
-    }
+    const { error } = await supabaseAdmin.from("clientes").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
