@@ -79,30 +79,59 @@ function ClienteDetailPage() {
   const tenantId = Number(tenantParam);
 
   const clienteFn = useServerFn(getClienteByTenant);
-  const { data: clienteData } = useQuery({
+  const {
+    data: clienteData,
+    isLoading: clienteLoading,
+    error: clienteError,
+  } = useQuery({
     queryKey: ["cliente", tenantId],
     queryFn: () => clienteFn({ data: { tenant_id: tenantId } }),
+    retry: false,
   });
   const cliente = clienteData?.cliente;
 
   return (
     <div className="space-y-4">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link to="/clientes">
-          <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para clientes
-        </Link>
-      </Button>
+      <div className="flex items-start justify-between gap-3">
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link to="/clientes">
+            <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para clientes
+          </Link>
+        </Button>
+        <div className="flex flex-col items-end gap-1 text-right">
+          <Badge variant="outline" className="font-mono text-xs">
+            Tenant #{tenantId}
+          </Badge>
+          <span className="text-sm font-medium">
+            {clienteLoading
+              ? "Carregando cliente…"
+              : cliente?.razao_social ?? "Cliente não cadastrado"}
+          </span>
+          {cliente?.cnpj && (
+            <span className="text-[11px] text-muted-foreground font-mono">
+              {cliente.cnpj}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {clienteError && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          Não foi possível carregar o cliente: {(clienteError as Error).message}
+        </div>
+      )}
 
       <div>
         <h1 className="text-2xl font-bold">
           {cliente?.razao_social ?? `Tenant #${tenantId}`}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Tenant #{tenantId}
+          ID/Tenant: <span className="font-mono">{tenantId}</span>
           {cliente?.cnpj ? ` · CNPJ ${cliente.cnpj}` : ""}
           {cliente ? ` · até ${cliente.quantidade_ramais} ramais` : ""}
         </p>
       </div>
+
 
       <Tabs defaultValue="ramais" className="w-full">
         <TabsList className="flex flex-wrap h-auto">
