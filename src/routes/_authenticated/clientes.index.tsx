@@ -34,7 +34,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, LogIn, Pencil, Plus, Trash2 } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/clientes")({
+export const Route = createFileRoute("/_authenticated/clientes/")({
   head: () => ({ meta: [{ title: "Clientes — Painel PABX" }] }),
   component: ClientesPage,
 });
