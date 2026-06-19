@@ -150,15 +150,16 @@ function ClienteSidebar({
   });
   const cliente = data?.cliente;
 
-  const base = `/clientes/${tenantId}`;
-  const items: NavItem[] = [
-    { to: `${base}`, label: "Visão geral", icon: LayoutDashboard, exact: true },
-    { to: `${base}/ramais`, label: "Ramais", icon: PhoneCall },
-    { to: `${base}/filas`, label: "Filas", icon: ListOrdered },
-    { to: `${base}/uras`, label: "URAs", icon: Workflow },
-    { to: `${base}/audios`, label: "Áudios", icon: Music },
-    { to: `${base}/relatorios`, label: "Relatórios", icon: BarChart3 },
-  ];
+  const items = [
+    { to: "/clientes/$tenantId", label: "Visão geral", icon: LayoutDashboard, exact: true },
+    { to: "/clientes/$tenantId/ramais", label: "Ramais", icon: PhoneCall },
+    { to: "/clientes/$tenantId/filas", label: "Filas", icon: ListOrdered },
+    { to: "/clientes/$tenantId/uras", label: "URAs", icon: Workflow },
+    { to: "/clientes/$tenantId/audios", label: "Áudios", icon: Music },
+    { to: "/clientes/$tenantId/relatorios", label: "Relatórios", icon: BarChart3 },
+  ] as const;
+  const params = { tenantId: String(tenantId) };
+
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r bg-card">
