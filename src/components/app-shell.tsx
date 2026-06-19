@@ -179,10 +179,31 @@ function ClienteSidebar({
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
-        {items.map((item) => (
-          <NavLink key={item.to} item={item} pathname={pathname} useHref />
-        ))}
+        {items.map((item) => {
+          const Icon = item.icon;
+          const resolved = item.to.replace("$tenantId", String(tenantId));
+          const active = item.exact
+            ? pathname === resolved
+            : pathname === resolved || pathname.startsWith(resolved + "/");
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              params={params}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground/70 hover:bg-accent hover:text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
+
 
       <div className="border-t p-3">
         <Button variant="ghost" className="w-full justify-start" onClick={onLogout}>
