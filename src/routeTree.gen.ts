@@ -17,6 +17,8 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes.index'
 import { Route as AuthenticatedClientesTenantIdRouteImport } from './routes/_authenticated/clientes.$tenantId'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
+import { Route as AuthenticatedClientesTenantIdIndexRouteImport } from './routes/_authenticated/clientes.$tenantId.index'
+import { Route as AuthenticatedClientesTenantIdRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.ramais'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -60,6 +62,18 @@ const AuthenticatedAdminUsuariosRoute =
     path: '/admin/usuarios',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedClientesTenantIdIndexRoute =
+  AuthenticatedClientesTenantIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+  } as any)
+const AuthenticatedClientesTenantIdRamaisRoute =
+  AuthenticatedClientesTenantIdRamaisRouteImport.update({
+    id: '/ramais',
+    path: '/ramais',
+    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,8 +81,10 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/servidor': typeof AuthenticatedServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
-  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRoute
+  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
   '/clientes/': typeof AuthenticatedClientesIndexRoute
+  '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
+  '/clientes/$tenantId/': typeof AuthenticatedClientesTenantIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -76,8 +92,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/servidor': typeof AuthenticatedServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
-  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
+  '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
+  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,8 +104,10 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/servidor': typeof AuthenticatedServidorRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
-  '/_authenticated/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRoute
+  '/_authenticated/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
+  '/_authenticated/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
+  '/_authenticated/clientes/$tenantId/': typeof AuthenticatedClientesTenantIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,6 +119,8 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/clientes/$tenantId'
     | '/clientes/'
+    | '/clientes/$tenantId/ramais'
+    | '/clientes/$tenantId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -107,8 +128,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/servidor'
     | '/admin/usuarios'
-    | '/clientes/$tenantId'
     | '/clientes'
+    | '/clientes/$tenantId/ramais'
+    | '/clientes/$tenantId'
   id:
     | '__root__'
     | '/'
@@ -119,6 +141,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/clientes/$tenantId'
     | '/_authenticated/clientes/'
+    | '/_authenticated/clientes/$tenantId/ramais'
+    | '/_authenticated/clientes/$tenantId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -185,14 +209,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clientes/$tenantId/': {
+      id: '/_authenticated/clientes/$tenantId/'
+      path: '/'
+      fullPath: '/clientes/$tenantId/'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdIndexRouteImport
+      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+    }
+    '/_authenticated/clientes/$tenantId/ramais': {
+      id: '/_authenticated/clientes/$tenantId/ramais'
+      path: '/ramais'
+      fullPath: '/clientes/$tenantId/ramais'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdRamaisRouteImport
+      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+    }
   }
 }
+
+interface AuthenticatedClientesTenantIdRouteChildren {
+  AuthenticatedClientesTenantIdRamaisRoute: typeof AuthenticatedClientesTenantIdRamaisRoute
+  AuthenticatedClientesTenantIdIndexRoute: typeof AuthenticatedClientesTenantIdIndexRoute
+}
+
+const AuthenticatedClientesTenantIdRouteChildren: AuthenticatedClientesTenantIdRouteChildren =
+  {
+    AuthenticatedClientesTenantIdRamaisRoute:
+      AuthenticatedClientesTenantIdRamaisRoute,
+    AuthenticatedClientesTenantIdIndexRoute:
+      AuthenticatedClientesTenantIdIndexRoute,
+  }
+
+const AuthenticatedClientesTenantIdRouteWithChildren =
+  AuthenticatedClientesTenantIdRoute._addFileChildren(
+    AuthenticatedClientesTenantIdRouteChildren,
+  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedServidorRoute: typeof AuthenticatedServidorRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
-  AuthenticatedClientesTenantIdRoute: typeof AuthenticatedClientesTenantIdRoute
+  AuthenticatedClientesTenantIdRoute: typeof AuthenticatedClientesTenantIdRouteWithChildren
   AuthenticatedClientesIndexRoute: typeof AuthenticatedClientesIndexRoute
 }
 
@@ -200,7 +256,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedServidorRoute: AuthenticatedServidorRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
-  AuthenticatedClientesTenantIdRoute: AuthenticatedClientesTenantIdRoute,
+  AuthenticatedClientesTenantIdRoute:
+    AuthenticatedClientesTenantIdRouteWithChildren,
   AuthenticatedClientesIndexRoute: AuthenticatedClientesIndexRoute,
 }
 
