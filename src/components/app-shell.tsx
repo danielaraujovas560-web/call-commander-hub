@@ -152,12 +152,13 @@ function ClienteSidebar({
 
   const items = [
     { to: "/clientes/$tenantId", label: "Visão geral", icon: LayoutDashboard, exact: true },
-    { to: "/clientes/$tenantId/ramais", label: "Ramais", icon: PhoneCall },
-    { to: "/clientes/$tenantId/filas", label: "Filas", icon: ListOrdered },
-    { to: "/clientes/$tenantId/uras", label: "URAs", icon: Workflow },
-    { to: "/clientes/$tenantId/audios", label: "Áudios", icon: Music },
-    { to: "/clientes/$tenantId/relatorios", label: "Relatórios", icon: BarChart3 },
+    { to: "/clientes/$tenantId/ramais", label: "Ramais", icon: PhoneCall, exact: false },
+    { to: "/clientes/$tenantId/filas", label: "Filas", icon: ListOrdered, exact: false },
+    { to: "/clientes/$tenantId/uras", label: "URAs", icon: Workflow, exact: false },
+    { to: "/clientes/$tenantId/audios", label: "Áudios", icon: Music, exact: false },
+    { to: "/clientes/$tenantId/relatorios", label: "Relatórios", icon: BarChart3, exact: false },
   ] as const;
+
   const params = { tenantId: String(tenantId) };
 
 
