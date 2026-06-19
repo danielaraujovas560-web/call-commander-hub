@@ -14,7 +14,8 @@ function getConfig() {
       "PABX agent não configurado: defina PABX_AGENT_URL e PABX_AGENT_SECRET.",
     );
   }
-  return { url: url.replace(/\/$/, ""), secret };
+  const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  return { url: normalized.replace(/\/$/, ""), secret };
 }
 
 function sign(secret: string, timestamp: string, method: string, path: string, body: string) {
