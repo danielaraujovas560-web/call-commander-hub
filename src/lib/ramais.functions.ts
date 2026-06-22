@@ -124,15 +124,20 @@ export const createRamal = createServerFn({ method: "POST" })
       body: payload,
     });
 
-    await context.supabase.from("audit_log").insert({
-      user_id: context.userId,
-      tenant_id: tenantId,
-      action: "ramal.create",
-      payload: { ramal: data.ramal, nome: data.nome },
-    });
+    try {
+      await context.supabase.from("audit_log").insert({
+        user_id: context.userId,
+        tenant_id: tenantId,
+        action: "ramal.create",
+        payload: { ramal: data.ramal, nome: data.nome },
+      });
+    } catch (e) {
+      console.warn("[createRamal] audit_log insert falhou:", e);
+    }
 
     return created;
   });
+
 
 export const deleteRamal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
