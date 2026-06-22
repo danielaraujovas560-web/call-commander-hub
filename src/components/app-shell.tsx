@@ -158,8 +158,10 @@ function ClienteSidebar({
     { to: "/clientes/$tenantId/filas", label: "Filas", icon: ListOrdered, exact: false },
     { to: "/clientes/$tenantId/uras", label: "URAs", icon: Workflow, exact: false },
     { to: "/clientes/$tenantId/audios", label: "Áudios", icon: Music, exact: false },
+    { to: "/clientes/$tenantId/blacklist", label: "Blacklist", icon: ShieldBan, exact: false },
     { to: "/clientes/$tenantId/relatorios", label: "Relatórios", icon: BarChart3, exact: false },
   ] as const;
+
 
   const params = { tenantId: String(tenantId) };
 
