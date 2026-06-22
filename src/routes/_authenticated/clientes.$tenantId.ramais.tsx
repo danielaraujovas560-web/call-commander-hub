@@ -327,14 +327,15 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
               </SelectTrigger>
               <SelectContent>
                 {(troncosData?.troncos ?? []).map((t) => (
-                  <SelectItem key={t.endpoint_id} value={t.endpoint_id}>
-                    {t.label || t.endpoint_id}
+                  <SelectItem key={t.id} value={t.nome}>
+                    {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}
                 {troncosData?.troncos.length === 0 && (
                   <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco encontrado</div>
                 )}
               </SelectContent>
+
             </Select>
           </div>
           <div className="col-span-2 space-y-1">
