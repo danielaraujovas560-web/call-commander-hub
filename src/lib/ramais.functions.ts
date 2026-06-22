@@ -20,11 +20,22 @@ export interface Ramal {
 }
 
 export interface Tronco {
-  endpoint_id: string;
-  username: string | null;
-  host: string | null;
-  context: string | null;
-  label: string | null;
+  id: number;
+  nome: string;
+  tronco_pjsip: string;
+  status: number | null;
+  techprefix: string | null;
+  tipo: string | null;
+}
+
+export interface BlacklistItem {
+  id: number;
+  regra: "Entrada" | "Saida";
+  tipo: "Prefixo" | "Numero";
+  destino: string;
+  ativo: boolean;
+  motivo: string | null;
+  data_hora_desbloqueio: string;
 }
 
 const RamalInput = z.object({
@@ -47,8 +58,6 @@ const TenantOnly = z
   .optional()
   .transform((v) => v ?? {});
 
-// Resolve the tenant for an operation. Admins can pass any tenant_id;
-// clients can only pass a tenant they're linked to (or omit it to use default).
 async function resolveScopedTenant(
   supabase: SupabaseClient,
   userId: string,
@@ -69,7 +78,15 @@ async function resolveScopedTenant(
     .eq("user_id", userId)
     .eq("tenant_id", override)
     .maybeSingle();
-  if (!data) throw new Error("Sem permissão para este tenant.");
+  if (!data) {
+    // Tentar: o cliente está vinculado via tabela clientes (RLS permite ver)
+    const { data: c } = await supabase
+      .from("clientes")
+      .select("tenant_id")
+      .eq("tenant_id", override)
+      .maybeSingle();
+    if (!c) throw new Error("Sem permissão para este tenant.");
+  }
   return override;
 }
 
@@ -78,15 +95,8 @@ export const listRamais = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(
-      context.supabase,
-      context.userId,
-      data.tenant_id,
-    );
-    const res = await agentFetch<{ ramais: Ramal[] }>(
-      `/ramais?tenant=${tenantId}`,
-      { tenantId },
-    );
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ ramais: Ramal[] }>(`/ramais?tenant=${tenantId}`, { tenantId });
     return { tenantId, ramais: res.ramais ?? [] };
   });
 
@@ -95,15 +105,8 @@ export const listTroncos = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(
-      context.supabase,
-      context.userId,
-      data.tenant_id,
-    );
-    const res = await agentFetch<{ troncos: Tronco[] }>(
-      `/troncos?tenant=${tenantId}`,
-      { tenantId },
-    );
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ troncos: Tronco[] }>(`/troncos?tenant=${tenantId}`, { tenantId });
     return { troncos: res.troncos ?? [] };
   });
 
@@ -112,11 +115,7 @@ export const createRamal = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => RamalInput.parse(input))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(
-      context.supabase,
-      context.userId,
-      data.tenant_id,
-    );
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
     const { tenant_id: _ignore, ...payload } = data;
 
     const created = await agentFetch<{ ramal: Ramal }>("/ramais", {
@@ -138,21 +137,11 @@ export const createRamal = createServerFn({ method: "POST" })
 export const deleteRamal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z
-      .object({
-        id: z.number().int().positive(),
-        tenant_id: z.number().int().positive().optional(),
-      })
-      .parse(input),
+    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(
-      context.supabase,
-      context.userId,
-      data.tenant_id,
-    );
-
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
     await agentFetch(`/ramais/${data.id}`, { method: "DELETE", tenantId });
     await context.supabase.from("audit_log").insert({
       user_id: context.userId,
@@ -167,21 +156,12 @@ export const pingAgent = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const { agentFetch, isAgentConfigured } = await import("./agent.server");
-    if (!isAgentConfigured()) {
-      return { ok: false, configured: false, error: "Agente não configurado" };
-    }
+    if (!isAgentConfigured()) return { ok: false, configured: false, error: "Agente não configurado" };
     try {
-      const data = await agentFetch<{ status: string; version?: string }>(
-        "/health",
-        { timeoutMs: 5_000 },
-      );
+      const data = await agentFetch<{ status: string; version?: string }>("/health", { timeoutMs: 5_000 });
       return { ok: true, configured: true, data };
     } catch (e) {
-      return {
-        ok: false,
-        configured: true,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { ok: false, configured: true, error: e instanceof Error ? e.message : String(e) };
     }
   });
 
@@ -195,4 +175,82 @@ export const getMyTenant = createServerFn({ method: "GET" })
       .order("is_default", { ascending: false })
       .limit(10);
     return { tenants: data ?? [] };
+  });
+
+// ---------- Tenant upsert (mariadb) ----------
+export const upsertTenantPabx = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.number().int().positive(), nome: z.string().min(1).max(50) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { agentFetch } = await import("./agent.server");
+    await agentFetch("/tenants", { method: "POST", body: data });
+    return { ok: true };
+  });
+
+// ---------- Generic CDR fetch ----------
+function makeCdrFetcher(path: string) {
+  return createServerFn({ method: "GET" })
+    .middleware([requireSupabaseAuth])
+    .inputValidator((d: unknown) => TenantOnly.parse(d))
+    .handler(async ({ data, context }) => {
+      const { agentFetch } = await import("./agent.server");
+      const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+      const res = await agentFetch<{ rows: any[] }>(`${path}?tenant=${tenantId}`, { tenantId });
+      return { tenantId, rows: res.rows ?? [] };
+    });
+}
+
+export const listCdrEntrada = makeCdrFetcher("/cdr/entrada");
+export const listCdrRamal = makeCdrFetcher("/cdr/ramal");
+export const listCdrFila = makeCdrFetcher("/cdr/fila");
+export const listCdrUra = makeCdrFetcher("/cdr/ura");
+export const listCdrPesquisa = makeCdrFetcher("/cdr/pesquisa");
+export const listCdrCidadesEntrada = makeCdrFetcher("/cdr/cidades/entrada");
+export const listCdrCidadesSaida = makeCdrFetcher("/cdr/cidades/saida");
+
+// ---------- Blacklist ----------
+export const listBlacklist = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ blacklist: BlacklistItem[] }>(`/blacklist?tenant=${tenantId}`, { tenantId });
+    return { tenantId, blacklist: res.blacklist ?? [] };
+  });
+
+export const createBlacklist = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        regra: z.enum(["Entrada", "Saida"]),
+        tipo: z.enum(["Prefixo", "Numero"]),
+        destino: z.string().min(1).max(64),
+        motivo: z.string().max(100).optional(),
+        data_hora_desbloqueio: z.string().min(1),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { tenant_id: _i, ...body } = data;
+    await agentFetch("/blacklist", { method: "POST", tenantId, body });
+    return { ok: true };
+  });
+
+export const deleteBlacklist = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    await agentFetch(`/blacklist/${data.id}`, { method: "DELETE", tenantId });
+    return { ok: true };
   });
