@@ -22,6 +22,7 @@ import { Route as AuthenticatedClientesTenantIdUrasRouteImport } from './routes/
 import { Route as AuthenticatedClientesTenantIdRelatoriosRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios'
 import { Route as AuthenticatedClientesTenantIdRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.ramais'
 import { Route as AuthenticatedClientesTenantIdFilasRouteImport } from './routes/_authenticated/clientes.$tenantId.filas'
+import { Route as AuthenticatedClientesTenantIdBlacklistRouteImport } from './routes/_authenticated/clientes.$tenantId.blacklist'
 import { Route as AuthenticatedClientesTenantIdAudiosRouteImport } from './routes/_authenticated/clientes.$tenantId.audios'
 
 const AuthRoute = AuthRouteImport.update({
@@ -96,6 +97,12 @@ const AuthenticatedClientesTenantIdFilasRoute =
     path: '/filas',
     getParentRoute: () => AuthenticatedClientesTenantIdRoute,
   } as any)
+const AuthenticatedClientesTenantIdBlacklistRoute =
+  AuthenticatedClientesTenantIdBlacklistRouteImport.update({
+    id: '/blacklist',
+    path: '/blacklist',
+    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+  } as any)
 const AuthenticatedClientesTenantIdAudiosRoute =
   AuthenticatedClientesTenantIdAudiosRouteImport.update({
     id: '/audios',
@@ -112,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
   '/clientes/': typeof AuthenticatedClientesIndexRoute
   '/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
+  '/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/clientes/$tenantId/relatorios': typeof AuthenticatedClientesTenantIdRelatoriosRoute
@@ -126,6 +134,7 @@ export interface FileRoutesByTo {
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
   '/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
+  '/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/clientes/$tenantId/relatorios': typeof AuthenticatedClientesTenantIdRelatoriosRoute
@@ -143,6 +152,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
   '/_authenticated/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
+  '/_authenticated/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
   '/_authenticated/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/_authenticated/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/_authenticated/clientes/$tenantId/relatorios': typeof AuthenticatedClientesTenantIdRelatoriosRoute
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId'
     | '/clientes/'
     | '/clientes/$tenantId/audios'
+    | '/clientes/$tenantId/blacklist'
     | '/clientes/$tenantId/filas'
     | '/clientes/$tenantId/ramais'
     | '/clientes/$tenantId/relatorios'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/clientes'
     | '/clientes/$tenantId/audios'
+    | '/clientes/$tenantId/blacklist'
     | '/clientes/$tenantId/filas'
     | '/clientes/$tenantId/ramais'
     | '/clientes/$tenantId/relatorios'
@@ -190,6 +202,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes/$tenantId'
     | '/_authenticated/clientes/'
     | '/_authenticated/clientes/$tenantId/audios'
+    | '/_authenticated/clientes/$tenantId/blacklist'
     | '/_authenticated/clientes/$tenantId/filas'
     | '/_authenticated/clientes/$tenantId/ramais'
     | '/_authenticated/clientes/$tenantId/relatorios'
@@ -296,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesTenantIdFilasRouteImport
       parentRoute: typeof AuthenticatedClientesTenantIdRoute
     }
+    '/_authenticated/clientes/$tenantId/blacklist': {
+      id: '/_authenticated/clientes/$tenantId/blacklist'
+      path: '/blacklist'
+      fullPath: '/clientes/$tenantId/blacklist'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdBlacklistRouteImport
+      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+    }
     '/_authenticated/clientes/$tenantId/audios': {
       id: '/_authenticated/clientes/$tenantId/audios'
       path: '/audios'
@@ -308,6 +328,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedClientesTenantIdRouteChildren {
   AuthenticatedClientesTenantIdAudiosRoute: typeof AuthenticatedClientesTenantIdAudiosRoute
+  AuthenticatedClientesTenantIdBlacklistRoute: typeof AuthenticatedClientesTenantIdBlacklistRoute
   AuthenticatedClientesTenantIdFilasRoute: typeof AuthenticatedClientesTenantIdFilasRoute
   AuthenticatedClientesTenantIdRamaisRoute: typeof AuthenticatedClientesTenantIdRamaisRoute
   AuthenticatedClientesTenantIdRelatoriosRoute: typeof AuthenticatedClientesTenantIdRelatoriosRoute
@@ -319,6 +340,8 @@ const AuthenticatedClientesTenantIdRouteChildren: AuthenticatedClientesTenantIdR
   {
     AuthenticatedClientesTenantIdAudiosRoute:
       AuthenticatedClientesTenantIdAudiosRoute,
+    AuthenticatedClientesTenantIdBlacklistRoute:
+      AuthenticatedClientesTenantIdBlacklistRoute,
     AuthenticatedClientesTenantIdFilasRoute:
       AuthenticatedClientesTenantIdFilasRoute,
     AuthenticatedClientesTenantIdRamaisRoute:

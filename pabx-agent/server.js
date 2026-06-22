@@ -1,12 +1,5 @@
 // pabx-agent — mini servidor HTTP que conversa com seu MariaDB Asterisk.
 // Autentica via HMAC-SHA256 (compatível com src/lib/agent.server.ts do Lovable).
-//
-// Endpoints (todos exigem header X-Tenant-Id):
-//   GET    /health
-//   GET    /ramais?tenant=<id>
-//   POST   /ramais            body: { nome, ramal, senha, tronco, ddd, callerid, fixo, movel, ddi, especial, cng }
-//   DELETE /ramais/:id
-//   GET    /troncos?tenant=<id>
 
 require("dotenv").config();
 const express = require("express");
@@ -46,7 +39,7 @@ app.use(express.json({ limit: "256kb" }));
 app.use(
   rateLimit({
     windowMs: 60_000,
-    limit: 120,
+    limit: 240,
     standardHeaders: true,
     legacyHeaders: false,
   }),
@@ -54,9 +47,6 @@ app.use(
 
 // ---------- HMAC verification ----------
 app.use((req, res, next) => {
-  if (req.path === "/health" && req.method === "GET") {
-    // health também valida HMAC (assim o painel sabe que a chave bate)
-  }
   const ts = req.header("X-Timestamp");
   const sig = req.header("X-Signature");
   if (!ts || !sig) return res.status(401).json({ error: "Missing signature headers" });
@@ -91,16 +81,42 @@ function getTenant(req, res) {
   return t;
 }
 
-// ---------- Routes ----------
+// ---------- Health ----------
 app.get("/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "ok", version: "1.0.0", db: "ok" });
+    res.json({ status: "ok", version: "1.1.0", db: "ok" });
   } catch (e) {
     res.status(500).json({ status: "error", error: String(e.message || e) });
   }
 });
 
+// ---------- Tenants ----------
+app.post("/tenants", async (req, res) => {
+  const { id, nome } = req.body || {};
+  if (!id || !nome) return res.status(400).json({ error: "id e nome obrigatórios" });
+  try {
+    await pool.query(
+      `INSERT INTO tenants (id, nome) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE nome = VALUES(nome)`,
+      [Number(id), String(nome).slice(0, 50)],
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.get("/tenants", async (_req, res) => {
+  try {
+    const [rows] = await pool.query(`SELECT id, nome FROM tenants ORDER BY id`);
+    res.json({ tenants: rows });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---------- Ramais ----------
 app.get("/ramais", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
@@ -125,27 +141,6 @@ app.get("/ramais", async (req, res) => {
   }
 });
 
-app.get("/troncos", async (req, res) => {
-  const tenant = getTenant(req, res);
-  if (!tenant) return;
-  try {
-    // Ajuste se sua tabela de troncos tiver nome diferente
-    const [rows] = await pool.query(
-      `SELECT e.id AS endpoint_id, a.username, ao.contact AS host,
-              e.context, e.id AS label
-         FROM ps_endpoints e
-         LEFT JOIN ps_auths a ON a.id = e.auth
-         LEFT JOIN ps_aors  ao ON ao.id = e.aors
-        WHERE e.tenant = ?
-        ORDER BY e.id`,
-      [String(tenant)],
-    );
-    res.json({ troncos: rows });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
-
 app.post("/ramais", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
@@ -154,40 +149,55 @@ app.post("/ramais", async (req, res) => {
     return res.status(400).json({ error: "Campos obrigatórios: ramal, senha, tronco" });
   }
   const endpointId = `${tenant}${ramal}`;
+  const authId = `auth-${endpointId}`;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+
+    // Garantir tenant
+    await conn.query(
+      `INSERT IGNORE INTO tenants (id, nome) VALUES (?, ?)`,
+      [tenant, `tenant-${tenant}`],
+    );
 
     await conn.query(
       `INSERT INTO ramais (tenant_id, ramal, nome, tronco, ddd, callerid, senha,
                            fixo, movel, ddi, especial, cng, endpoint_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tenant, ramal, nome ?? null, tronco, ddd ?? null, callerid || null, senha,
-       !!fixo, !!movel, !!ddi, !!especial, !!cng, endpointId],
+      [tenant, ramal, nome ?? null, tronco, Number(ddd) || 0, callerid || null, senha,
+       fixo ? 1 : 0, movel ? 1 : 0, ddi ? 1 : 0, especial ? 1 : 0, cng ? 1 : 0, endpointId],
     );
 
     await conn.query(
-      `INSERT INTO ps_aors (id, max_contacts, qualify_frequency)
-       VALUES (?, 1, 60)`,
+      `INSERT INTO ps_aors (id, max_contacts, qualify_frequency, default_expiration, minimum_expiration, remove_existing, maximum_expiration)
+       VALUES (?, 1, 60, 300, 60, 'yes', 7200)`,
       [endpointId],
     );
     await conn.query(
       `INSERT INTO ps_auths (id, auth_type, username, password)
        VALUES (?, 'userpass', ?, ?)`,
-      [endpointId, endpointId, senha],
+      [authId, endpointId, senha],
     );
     await conn.query(
       `INSERT INTO ps_endpoints (id, transport, aors, auth, context,
-                                 disallow, allow, tenant, callerid)
-       VALUES (?, 'transport-udp', ?, ?, 'from-internal',
-               'all', 'alaw,ulaw,g729', ?, ?)`,
-      [endpointId, endpointId, endpointId, String(tenant), callerid || null],
+                                 disallow, allow, direct_media, rewrite_contact,
+                                 force_rport, rtp_symmetric, timers, callerid,
+                                 send_rpid, identify_by, language)
+       VALUES (?, '', ?, ?, 'Internal-default',
+               'all', 'alaw,ulaw,g729', 'no', 'yes',
+               'yes', 'yes', 'yes', ?,
+               'yes', 'username,ip', 'pt')`,
+      [endpointId, endpointId, authId, callerid || null],
     );
 
     await conn.commit();
-    res.json({ ramal: { id: null, ramal, nome, tronco, ddd, callerid, senha,
-      fixo: !!fixo, movel: !!movel, ddi: !!ddi, especial: !!especial, cng: !!cng,
-      endpoint_id: endpointId } });
+    res.json({
+      ramal: {
+        id: null, ramal, nome, tronco, ddd, callerid, senha,
+        fixo: !!fixo, movel: !!movel, ddi: !!ddi, especial: !!especial, cng: !!cng,
+        endpoint_id: endpointId,
+      },
+    });
   } catch (e) {
     await conn.rollback();
     res.status(500).json({ error: String(e.message || e) });
@@ -213,8 +223,9 @@ app.delete("/ramais/:id", async (req, res) => {
       return res.status(404).json({ error: "Ramal não encontrado" });
     }
     const endpointId = rows[0].endpoint_id;
+    const authId = `auth-${endpointId}`;
     await conn.query(`DELETE FROM ps_endpoints WHERE id = ?`, [endpointId]);
-    await conn.query(`DELETE FROM ps_auths     WHERE id = ?`, [endpointId]);
+    await conn.query(`DELETE FROM ps_auths     WHERE id = ?`, [authId]);
     await conn.query(`DELETE FROM ps_aors      WHERE id = ?`, [endpointId]);
     await conn.query(`DELETE FROM ramais       WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     await conn.commit();
@@ -224,6 +235,138 @@ app.delete("/ramais/:id", async (req, res) => {
     res.status(500).json({ error: String(e.message || e) });
   } finally {
     conn.release();
+  }
+});
+
+// ---------- Troncos ----------
+app.get("/troncos", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nome, tronco_pjsip, status, techprefix, tipo
+         FROM troncos
+        WHERE tenant_id = ?
+        ORDER BY nome`,
+      [tenant],
+    );
+    res.json({ troncos: rows });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---------- Blacklist ----------
+app.get("/blacklist", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, regra, tipo, destino, ativo, motivo, data_hora_desbloqueio
+         FROM blacklist WHERE tenant_id = ? ORDER BY id DESC`,
+      [tenant],
+    );
+    res.json({ blacklist: rows.map((r) => ({ ...r, ativo: !!r.ativo })) });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.post("/blacklist", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const { regra, tipo, destino, motivo, data_hora_desbloqueio } = req.body || {};
+  if (!regra || !tipo || !destino || !data_hora_desbloqueio) {
+    return res.status(400).json({ error: "regra, tipo, destino e data_hora_desbloqueio obrigatórios" });
+  }
+  try {
+    const [r] = await pool.query(
+      `INSERT INTO blacklist (tenant_id, regra, tipo, destino, ativo, motivo, data_hora_desbloqueio)
+       VALUES (?, ?, ?, ?, 1, ?, ?)`,
+      [tenant, regra, tipo, destino, motivo || null, data_hora_desbloqueio],
+    );
+    res.json({ ok: true, id: r.insertId });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.delete("/blacklist/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    await pool.query(`DELETE FROM blacklist WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---------- CDR queries ----------
+function cdrEndpoint(path, sql) {
+  app.get(path, async (req, res) => {
+    const tenant = getTenant(req, res);
+    if (!tenant) return;
+    const limit = Math.min(Number(req.query.limit) || 500, 5000);
+    try {
+      const [rows] = await pool.query(`${sql} LIMIT ?`, [tenant, limit]);
+      res.json({ rows });
+    } catch (e) {
+      res.status(500).json({ error: String(e.message || e) });
+    }
+  });
+}
+
+cdrEndpoint(
+  "/cdr/entrada",
+  `SELECT id, linkedid, date_time, origem, num_destino, dest_interno, duracao, status
+     FROM cdr_entrada WHERE tenant_id = ? ORDER BY date_time DESC`,
+);
+cdrEndpoint(
+  "/cdr/ramal",
+  `SELECT id, linkedid, context, regra, origem, destino, tronco, status, duracao, date_time
+     FROM cdr_ramal WHERE tenant_id = ? ORDER BY date_time DESC`,
+);
+cdrEndpoint(
+  "/cdr/fila",
+  `SELECT id, linkedid, nome_fila, agente, ramal, evento, motivo, time_data
+     FROM cdr_fila WHERE tenant_id = ? ORDER BY time_data DESC`,
+);
+cdrEndpoint(
+  "/cdr/ura",
+  `SELECT id, linkedid, num_did, nome_ura, opcao, dest_op, dest_nome
+     FROM cdr_ura WHERE tenant_id = ? ORDER BY id DESC`,
+);
+cdrEndpoint(
+  "/cdr/cidades/entrada",
+  `SELECT id, ddd, numero, sigla_estado, estado
+     FROM cdr_cidades_entrada WHERE tenant_id = ? ORDER BY id DESC`,
+);
+cdrEndpoint(
+  "/cdr/cidades/saida",
+  `SELECT id, ddd, numero, sigla_estado, estado
+     FROM cdr_cidades_saida WHERE tenant_id = ? ORDER BY id DESC`,
+);
+
+// cdr_pesquisa não tem tenant_id direto — filtramos via JOIN em pesquisa_satisfacao
+app.get("/cdr/pesquisa", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const limit = Math.min(Number(req.query.limit) || 500, 5000);
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.unique_id, p.numero_origem, p.ramal, p.agente, p.fila, p.nome_fila,
+              p.pergunta_id, p.nota, p.data
+         FROM cdr_pesquisa p
+         LEFT JOIN pesquisa_satisfacao ps ON ps.id = p.pesquisa_id
+        WHERE ps.tenant_id = ? OR ps.tenant_id IS NULL
+        ORDER BY p.data DESC
+        LIMIT ?`,
+      [tenant, limit],
+    );
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
   }
 });
 
