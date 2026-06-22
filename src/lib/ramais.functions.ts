@@ -148,12 +148,17 @@ export const deleteRamal = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
     await agentFetch(`/ramais/${data.id}`, { method: "DELETE", tenantId });
-    await context.supabase.from("audit_log").insert({
-      user_id: context.userId,
-      tenant_id: tenantId,
-      action: "ramal.delete",
-      payload: { id: data.id },
-    });
+    try {
+      await context.supabase.from("audit_log").insert({
+        user_id: context.userId,
+        tenant_id: tenantId,
+        action: "ramal.delete",
+        payload: { id: data.id },
+      });
+    } catch (e) {
+      console.warn("[deleteRamal] audit_log insert falhou:", e);
+    }
+
     return { ok: true };
   });
 
