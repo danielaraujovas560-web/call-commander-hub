@@ -69,8 +69,23 @@ export const createCliente = createServerFn({ method: "POST" })
       .select()
       .single();
     if (insErr) throw new Error(insErr.message);
+
+    // Best-effort: cria/atualiza o tenant no MariaDB do PABX
+    try {
+      const { agentFetch, isAgentConfigured } = await import("./agent.server");
+      if (isAgentConfigured()) {
+        await agentFetch("/tenants", {
+          method: "POST",
+          body: { id: data.tenant_id, nome: data.razao_social.slice(0, 50) },
+        });
+      }
+    } catch (e) {
+      console.warn("[createCliente] falha ao criar tenant no PABX:", e);
+    }
+
     return { ok: true, cliente: row };
   });
+
 
 // ---------- UPDATE ----------
 const updateSchema = z.object({
