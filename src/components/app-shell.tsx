@@ -8,6 +8,7 @@ import {
   LogOut,
   LayoutDashboard,
   ShieldCheck,
+  ShieldBan,
   Users,
   ArrowLeft,
   Workflow,
@@ -15,6 +16,7 @@ import {
   Music,
   BarChart3,
 } from "lucide-react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
