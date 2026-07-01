@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   Eye,
   EyeOff,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -15,8 +16,11 @@ import {
   listRamais,
   listTroncos,
   createRamal,
+  updateRamal,
   deleteRamal,
+  type Ramal,
 } from "@/lib/ramais.functions";
+
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -187,28 +191,32 @@ function RamaisPage() {
                   <PasswordCell value={r.senha ?? ""} />
                 </TableCell>
                 <TableCell className="text-right">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover ramal {r.ramal}?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação remove o ramal e seu endpoint SIP. Não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => delMut.mutate(r.id)}>
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <div className="flex justify-end gap-1">
+                    <EditRamalDialog tenantId={tenantId} ramal={r} />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover ramal {r.ramal}?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação remove o ramal e seu endpoint SIP. Não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => delMut.mutate(r.id)}>
+                            Remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </TableCell>
+
               </TableRow>
             ))}
           </TableBody>
@@ -374,3 +382,163 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
     </Dialog>
   );
 }
+
+function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }) {
+  const [open, setOpen] = useState(false);
+  const troncosFn = useServerFn(listTroncos);
+  const { data: troncosData } = useQuery({
+    queryKey: ["troncos", tenantId],
+    queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
+    enabled: open,
+  });
+
+  const [form, setForm] = useState({
+    nome: ramal.nome ?? "",
+    senha: ramal.senha ?? "",
+    tronco: ramal.tronco ?? "",
+    ddd: ramal.ddd ?? "",
+    callerid: ramal.callerid ?? "",
+    fixo: ramal.fixo,
+    movel: ramal.movel,
+    ddi: ramal.ddi,
+    especial: ramal.especial,
+    cng: ramal.cng,
+  });
+
+  const queryClient = useQueryClient();
+  const update = useServerFn(updateRamal);
+  const mut = useMutation({
+    mutationFn: () =>
+      update({
+        data: {
+          id: ramal.id,
+          tenant_id: tenantId,
+          nome: form.nome,
+          senha: form.senha,
+          tronco: form.tronco,
+          ddd: form.ddd,
+          callerid: form.callerid,
+          fixo: form.fixo,
+          movel: form.movel,
+          ddi: form.ddi,
+          especial: form.especial,
+          cng: form.cng,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Ramal atualizado");
+      queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
+      setOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Editar ramal {ramal.ramal}</DialogTitle>
+          <DialogDescription>
+            Permissões marcadas = <strong>bloqueado</strong> para aquele tipo de ligação.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            mut.mutate();
+          }}
+          className="grid grid-cols-2 gap-3"
+        >
+          <div className="col-span-2 space-y-1">
+            <Label>Nome</Label>
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label>DDD</Label>
+            <Input
+              value={form.ddd}
+              onChange={(e) => setForm({ ...form, ddd: e.target.value.replace(/\D/g, "") })}
+              maxLength={2}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>CallerID</Label>
+            <Input
+              value={form.callerid}
+              onChange={(e) => setForm({ ...form, callerid: e.target.value.replace(/\D/g, "") })}
+              maxLength={13}
+            />
+          </div>
+          <div className="col-span-2 space-y-1">
+            <Label>Tronco</Label>
+            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um tronco" />
+              </SelectTrigger>
+              <SelectContent>
+                {(troncosData?.troncos ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.nome}>
+                    {t.nome} {t.tipo ? `(${t.tipo})` : ""}
+                  </SelectItem>
+                ))}
+                {troncosData?.troncos.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco disponível</div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2 space-y-1">
+            <Label>Senha</Label>
+            <div className="flex gap-2">
+              <Input
+                value={form.senha}
+                onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                minLength={6}
+              />
+              <Button type="button" variant="outline" onClick={() => setForm({ ...form, senha: genPassword() })}>
+                Gerar
+              </Button>
+            </div>
+          </div>
+
+          <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
+            <div className="col-span-2 text-xs text-muted-foreground">
+              Ativo = bloqueia esse tipo de chamada
+            </div>
+            {[
+              ["fixo", "Bloquear fixo"],
+              ["movel", "Bloquear móvel"],
+              ["ddi", "Bloquear DDI"],
+              ["especial", "Bloquear especial"],
+              ["cng", "Bloquear CNG"],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form[key as keyof typeof form] as boolean}
+                  onCheckedChange={(v) => setForm({ ...form, [key]: v })}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter className="col-span-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={mut.isPending}>
+              {mut.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
