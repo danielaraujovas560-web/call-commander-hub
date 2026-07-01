@@ -139,6 +139,46 @@ export const createRamal = createServerFn({ method: "POST" })
   });
 
 
+const RamalUpdateInput = z.object({
+  id: z.number().int().positive(),
+  tenant_id: z.number().int().positive().optional(),
+  nome: z.string().trim().min(1).max(80).optional(),
+  senha: z.string().min(6).max(64).optional(),
+  tronco: z.string().trim().min(1).max(80).optional(),
+  ddd: z.string().regex(/^\d{2}$/).optional(),
+  callerid: z.string().regex(/^\d{10,13}$/).optional().or(z.literal("")),
+  fixo: z.boolean().optional(),
+  movel: z.boolean().optional(),
+  ddi: z.boolean().optional(),
+  especial: z.boolean().optional(),
+  cng: z.boolean().optional(),
+});
+
+export const updateRamal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => RamalUpdateInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { id, tenant_id: _t, ...patch } = data;
+    const res = await agentFetch<{ ramal: Ramal }>(`/ramais/${id}`, {
+      method: "PUT",
+      tenantId,
+      body: patch,
+    });
+    try {
+      await context.supabase.from("audit_log").insert({
+        user_id: context.userId,
+        tenant_id: tenantId,
+        action: "ramal.update",
+        payload: { id, patch },
+      });
+    } catch (e) {
+      console.warn("[updateRamal] audit_log insert falhou:", e);
+    }
+    return res;
+  });
+
 export const deleteRamal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
