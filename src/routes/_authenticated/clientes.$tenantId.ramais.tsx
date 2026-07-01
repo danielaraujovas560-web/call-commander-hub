@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   Eye,
   EyeOff,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -15,8 +16,11 @@ import {
   listRamais,
   listTroncos,
   createRamal,
+  updateRamal,
   deleteRamal,
+  type Ramal,
 } from "@/lib/ramais.functions";
+
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
