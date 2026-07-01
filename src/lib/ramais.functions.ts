@@ -199,26 +199,50 @@ export const upsertTenantPabx = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ---------- Generic CDR fetch ----------
-function makeCdrFetcher(path: string) {
-  return createServerFn({ method: "GET" })
-    .middleware([requireSupabaseAuth])
-    .inputValidator((d: unknown) => TenantOnly.parse(d))
-    .handler(async ({ data, context }) => {
-      const { agentFetch } = await import("./agent.server");
-      const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
-      const res = await agentFetch<{ rows: any[] }>(`${path}?tenant=${tenantId}`, { tenantId });
-      return { tenantId, rows: res.rows ?? [] };
-    });
+// ---------- CDR fetchers (inlined per endpoint — evita perder o contexto
+// do middleware quando o server-fn plugin do TanStack processa factories) ----------
+async function fetchCdr(path: string, ctxSupabase: SupabaseClient, userId: string, tenantIdInput?: number) {
+  const { agentFetch } = await import("./agent.server");
+  const tenantId = await resolveScopedTenant(ctxSupabase, userId, tenantIdInput);
+  const res = await agentFetch<{ rows: any[] }>(`${path}?tenant=${tenantId}`, { tenantId });
+  return { tenantId, rows: res.rows ?? [] };
 }
 
-export const listCdrEntrada = makeCdrFetcher("/cdr/entrada");
-export const listCdrRamal = makeCdrFetcher("/cdr/ramal");
-export const listCdrFila = makeCdrFetcher("/cdr/fila");
-export const listCdrUra = makeCdrFetcher("/cdr/ura");
-export const listCdrPesquisa = makeCdrFetcher("/cdr/pesquisa");
-export const listCdrCidadesEntrada = makeCdrFetcher("/cdr/cidades/entrada");
-export const listCdrCidadesSaida = makeCdrFetcher("/cdr/cidades/saida");
+export const listCdrEntrada = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/entrada", context.supabase, context.userId, data.tenant_id));
+
+export const listCdrRamal = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.supabase, context.userId, data.tenant_id));
+
+export const listCdrFila = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/fila", context.supabase, context.userId, data.tenant_id));
+
+export const listCdrUra = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/ura", context.supabase, context.userId, data.tenant_id));
+
+export const listCdrPesquisa = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/pesquisa", context.supabase, context.userId, data.tenant_id));
+
+export const listCdrCidadesEntrada = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/cidades/entrada", context.supabase, context.userId, data.tenant_id));
+
+export const listCdrCidadesSaida = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.supabase, context.userId, data.tenant_id));
+
 
 // ---------- Blacklist ----------
 export const listBlacklist = createServerFn({ method: "GET" })
