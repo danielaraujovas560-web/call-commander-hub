@@ -207,6 +207,63 @@ app.post("/ramais", async (req, res) => {
   }
 });
 
+app.put("/ramais/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: "id inválido" });
+  const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng } = req.body || {};
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      `SELECT endpoint_id FROM ramais WHERE id = ? AND tenant_id = ?`,
+      [id, tenant],
+    );
+    if (rows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Ramal não encontrado" });
+    }
+    const endpointId = rows[0].endpoint_id;
+    const authId = `auth-${endpointId}`;
+
+    const sets = [];
+    const vals = [];
+    const pushIf = (col, val) => { if (val !== undefined) { sets.push(`${col} = ?`); vals.push(val); } };
+    pushIf("nome", nome);
+    pushIf("tronco", tronco);
+    if (ddd !== undefined) { sets.push("ddd = ?"); vals.push(Number(ddd) || 0); }
+    pushIf("callerid", callerid);
+    pushIf("senha", senha);
+    if (fixo !== undefined)     { sets.push("fixo = ?");     vals.push(fixo ? 1 : 0); }
+    if (movel !== undefined)    { sets.push("movel = ?");    vals.push(movel ? 1 : 0); }
+    if (ddi !== undefined)      { sets.push("ddi = ?");      vals.push(ddi ? 1 : 0); }
+    if (especial !== undefined) { sets.push("especial = ?"); vals.push(especial ? 1 : 0); }
+    if (cng !== undefined)      { sets.push("cng = ?");      vals.push(cng ? 1 : 0); }
+
+    if (sets.length > 0) {
+      await conn.query(
+        `UPDATE ramais SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`,
+        [...vals, id, tenant],
+      );
+    }
+    if (senha !== undefined) {
+      await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, authId]);
+    }
+    if (callerid !== undefined) {
+      await conn.query(`UPDATE ps_endpoints SET callerid = ? WHERE id = ?`, [callerid || null, endpointId]);
+    }
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+
 app.delete("/ramais/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
