@@ -463,16 +463,16 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
             <Label>DDD</Label>
             <Input
               value={form.ddd}
-              onChange={(e) => setForm({ ...form, ddd: e.target.value.replace(/\D/g, "") })}
-              maxLength={2}
+              onChange={(e) => setForm({ ...form, ddd: e.target.value })}
+              maxLength={3}
             />
           </div>
           <div className="space-y-1">
             <Label>CallerID</Label>
             <Input
               value={form.callerid}
-              onChange={(e) => setForm({ ...form, callerid: e.target.value.replace(/\D/g, "") })}
-              maxLength={13}
+              onChange={(e) => setForm({ ...form, callerid: e.target.value })}
+              maxLength={32}
             />
           </div>
           <div className="col-span-2 space-y-1">
