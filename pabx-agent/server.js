@@ -382,7 +382,7 @@ cdrEndpoint(
 );
 cdrEndpoint(
   "/cdr/ramal",
-  `SELECT id, linkedid, context, regra, origem, destino, tronco, status, duracao, date_time
+  `SELECT id, linkedid, context, tipo_chamada, origem, destino, tronco, status, duracao, date_time
      FROM cdr_ramal WHERE tenant_id = ? ORDER BY date_time DESC`,
 );
 cdrEndpoint(
@@ -405,6 +405,98 @@ cdrEndpoint(
   `SELECT id, ddd, numero, sigla_estado, estado
      FROM cdr_cidades_saida WHERE tenant_id = ? ORDER BY id DESC`,
 );
+
+// ---------- Filas (gestão) ----------
+app.get("/filas", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT f.id, f.virtual_extension, f.name, f.display_name, f.description, f.active,
+              q.strategy, q.timeout, q.maxlen, q.musiconhold,
+              (SELECT COUNT(*) FROM filas_ramais fr
+                 WHERE fr.tenant_id = f.tenant_id AND fr.fila_ramal = f.virtual_extension) AS membros
+         FROM filas f
+         LEFT JOIN queues q ON q.tenant_id = f.tenant_id AND q.name = f.name
+        WHERE f.tenant_id = ?
+        ORDER BY f.virtual_extension`,
+      [String(tenant)],
+    );
+    res.json({ filas: rows.map((r) => ({ ...r, active: !!r.active })) });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.get("/filas/:virtualExt/membros", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const virtualExt = String(req.params.virtualExt);
+  try {
+    const [filaRows] = await pool.query(
+      `SELECT id, virtual_extension, name, display_name, description, active
+         FROM filas WHERE tenant_id = ? AND virtual_extension = ? LIMIT 1`,
+      [String(tenant), virtualExt],
+    );
+    if (filaRows.length === 0) return res.status(404).json({ error: "Fila não encontrada" });
+    const fila = filaRows[0];
+
+    const [agentes] = await pool.query(
+      `SELECT fr.id, fr.nome_ramal, fr.fila_ramal,
+              r.ramal, r.nome AS ramal_display, r.callerid
+         FROM filas_ramais fr
+         LEFT JOIN ramais r ON r.tenant_id = ? AND r.nome = fr.nome_ramal
+        WHERE fr.tenant_id = ? AND fr.fila_ramal = ?
+        ORDER BY fr.id`,
+      [Number(tenant), String(tenant), virtualExt],
+    );
+
+    const [queueRows] = await pool.query(
+      `SELECT * FROM queues WHERE tenant_id = ? AND name = ? LIMIT 1`,
+      [String(tenant), fila.name],
+    );
+
+    const [members] = await pool.query(
+      `SELECT interface, membername, penalty, paused, reason_paused
+         FROM queue_members WHERE tenant_id = ? AND queue_name = ?
+        ORDER BY interface`,
+      [String(tenant), fila.name],
+    );
+
+    res.json({
+      fila: { ...fila, active: !!fila.active },
+      agentes,
+      queue: queueRows[0] ?? null,
+      queue_members: members,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---------- URAs (gestão) ----------
+app.get("/uras", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nome, audio, max_digits, tentativas, timeout, ativo
+         FROM uras WHERE tenant_id = ? ORDER BY id`,
+      [tenant],
+    );
+    const uras = rows.map((r) => ({ ...r, ativo: !!r.ativo }));
+    for (const u of uras) {
+      const [opts] = await pool.query(
+        `SELECT id, digito, tipo_destino, destino FROM ura_opcoes WHERE ura_id = ? ORDER BY digito`,
+        [u.id],
+      );
+      u.opcoes = opts;
+    }
+    res.json({ uras });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
 
 // cdr_pesquisa não tem tenant_id direto — filtramos via JOIN em pesquisa_satisfacao
 app.get("/cdr/pesquisa", async (req, res) => {
