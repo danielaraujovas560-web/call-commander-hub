@@ -46,12 +46,16 @@ function RelatoriosPage() {
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="entrada" className="gap-2"><PhoneIncoming className="h-4 w-4" /> Entrada</TabsTrigger>
           <TabsTrigger value="ramais" className="gap-2"><PhoneCall className="h-4 w-4" /> Ramais</TabsTrigger>
+          <TabsTrigger value="filas" className="gap-2"><ListOrdered className="h-4 w-4" /> Filas</TabsTrigger>
+          <TabsTrigger value="uras" className="gap-2"><Workflow className="h-4 w-4" /> URAs</TabsTrigger>
           <TabsTrigger value="ddd" className="gap-2"><MapPin className="h-4 w-4" /> Por DDD</TabsTrigger>
           <TabsTrigger value="satisfacao" className="gap-2"><Star className="h-4 w-4" /> Satisfação</TabsTrigger>
         </TabsList>
 
         <TabsContent value="entrada" className="mt-4"><EntradaTable tenantId={tenantId} /></TabsContent>
         <TabsContent value="ramais" className="mt-4"><RamaisTable tenantId={tenantId} /></TabsContent>
+        <TabsContent value="filas" className="mt-4"><FilasTable tenantId={tenantId} /></TabsContent>
+        <TabsContent value="uras" className="mt-4"><UrasTable tenantId={tenantId} /></TabsContent>
         <TabsContent value="ddd" className="mt-4"><DddTables tenantId={tenantId} /></TabsContent>
         <TabsContent value="satisfacao" className="mt-4"><PesquisaTable tenantId={tenantId} /></TabsContent>
       </Tabs>
