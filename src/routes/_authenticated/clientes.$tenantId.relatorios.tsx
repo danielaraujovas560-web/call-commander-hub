@@ -204,38 +204,6 @@ function UrasTable({ tenantId }: { tenantId: number }) {
     </div>
   );
 }
-  const { data, isLoading, error } = useReport(listCdrRamal, tenantId, "cdr_ramal");
-  const rows = data?.rows ?? [];
-  return (
-    <div className="rounded-md border bg-card">
-      <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead><TableHead>Origem</TableHead><TableHead>Destino</TableHead>
-              <TableHead>Tronco</TableHead><TableHead>Contexto</TableHead><TableHead>Regra</TableHead>
-              <TableHead>Duração</TableHead><TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r: any) => (
-              <TableRow key={r.id}>
-                <TableCell className="text-xs">{r.date_time}</TableCell>
-                <TableCell className="font-mono">{r.origem}</TableCell>
-                <TableCell className="font-mono">{r.destino}</TableCell>
-                <TableCell>{r.tronco || "-"}</TableCell>
-                <TableCell>{r.context}</TableCell>
-                <TableCell>{r.regra}</TableCell>
-                <TableCell className="font-mono">{r.duracao}</TableCell>
-                <TableCell><Badge variant="secondary">{r.status}</Badge></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ReportShell>
-    </div>
-  );
-}
 
 function DddTables({ tenantId }: { tenantId: number }) {
   const ent = useReport(listCdrCidadesEntrada, tenantId, "cdr_cidades_entrada");
