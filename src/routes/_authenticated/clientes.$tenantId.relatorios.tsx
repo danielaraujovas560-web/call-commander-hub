@@ -118,6 +118,101 @@ function RamaisTable({ tenantId }: { tenantId: number }) {
           <TableHeader>
             <TableRow>
               <TableHead>Data</TableHead><TableHead>Origem</TableHead><TableHead>Destino</TableHead>
+              <TableHead>Tronco</TableHead><TableHead>Contexto</TableHead><TableHead>Tipo</TableHead>
+              <TableHead>Duração</TableHead><TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="text-xs">{r.date_time}</TableCell>
+                <TableCell className="font-mono">{r.origem}</TableCell>
+                <TableCell className="font-mono">{r.destino}</TableCell>
+                <TableCell>{r.tronco || "-"}</TableCell>
+                <TableCell>{r.context}</TableCell>
+                <TableCell>{r.tipo_chamada}</TableCell>
+                <TableCell className="font-mono">{r.duracao}</TableCell>
+                <TableCell><Badge variant="secondary">{r.status}</Badge></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ReportShell>
+    </div>
+  );
+}
+
+function FilasTable({ tenantId }: { tenantId: number }) {
+  const { data, isLoading, error } = useReport(listCdrFila, tenantId, "cdr_fila");
+  const rows = data?.rows ?? [];
+  return (
+    <div className="rounded-md border bg-card">
+      <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead><TableHead>Fila</TableHead><TableHead>Agente</TableHead>
+              <TableHead>Ramal</TableHead><TableHead>Evento</TableHead><TableHead>Motivo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="text-xs">{r.time_data}</TableCell>
+                <TableCell>{r.nome_fila}</TableCell>
+                <TableCell>{r.agente}</TableCell>
+                <TableCell className="font-mono">{r.ramal}</TableCell>
+                <TableCell>
+                  <Badge variant={r.evento === "ATENDEU" ? "default" : "secondary"}>{r.evento}</Badge>
+                </TableCell>
+                <TableCell className="text-xs">{r.motivo}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ReportShell>
+    </div>
+  );
+}
+
+function UrasTable({ tenantId }: { tenantId: number }) {
+  const { data, isLoading, error } = useReport(listCdrUra, tenantId, "cdr_ura");
+  const rows = data?.rows ?? [];
+  return (
+    <div className="rounded-md border bg-card">
+      <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>URA</TableHead><TableHead>DID</TableHead><TableHead>Opção</TableHead>
+              <TableHead>Destino</TableHead><TableHead>Linked ID</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell>{r.nome_ura}</TableCell>
+                <TableCell className="font-mono">{r.num_did}</TableCell>
+                <TableCell className="font-mono">{r.opcao}</TableCell>
+                <TableCell>{r.dest_op} → {r.dest_nome}</TableCell>
+                <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ReportShell>
+    </div>
+  );
+}
+  const { data, isLoading, error } = useReport(listCdrRamal, tenantId, "cdr_ramal");
+  const rows = data?.rows ?? [];
+  return (
+    <div className="rounded-md border bg-card">
+      <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead><TableHead>Origem</TableHead><TableHead>Destino</TableHead>
               <TableHead>Tronco</TableHead><TableHead>Contexto</TableHead><TableHead>Regra</TableHead>
               <TableHead>Duração</TableHead><TableHead>Status</TableHead>
             </TableRow>
