@@ -316,7 +316,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           </div>
           <div className="space-y-1">
             <Label>DDD</Label>
-            <Input value={form.ddd} onChange={(e) => setForm({ ...form, ddd: e.target.value.replace(/\D/g, "") })} required maxLength={2} />
+            <Input value={form.ddd} onChange={(e) => setForm({ ...form, ddd: e.target.value })} required maxLength={3} />
           </div>
           <div className="col-span-2 space-y-1">
             <Label>Senha</Label>
@@ -348,7 +348,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           </div>
           <div className="col-span-2 space-y-1">
             <Label>CallerID (opcional)</Label>
-            <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value.replace(/\D/g, "") })} maxLength={13} />
+            <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />
           </div>
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
