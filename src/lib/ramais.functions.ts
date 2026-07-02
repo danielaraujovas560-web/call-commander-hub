@@ -43,8 +43,8 @@ const RamalInput = z.object({
   ramal: z.string().trim().regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
   senha: z.string().min(6).max(64),
   tronco: z.string().trim().min(1).max(80),
-  ddd: z.string().regex(/^\d{2}$/, "DDD com 2 dígitos"),
-  callerid: z.string().regex(/^\d{10,13}$/).optional().or(z.literal("")),
+  ddd: z.string().trim().min(1).max(3),
+  callerid: z.string().trim().max(32).optional().or(z.literal("")),
   fixo: z.boolean().default(true),
   movel: z.boolean().default(true),
   ddi: z.boolean().default(false),
@@ -145,8 +145,8 @@ const RamalUpdateInput = z.object({
   nome: z.string().trim().min(1).max(80).optional(),
   senha: z.string().min(6).max(64).optional(),
   tronco: z.string().trim().min(1).max(80).optional(),
-  ddd: z.string().regex(/^\d{2}$/).optional(),
-  callerid: z.string().regex(/^\d{10,13}$/).optional().or(z.literal("")),
+  ddd: z.string().trim().min(1).max(3).optional(),
+  callerid: z.string().trim().max(32).optional().or(z.literal("")),
   fixo: z.boolean().optional(),
   movel: z.boolean().optional(),
   ddi: z.boolean().optional(),
@@ -327,4 +327,68 @@ export const deleteBlacklist = createServerFn({ method: "POST" })
     const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
     await agentFetch(`/blacklist/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
+  });
+
+// ---------- Filas (gestão) ----------
+export interface Fila {
+  id: number;
+  virtual_extension: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  active: boolean;
+  strategy: string | null;
+  timeout: number | null;
+  maxlen: number | null;
+  musiconhold: string | null;
+  membros: number;
+}
+
+export const listFilas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ filas: Fila[] }>(`/filas?tenant=${tenantId}`, { tenantId });
+    return { tenantId, filas: res.filas ?? [] };
+  });
+
+export const getFilaMembros = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      tenant_id: z.number().int().positive().optional(),
+      virtual_extension: z.string().min(1),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{
+      fila: any; agentes: any[]; queue: any; queue_members: any[];
+    }>(`/filas/${encodeURIComponent(data.virtual_extension)}/membros`, { tenantId });
+    return res;
+  });
+
+// ---------- URAs (gestão) ----------
+export interface Ura {
+  id: number;
+  nome: string;
+  audio: string;
+  max_digits: number | null;
+  tentativas: number | null;
+  timeout: number | null;
+  ativo: boolean;
+  opcoes: { id: number; digito: string; tipo_destino: string; destino: string }[];
+}
+
+export const listUras = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ uras: Ura[] }>(`/uras?tenant=${tenantId}`, { tenantId });
+    return { tenantId, uras: res.uras ?? [] };
   });

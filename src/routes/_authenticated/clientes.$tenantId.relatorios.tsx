@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart3, PhoneIncoming, PhoneCall, Star, MapPin,
+  BarChart3, PhoneIncoming, PhoneCall, Star, MapPin, ListOrdered, Workflow,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -15,6 +15,8 @@ import {
   listCdrPesquisa,
   listCdrCidadesEntrada,
   listCdrCidadesSaida,
+  listCdrFila,
+  listCdrUra,
 } from "@/lib/ramais.functions";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios")({
@@ -44,12 +46,16 @@ function RelatoriosPage() {
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="entrada" className="gap-2"><PhoneIncoming className="h-4 w-4" /> Entrada</TabsTrigger>
           <TabsTrigger value="ramais" className="gap-2"><PhoneCall className="h-4 w-4" /> Ramais</TabsTrigger>
+          <TabsTrigger value="filas" className="gap-2"><ListOrdered className="h-4 w-4" /> Filas</TabsTrigger>
+          <TabsTrigger value="uras" className="gap-2"><Workflow className="h-4 w-4" /> URAs</TabsTrigger>
           <TabsTrigger value="ddd" className="gap-2"><MapPin className="h-4 w-4" /> Por DDD</TabsTrigger>
           <TabsTrigger value="satisfacao" className="gap-2"><Star className="h-4 w-4" /> Satisfação</TabsTrigger>
         </TabsList>
 
         <TabsContent value="entrada" className="mt-4"><EntradaTable tenantId={tenantId} /></TabsContent>
         <TabsContent value="ramais" className="mt-4"><RamaisTable tenantId={tenantId} /></TabsContent>
+        <TabsContent value="filas" className="mt-4"><FilasTable tenantId={tenantId} /></TabsContent>
+        <TabsContent value="uras" className="mt-4"><UrasTable tenantId={tenantId} /></TabsContent>
         <TabsContent value="ddd" className="mt-4"><DddTables tenantId={tenantId} /></TabsContent>
         <TabsContent value="satisfacao" className="mt-4"><PesquisaTable tenantId={tenantId} /></TabsContent>
       </Tabs>
@@ -112,7 +118,7 @@ function RamaisTable({ tenantId }: { tenantId: number }) {
           <TableHeader>
             <TableRow>
               <TableHead>Data</TableHead><TableHead>Origem</TableHead><TableHead>Destino</TableHead>
-              <TableHead>Tronco</TableHead><TableHead>Contexto</TableHead><TableHead>Regra</TableHead>
+              <TableHead>Tronco</TableHead><TableHead>Contexto</TableHead><TableHead>Tipo</TableHead>
               <TableHead>Duração</TableHead><TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -124,9 +130,72 @@ function RamaisTable({ tenantId }: { tenantId: number }) {
                 <TableCell className="font-mono">{r.destino}</TableCell>
                 <TableCell>{r.tronco || "-"}</TableCell>
                 <TableCell>{r.context}</TableCell>
-                <TableCell>{r.regra}</TableCell>
+                <TableCell>{r.tipo_chamada}</TableCell>
                 <TableCell className="font-mono">{r.duracao}</TableCell>
                 <TableCell><Badge variant="secondary">{r.status}</Badge></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ReportShell>
+    </div>
+  );
+}
+
+function FilasTable({ tenantId }: { tenantId: number }) {
+  const { data, isLoading, error } = useReport(listCdrFila, tenantId, "cdr_fila");
+  const rows = data?.rows ?? [];
+  return (
+    <div className="rounded-md border bg-card">
+      <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead><TableHead>Fila</TableHead><TableHead>Agente</TableHead>
+              <TableHead>Ramal</TableHead><TableHead>Evento</TableHead><TableHead>Motivo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="text-xs">{r.time_data}</TableCell>
+                <TableCell>{r.nome_fila}</TableCell>
+                <TableCell>{r.agente}</TableCell>
+                <TableCell className="font-mono">{r.ramal}</TableCell>
+                <TableCell>
+                  <Badge variant={r.evento === "ATENDEU" ? "default" : "secondary"}>{r.evento}</Badge>
+                </TableCell>
+                <TableCell className="text-xs">{r.motivo}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ReportShell>
+    </div>
+  );
+}
+
+function UrasTable({ tenantId }: { tenantId: number }) {
+  const { data, isLoading, error } = useReport(listCdrUra, tenantId, "cdr_ura");
+  const rows = data?.rows ?? [];
+  return (
+    <div className="rounded-md border bg-card">
+      <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>URA</TableHead><TableHead>DID</TableHead><TableHead>Opção</TableHead>
+              <TableHead>Destino</TableHead><TableHead>Linked ID</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell>{r.nome_ura}</TableCell>
+                <TableCell className="font-mono">{r.num_did}</TableCell>
+                <TableCell className="font-mono">{r.opcao}</TableCell>
+                <TableCell>{r.dest_op} → {r.dest_nome}</TableCell>
+                <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
               </TableRow>
             ))}
           </TableBody>
