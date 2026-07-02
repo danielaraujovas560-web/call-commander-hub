@@ -328,3 +328,67 @@ export const deleteBlacklist = createServerFn({ method: "POST" })
     await agentFetch(`/blacklist/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
+
+// ---------- Filas (gestão) ----------
+export interface Fila {
+  id: number;
+  virtual_extension: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  active: boolean;
+  strategy: string | null;
+  timeout: number | null;
+  maxlen: number | null;
+  musiconhold: string | null;
+  membros: number;
+}
+
+export const listFilas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ filas: Fila[] }>(`/filas?tenant=${tenantId}`, { tenantId });
+    return { tenantId, filas: res.filas ?? [] };
+  });
+
+export const getFilaMembros = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      tenant_id: z.number().int().positive().optional(),
+      virtual_extension: z.string().min(1),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{
+      fila: any; agentes: any[]; queue: any; queue_members: any[];
+    }>(`/filas/${encodeURIComponent(data.virtual_extension)}/membros`, { tenantId });
+    return res;
+  });
+
+// ---------- URAs (gestão) ----------
+export interface Ura {
+  id: number;
+  nome: string;
+  audio: string;
+  max_digits: number | null;
+  tentativas: number | null;
+  timeout: number | null;
+  ativo: boolean;
+  opcoes: { id: number; digito: string; tipo_destino: string; destino: string }[];
+}
+
+export const listUras = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ uras: Ura[] }>(`/uras?tenant=${tenantId}`, { tenantId });
+    return { tenantId, uras: res.uras ?? [] };
+  });
