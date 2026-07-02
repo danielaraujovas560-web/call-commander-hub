@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart3, PhoneIncoming, PhoneCall, Star, MapPin,
+  BarChart3, PhoneIncoming, PhoneCall, Star, MapPin, ListOrdered, Workflow,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -15,6 +15,8 @@ import {
   listCdrPesquisa,
   listCdrCidadesEntrada,
   listCdrCidadesSaida,
+  listCdrFila,
+  listCdrUra,
 } from "@/lib/ramais.functions";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios")({
