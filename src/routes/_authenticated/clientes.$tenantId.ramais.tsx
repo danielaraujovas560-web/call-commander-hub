@@ -255,48 +255,66 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
     enabled: open,
   });
 
-  const queryClient = useQueryClient();
-  const create = useServerFn(createRamal);
-  const [form, setForm] = useState({
+  const emptyForm = {
     nome: "",
     ramal: "",
-    senha: "",
     tronco: "",
     ddd: "",
     callerid: "",
-    fixo: true,
-    movel: true,
+    fixo: false,
+    movel: false,
     ddi: false,
     especial: false,
     cng: false,
-  });
+    transbordo: false,
+    transbordo_troncos: [] as string[],
+  };
+  const queryClient = useQueryClient();
+  const create = useServerFn(createRamal);
+  const [form, setForm] = useState(emptyForm);
+
+  // reset ao abrir
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (v) setForm(emptyForm);
+  };
+
+  const troncos = troncosData?.troncos ?? [];
+  const troncosDisponiveisTransbordo = troncos.filter((t) => t.nome !== form.tronco);
 
   const mut = useMutation({
-    mutationFn: () => create({ data: { ...form, tenant_id: tenantId } }),
+    mutationFn: () =>
+      create({
+        data: {
+          ...form,
+          tenant_id: tenantId,
+          transbordo_tronco: form.transbordo && form.transbordo_troncos.length
+            ? form.transbordo_troncos.join("&")
+            : "",
+        },
+      }),
     onSuccess: () => {
       toast.success("Ramal criado");
       queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
       setOpen(false);
-      setForm({
-        nome: "", ramal: "", senha: "", tronco: "", ddd: "", callerid: "",
-        fixo: true, movel: true, ddi: false, especial: false, cng: false,
-      });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button disabled={disabled}>
           <Plus className="mr-2 h-4 w-4" />
           Adicionar ramal
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo ramal</DialogTitle>
-          <DialogDescription>Cadastra o ramal e cria o endpoint SIP no servidor.</DialogDescription>
+          <DialogDescription>
+            Senha será gerada automaticamente. Você poderá editar depois.
+          </DialogDescription>
         </DialogHeader>
 
         <form
@@ -306,58 +324,77 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           }}
           className="grid grid-cols-2 gap-3"
         >
-          <div className="col-span-2 space-y-1">
-            <Label>Nome</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+          <div className="space-y-1">
+            <Label>Ramal *</Label>
+            <Input
+              value={form.ramal}
+              onChange={(e) => setForm({ ...form, ramal: e.target.value.replace(/\D/g, "") })}
+              required
+              maxLength={6}
+              placeholder="1234"
+            />
           </div>
           <div className="space-y-1">
-            <Label>Ramal</Label>
-            <Input value={form.ramal} onChange={(e) => setForm({ ...form, ramal: e.target.value.replace(/\D/g, "") })} required maxLength={6} />
-          </div>
-          <div className="space-y-1">
-            <Label>DDD</Label>
+            <Label>DDD *</Label>
             <Input value={form.ddd} onChange={(e) => setForm({ ...form, ddd: e.target.value })} required maxLength={3} />
           </div>
+
           <div className="col-span-2 space-y-1">
-            <Label>Senha</Label>
-            <div className="flex gap-2">
-              <Input value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} required minLength={6} />
-              <Button type="button" variant="outline" onClick={() => setForm({ ...form, senha: genPassword() })}>
-                Gerar
-              </Button>
-            </div>
+            <Label>Nome (opcional — usa nº do ramal se vazio)</Label>
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
+
           <div className="col-span-2 space-y-1">
-            <Label>Tronco</Label>
-            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v })}>
+            <Label>Tronco *</Label>
+            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v, transbordo_troncos: form.transbordo_troncos.filter((t) => t !== v) })}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um tronco" />
               </SelectTrigger>
               <SelectContent>
-                {(troncosData?.troncos ?? []).map((t) => (
+                {troncos.map((t) => (
                   <SelectItem key={t.id} value={t.nome}>
                     {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}
-                {troncosData?.troncos.length === 0 && (
+                {troncos.length === 0 && (
                   <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco encontrado</div>
                 )}
               </SelectContent>
-
             </Select>
           </div>
+
           <div className="col-span-2 space-y-1">
-            <Label>CallerID (opcional)</Label>
+            <Label>CallerID (opcional — qualquer texto)</Label>
             <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />
           </div>
 
+          <div className="col-span-2 rounded-md border p-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.transbordo}
+                onCheckedChange={(v) => setForm({ ...form, transbordo: v, transbordo_troncos: v ? form.transbordo_troncos : [] })}
+              />
+              Transbordo
+            </label>
+            {form.transbordo && (
+              <TransbordoTroncosSelector
+                available={troncosDisponiveisTransbordo}
+                selected={form.transbordo_troncos}
+                onChange={(v) => setForm({ ...form, transbordo_troncos: v })}
+              />
+            )}
+          </div>
+
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
+            <div className="col-span-2 text-xs text-muted-foreground">
+              Ativo = <strong>bloqueia</strong> este tipo de ligação
+            </div>
             {[
-              ["fixo", "Liga p/ fixo"],
-              ["movel", "Liga p/ móvel"],
-              ["ddi", "DDI"],
-              ["especial", "Especial"],
-              ["cng", "CNG"],
+              ["fixo", "Bloquear fixo"],
+              ["movel", "Bloquear móvel"],
+              ["ddi", "Bloquear DDI"],
+              ["especial", "Bloquear especial"],
+              ["cng", "Bloquear CNG"],
             ].map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 text-sm">
                 <Switch
@@ -382,6 +419,63 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
     </Dialog>
   );
 }
+
+function TransbordoTroncosSelector({
+  available,
+  selected,
+  onChange,
+}: {
+  available: { id: number; nome: string; tipo: string | null }[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const remaining = available.filter((t) => !selected.includes(t.nome));
+  const [pick, setPick] = useState("");
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1">
+        {selected.map((s) => (
+          <Badge key={s} variant="secondary" className="gap-1">
+            {s}
+            <button
+              type="button"
+              className="ml-1 text-muted-foreground hover:text-foreground"
+              onClick={() => onChange(selected.filter((x) => x !== s))}
+            >
+              ×
+            </button>
+          </Badge>
+        ))}
+        {selected.length === 0 && (
+          <span className="text-xs text-muted-foreground">Nenhum tronco de transbordo selecionado</span>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Select value={pick} onValueChange={setPick}>
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder={remaining.length ? "Selecione tronco…" : "Nenhum disponível"} />
+          </SelectTrigger>
+          <SelectContent>
+            {remaining.map((t) => (
+              <SelectItem key={t.id} value={t.nome}>
+                {t.nome} {t.tipo ? `(${t.tipo})` : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!pick}
+          onClick={() => { onChange([...selected, pick]); setPick(""); }}
+        >
+          Adicionar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 
 function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }) {
   const [open, setOpen] = useState(false);
