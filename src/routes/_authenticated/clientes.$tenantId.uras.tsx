@@ -1,33 +1,72 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Workflow, RefreshCw, ListTree } from "lucide-react";
-import { listUras, type Ura } from "@/lib/ramais.functions";
+import { toast } from "sonner";
+import { Workflow, RefreshCw, ListTree, Plus, Trash2, Pencil } from "lucide-react";
+import {
+  listUras,
+  createUra,
+  updateUra,
+  deleteUra,
+  addUraOpcao,
+  deleteUraOpcao,
+  listUraAudios,
+  listUraDestinos,
+  type Ura,
+} from "@/lib/ramais.functions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/uras")({
   head: () => ({ meta: [{ title: "URAs — Cliente — Painel PABX" }] }),
   component: UrasPage,
 });
 
+const TIPOS_INTERNOS = [
+  { value: "hangup", label: "Desligar" },
+  { value: "repeat", label: "Repetir" },
+];
+
 function UrasPage() {
   const { tenantId: p } = Route.useParams();
   const tenantId = Number(p);
   const fn = useServerFn(listUras);
+  const qc = useQueryClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["uras", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
   });
-  const [selected, setSelected] = useState<Ura | null>(null);
   const uras = data?.uras ?? [];
+
+  const [selected, setSelected] = useState<Ura | null>(null);
+  const [editing, setEditing] = useState<Ura | null>(null);
+
+  const delFn = useServerFn(deleteUra);
+  const delMut = useMutation({
+    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
+    onSuccess: () => {
+      toast.success("URA removida");
+      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <div className="space-y-4">
@@ -38,9 +77,12 @@ function UrasPage() {
           </h1>
           <p className="text-sm text-muted-foreground">URAs configuradas para este cliente.</p>
         </div>
-        <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          </Button>
+          <UraFormDialog tenantId={tenantId} />
+        </div>
       </div>
 
       {error && (
@@ -54,6 +96,7 @@ function UrasPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
+              <TableHead>Áudio</TableHead>
               <TableHead>Máx. dígitos</TableHead>
               <TableHead>Tentativas</TableHead>
               <TableHead>Timeout (s)</TableHead>
@@ -63,14 +106,15 @@ function UrasPage() {
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>
             )}
             {!isLoading && uras.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Nenhuma URA cadastrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma URA cadastrada.</TableCell></TableRow>
             )}
             {uras.map((u) => (
               <TableRow key={u.id}>
-                <TableCell>{u.nome}</TableCell>
+                <TableCell className={u.ativo ? "" : "text-muted-foreground"}>{u.nome}</TableCell>
+                <TableCell className="font-mono text-xs">{u.audio}</TableCell>
                 <TableCell>{u.max_digits ?? "-"}</TableCell>
                 <TableCell>{u.tentativas ?? "-"}</TableCell>
                 <TableCell>{u.timeout ?? "-"}</TableCell>
@@ -78,9 +122,31 @@ function UrasPage() {
                   <Badge variant={u.ativo ? "default" : "secondary"}>{u.ativo ? "Sim" : "Não"}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => setSelected(u)}>
-                    <ListTree className="h-4 w-4 mr-1" /> Opções
-                  </Button>
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => setSelected(u)}>
+                      <ListTree className="h-4 w-4 mr-1" /> Opções
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setEditing(u)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover URA {u.nome}?</AlertDialogTitle>
+                          <AlertDialogDescription>Também remove todas as opções configuradas.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => delMut.mutate(u.id)}>Remover</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -89,42 +155,355 @@ function UrasPage() {
       </div>
 
       {selected && (
-        <Dialog open onOpenChange={(o) => !o && setSelected(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{selected.nome}</DialogTitle>
-              <DialogDescription>Opções configuradas em ura_opcoes.</DialogDescription>
-            </DialogHeader>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Dígito</TableHead>
-                    <TableHead>Tipo destino</TableHead>
-                    <TableHead>Destino</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(selected.opcoes ?? []).map((o) => (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-mono">{o.digito || "-"}</TableCell>
-                      <TableCell><Badge variant="outline">{o.tipo_destino}</Badge></TableCell>
-                      <TableCell>{o.destino}</TableCell>
-                    </TableRow>
-                  ))}
-                  {(!selected.opcoes || selected.opcoes.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
-                        Sem opções.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <UraOpcoesDialog
+          tenantId={tenantId}
+          ura={uras.find((u) => u.id === selected.id) ?? selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
+      {editing && (
+        <UraFormDialog
+          tenantId={tenantId}
+          ura={editing}
+          open
+          onOpenChange={(v) => !v && setEditing(null)}
+        />
       )}
     </div>
+  );
+}
+
+// ---------- Form (create/edit) ----------
+function UraFormDialog({
+  tenantId,
+  ura,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  tenantId: number;
+  ura?: Ura;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
+  const editing = !!ura;
+
+  const audiosFn = useServerFn(listUraAudios);
+  const { data: audiosData } = useQuery({
+    queryKey: ["ura-audios", tenantId],
+    queryFn: () => audiosFn({ data: { tenant_id: tenantId } }),
+    enabled: open,
+  });
+
+  const [form, setForm] = useState({
+    nome: ura?.nome ?? "",
+    audio: ura?.audio ?? "",
+    max_digits: ura?.max_digits ?? 1,
+    tentativas: ura?.tentativas ?? 3,
+    timeout: ura?.timeout ?? 10,
+    ativo: ura?.ativo ?? true,
+  });
+
+  const handleOpen = (v: boolean) => {
+    setOpen(v);
+    if (v) {
+      setForm({
+        nome: ura?.nome ?? "",
+        audio: ura?.audio ?? "",
+        max_digits: ura?.max_digits ?? 1,
+        tentativas: ura?.tentativas ?? 3,
+        timeout: ura?.timeout ?? 10,
+        ativo: ura?.ativo ?? true,
+      });
+    }
+  };
+
+  const qc = useQueryClient();
+  const createFn = useServerFn(createUra);
+  const updateFn = useServerFn(updateUra);
+  const mut = useMutation({
+    mutationFn: () =>
+      editing
+        ? updateFn({ data: { id: ura!.id, tenant_id: tenantId, ...form } })
+        : createFn({ data: { tenant_id: tenantId, ...form } }),
+    onSuccess: () => {
+      toast.success(editing ? "URA atualizada" : "URA criada");
+      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+      setOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const audios = audiosData?.audios ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      {!editing && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" /> Adicionar URA
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{editing ? `Editar URA ${ura!.nome}` : "Nova URA"}</DialogTitle>
+          <DialogDescription>
+            {audiosData?.warn ? `Pasta de áudios: ${audiosData.dir} (${audiosData.warn})` : `Áudios em ${audiosData?.dir ?? "…"}`}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
+          <div className="space-y-1">
+            <Label>Nome *</Label>
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required maxLength={80} />
+          </div>
+          <div className="space-y-1">
+            <Label>Áudio * (arquivos em /ura/t{tenantId}/)</Label>
+            <Select value={form.audio} onValueChange={(v) => setForm({ ...form, audio: v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione o áudio" /></SelectTrigger>
+              <SelectContent>
+                {audios.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
+                {audios.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum .wav encontrado</div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label>Máx. dígitos</Label>
+              <Input type="number" min={1} max={20} value={form.max_digits}
+                     onChange={(e) => setForm({ ...form, max_digits: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Tentativas</Label>
+              <Input type="number" min={1} max={10} value={form.tentativas}
+                     onChange={(e) => setForm({ ...form, tentativas: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Timeout (s)</Label>
+              <Input type="number" min={1} max={120} value={form.timeout}
+                     onChange={(e) => setForm({ ...form, timeout: Number(e.target.value) })} />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
+            Ativo
+          </label>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mut.isPending || !form.audio || !form.nome}>
+              {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------- Opções ----------
+function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ura; onClose: () => void }) {
+  const destinosFn = useServerFn(listUraDestinos);
+  const { data: destinos } = useQuery({
+    queryKey: ["ura-destinos", tenantId],
+    queryFn: () => destinosFn({ data: { tenant_id: tenantId } }),
+  });
+
+  const qc = useQueryClient();
+  const addFn = useServerFn(addUraOpcao);
+  const delFn = useServerFn(deleteUraOpcao);
+
+  const [novo, setNovo] = useState({
+    digito: "",
+    tipo_destino: "" as "" | "fila" | "ura" | "ramal" | "interno" | "externo",
+    destino: "",
+    externoNumero: "",
+    externoTronco: "",
+  });
+
+  const addMut = useMutation({
+    mutationFn: () => {
+      const destino = novo.tipo_destino === "externo"
+        ? `${novo.externoNumero}/${novo.externoTronco}`
+        : novo.destino;
+      return addFn({
+        data: {
+          ura_id: ura.id,
+          tenant_id: tenantId,
+          digito: novo.digito,
+          tipo_destino: novo.tipo_destino as any,
+          destino,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Opção adicionada");
+      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+      setNovo({ digito: "", tipo_destino: "", destino: "", externoNumero: "", externoTronco: "" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const delMut = useMutation({
+    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function renderDestino(o: { tipo_destino: string; destino: string }) {
+    if (o.tipo_destino === "fila") {
+      const f = destinos?.filas.find((x) => String(x.value) === o.destino);
+      return f?.label ?? o.destino;
+    }
+    if (o.tipo_destino === "ura") {
+      const u = destinos?.uras.find((x) => String(x.value) === o.destino);
+      return u?.label ?? o.destino;
+    }
+    if (o.tipo_destino === "ramal") {
+      const r = destinos?.ramais.find((x) => String(x.value) === o.destino);
+      return r?.label ? `${r.label} (${o.destino})` : o.destino;
+    }
+    if (o.tipo_destino === "interno") {
+      const t = TIPOS_INTERNOS.find((x) => x.value === o.destino);
+      return t?.label ?? o.destino;
+    }
+    return o.destino;
+  }
+
+  const disabled = !novo.tipo_destino || (
+    novo.tipo_destino === "externo"
+      ? !novo.externoNumero || !novo.externoTronco
+      : !novo.destino
+  );
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{ura.nome} — Opções</DialogTitle>
+          <DialogDescription>Configure os destinos por dígito.</DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Dígito</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(ura.opcoes ?? []).map((o) => (
+                <TableRow key={o.id}>
+                  <TableCell className="font-mono">{o.digito || "-"}</TableCell>
+                  <TableCell><Badge variant="outline">{o.tipo_destino}</Badge></TableCell>
+                  <TableCell>{renderDestino(o)}</TableCell>
+                  <TableCell>
+                    <Button size="icon" variant="ghost" onClick={() => delMut.mutate(o.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(ura.opcoes ?? []).length === 0 && (
+                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem opções.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="rounded-md border p-3 space-y-2">
+          <div className="text-sm font-medium">Nova opção</div>
+          <div className="grid grid-cols-4 gap-2">
+            <div className="space-y-1">
+              <Label>Dígito</Label>
+              <Input value={novo.digito} maxLength={4}
+                     onChange={(e) => setNovo({ ...novo, digito: e.target.value })} placeholder="0-9,*,#,t,i" />
+            </div>
+            <div className="space-y-1">
+              <Label>Tipo</Label>
+              <Select value={novo.tipo_destino} onValueChange={(v: any) => setNovo({ ...novo, tipo_destino: v, destino: "" })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fila">Fila</SelectItem>
+                  <SelectItem value="ura">URA</SelectItem>
+                  <SelectItem value="ramal">Ramal</SelectItem>
+                  <SelectItem value="interno">Função interna</SelectItem>
+                  <SelectItem value="externo">Externo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label>Destino</Label>
+              {novo.tipo_destino === "fila" && (
+                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a fila" /></SelectTrigger>
+                  <SelectContent>
+                    {destinos?.filas.map((f) => (<SelectItem key={f.value} value={String(f.value)}>{f.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              )}
+              {novo.tipo_destino === "ura" && (
+                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a URA" /></SelectTrigger>
+                  <SelectContent>
+                    {destinos?.uras.filter((u) => u.value !== ura.id).map((u) => (
+                      <SelectItem key={u.value} value={String(u.value)}>{u.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {novo.tipo_destino === "ramal" && (
+                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o ramal" /></SelectTrigger>
+                  <SelectContent>
+                    {destinos?.ramais.map((r) => (
+                      <SelectItem key={r.value} value={String(r.value)}>{r.label} ({r.value})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {novo.tipo_destino === "interno" && (
+                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+                  <SelectTrigger><SelectValue placeholder="Função" /></SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_INTERNOS.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              )}
+              {novo.tipo_destino === "externo" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Input value={novo.externoNumero} onChange={(e) => setNovo({ ...novo, externoNumero: e.target.value })} placeholder="Número" />
+                  <Select value={novo.externoTronco} onValueChange={(v) => setNovo({ ...novo, externoTronco: v })}>
+                    <SelectTrigger><SelectValue placeholder="Tronco" /></SelectTrigger>
+                    <SelectContent>
+                      {destinos?.troncos.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {!novo.tipo_destino && (
+                <Input disabled placeholder="Escolha o tipo primeiro" />
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button disabled={disabled || addMut.isPending} onClick={() => addMut.mutate()}>
+              <Plus className="mr-1 h-4 w-4" /> Adicionar opção
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
