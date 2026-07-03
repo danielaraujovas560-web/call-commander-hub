@@ -40,8 +40,8 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/uras")(
 });
 
 const TIPOS_INTERNOS = [
-  { value: "hangup", label: "Desligar" },
-  { value: "repeat", label: "Repetir" },
+  { value: "desligar", label: "Desligar" },
+  { value: "repetir", label: "Repetir" },
 ];
 
 function UrasPage() {
