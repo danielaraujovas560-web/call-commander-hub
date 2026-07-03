@@ -152,9 +152,15 @@ function RoteamentoFormDialog({
     enabled: open,
   });
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    numero_id: string;
+    tipo_destino: TipoDest | "";
+    destino: string;
+    externoNumero: string;
+    externoTronco: string;
+  }>({
     numero_id: item?.numero_id ? String(item.numero_id) : "",
-    tipo_destino: (item?.tipo_destino as TipoDest) ?? ("" as TipoDest | ""),
+    tipo_destino: (item?.tipo_destino as TipoDest) ?? "",
     destino: item?.destino ?? "",
     externoNumero: "",
     externoTronco: "",
