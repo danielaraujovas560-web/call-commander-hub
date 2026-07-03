@@ -146,16 +146,18 @@ export const createRamal = createServerFn({ method: "POST" })
 const RamalUpdateInput = z.object({
   id: z.number().int().positive(),
   tenant_id: z.number().int().positive().optional(),
-  nome: z.string().trim().min(1).max(80).optional(),
-  senha: z.string().min(6).max(64).optional(),
-  tronco: z.string().trim().min(1).max(80).optional(),
-  ddd: z.string().trim().min(1).max(3).optional(),
-  callerid: z.string().trim().max(32).optional().or(z.literal("")),
+  nome: z.coerce.string().trim().max(80).optional(),
+  senha: z.coerce.string().max(64).optional(),
+  tronco: z.coerce.string().trim().min(1).max(80).optional(),
+  ddd: z.coerce.string().trim().min(1).max(3).optional(),
+  callerid: z.coerce.string().trim().max(32).optional().or(z.literal("")),
   fixo: z.boolean().optional(),
   movel: z.boolean().optional(),
   ddi: z.boolean().optional(),
   especial: z.boolean().optional(),
   cng: z.boolean().optional(),
+  transbordo: z.boolean().optional(),
+  transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")).or(z.null()),
 });
 
 export const updateRamal = createServerFn({ method: "POST" })
