@@ -17,6 +17,8 @@ export interface Ramal {
   especial: boolean;
   cng: boolean;
   endpoint_id: string | null;
+  transbordo: boolean;
+  transbordo_tronco: string | null;
 }
 
 export interface Tronco {
@@ -39,17 +41,19 @@ export interface BlacklistItem {
 }
 
 const RamalInput = z.object({
-  nome: z.string().trim().min(1).max(80),
-  ramal: z.string().trim().regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
-  senha: z.string().min(6).max(64),
-  tronco: z.string().trim().min(1).max(80),
-  ddd: z.string().trim().min(1).max(3),
-  callerid: z.string().trim().max(32).optional().or(z.literal("")),
-  fixo: z.boolean().default(true),
-  movel: z.boolean().default(true),
+  nome: z.coerce.string().trim().max(80).optional().or(z.literal("")),
+  ramal: z.coerce.string().trim().regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
+  senha: z.coerce.string().max(64).optional().or(z.literal("")),
+  tronco: z.coerce.string().trim().min(1).max(80),
+  ddd: z.coerce.string().trim().min(1).max(3),
+  callerid: z.coerce.string().trim().max(32).optional().or(z.literal("")),
+  fixo: z.boolean().default(false),
+  movel: z.boolean().default(false),
   ddi: z.boolean().default(false),
   especial: z.boolean().default(false),
   cng: z.boolean().default(false),
+  transbordo: z.boolean().default(false),
+  transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")),
   tenant_id: z.number().int().positive().optional(),
 });
 
