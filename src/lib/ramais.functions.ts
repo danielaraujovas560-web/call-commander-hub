@@ -398,3 +398,119 @@ export const listUras = createServerFn({ method: "GET" })
     const res = await agentFetch<{ uras: Ura[] }>(`/uras?tenant=${tenantId}`, { tenantId });
     return { tenantId, uras: res.uras ?? [] };
   });
+
+export const listUraAudios = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ audios: string[]; dir: string; warn?: string }>(
+      `/uras/audios`, { tenantId },
+    );
+    return { audios: res.audios ?? [], dir: res.dir, warn: res.warn };
+  });
+
+export const listUraDestinos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    return await agentFetch<{
+      filas: { value: string; label: string }[];
+      uras: { value: number; label: string }[];
+      ramais: { value: string; label: string }[];
+      troncos: { value: string; label: string }[];
+    }>(`/uras/destinos`, { tenantId });
+  });
+
+const UraInput = z.object({
+  tenant_id: z.number().int().positive().optional(),
+  nome: z.coerce.string().trim().min(1).max(80),
+  audio: z.coerce.string().trim().min(1).max(120),
+  max_digits: z.coerce.number().int().min(1).max(20),
+  tentativas: z.coerce.number().int().min(1).max(10),
+  timeout: z.coerce.number().int().min(1).max(120),
+  ativo: z.boolean().default(true),
+});
+
+export const createUra = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => UraInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true; id: number }>("/uras", {
+      method: "POST", tenantId, body,
+    });
+  });
+
+const UraUpdateInput = z.object({
+  id: z.number().int().positive(),
+  tenant_id: z.number().int().positive().optional(),
+  nome: z.coerce.string().trim().min(1).max(80).optional(),
+  audio: z.coerce.string().trim().min(1).max(120).optional(),
+  max_digits: z.coerce.number().int().min(1).max(20).optional(),
+  tentativas: z.coerce.number().int().min(1).max(10).optional(),
+  timeout: z.coerce.number().int().min(1).max(120).optional(),
+  ativo: z.boolean().optional(),
+});
+
+export const updateUra = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => UraUpdateInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { id, tenant_id: _i, ...patch } = data;
+    return await agentFetch<{ ok: true }>(`/uras/${id}`, {
+      method: "PUT", tenantId, body: patch,
+    });
+  });
+
+export const deleteUra = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    await agentFetch(`/uras/${data.id}`, { method: "DELETE", tenantId });
+    return { ok: true };
+  });
+
+export const addUraOpcao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      ura_id: z.number().int().positive(),
+      tenant_id: z.number().int().positive().optional(),
+      digito: z.coerce.string().max(4),
+      tipo_destino: z.enum(["fila", "ura", "ramal", "interno", "externo"]),
+      destino: z.coerce.string().min(1).max(120),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { ura_id, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true; id: number }>(`/uras/${ura_id}/opcoes`, {
+      method: "POST", tenantId, body,
+    });
+  });
+
+export const deleteUraOpcao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    await agentFetch(`/uras/opcoes/${data.id}`, { method: "DELETE", tenantId });
+    return { ok: true };
+  });
+
