@@ -192,7 +192,7 @@ function RamaisPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <EditRamalDialog tenantId={tenantId} ramal={r} />
+                    <EditRamalDialog key={`${r.id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`} tenantId={tenantId} ramal={r} />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="icon">
