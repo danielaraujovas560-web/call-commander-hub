@@ -15,6 +15,12 @@ import {
   ListOrdered,
   Music,
   BarChart3,
+  PhoneIncoming,
+  Router as RouterIcon,
+  Hash,
+  Cable,
+  Star,
+  MapPin,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -152,19 +158,52 @@ function ClienteSidebar({
   });
   const cliente = data?.cliente;
 
-  const items = [
+  const config = [
     { to: "/clientes/$tenantId", label: "Visão geral", icon: LayoutDashboard, exact: true },
     { to: "/clientes/$tenantId/ramais", label: "Ramais", icon: PhoneCall, exact: false },
     { to: "/clientes/$tenantId/filas", label: "Filas", icon: ListOrdered, exact: false },
     { to: "/clientes/$tenantId/uras", label: "URAs", icon: Workflow, exact: false },
     { to: "/clientes/$tenantId/audios", label: "Áudios", icon: Music, exact: false },
     { to: "/clientes/$tenantId/blacklist", label: "Blacklist", icon: ShieldBan, exact: false },
-    { to: "/clientes/$tenantId/relatorios", label: "Relatórios", icon: BarChart3, exact: false },
+    { to: "/clientes/$tenantId/roteamento", label: "Roteamento", icon: RouterIcon, exact: false },
+    { to: "/clientes/$tenantId/numeros", label: "Números", icon: Hash, exact: false },
+    { to: "/clientes/$tenantId/troncos", label: "Troncos", icon: Cable, exact: false },
   ] as const;
 
+  const relatorios = [
+    { to: "/clientes/$tenantId/relatorios/entrada", label: "Entrada geral", icon: PhoneIncoming },
+    { to: "/clientes/$tenantId/relatorios/ramais", label: "Ramais", icon: PhoneCall },
+    { to: "/clientes/$tenantId/relatorios/filas", label: "Filas", icon: ListOrdered },
+    { to: "/clientes/$tenantId/relatorios/uras", label: "URAs", icon: Workflow },
+    { to: "/clientes/$tenantId/relatorios/ddd", label: "Por DDD", icon: MapPin },
+    { to: "/clientes/$tenantId/relatorios/pesquisa", label: "Pesq. satisfação", icon: Star },
+  ] as const;
 
   const params = { tenantId: String(tenantId) };
 
+  const renderItem = (item: { to: string; label: string; icon: any; exact?: boolean }) => {
+    const Icon = item.icon;
+    const resolved = item.to.replace("$tenantId", String(tenantId));
+    const active = item.exact
+      ? pathname === resolved
+      : pathname === resolved || pathname.startsWith(resolved + "/");
+    return (
+      <Link
+        key={item.to}
+        to={item.to}
+        params={params}
+        className={cn(
+          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+          active
+            ? "bg-primary text-primary-foreground"
+            : "text-foreground/70 hover:bg-accent hover:text-foreground",
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r bg-card">
@@ -183,30 +222,18 @@ function ClienteSidebar({
         </Badge>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const resolved = item.to.replace("$tenantId", String(tenantId));
-          const active = item.exact
-            ? pathname === resolved
-            : pathname === resolved || pathname.startsWith(resolved + "/");
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              params={params}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground/70 hover:bg-accent hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
+        <p className="px-3 pb-1 pt-1 text-xs uppercase tracking-wide text-muted-foreground">
+          Configuração
+        </p>
+        {config.map(renderItem)}
+
+        <div className="pt-4">
+          <p className="px-3 pb-1 text-xs uppercase tracking-wide text-muted-foreground">
+            Relatórios
+          </p>
+          {relatorios.map(renderItem)}
+        </div>
       </nav>
 
 
