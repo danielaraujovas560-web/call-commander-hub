@@ -486,7 +486,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     enabled: open,
   });
 
-  const [form, setForm] = useState({
+  const initial = () => ({
     nome: ramal.nome ?? "",
     senha: ramal.senha ?? "",
     tronco: ramal.tronco ?? "",
@@ -497,7 +497,21 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     ddi: ramal.ddi,
     especial: ramal.especial,
     cng: ramal.cng,
+    transbordo: ramal.transbordo,
+    transbordo_troncos: ramal.transbordo_tronco
+      ? ramal.transbordo_tronco.split("&").filter(Boolean)
+      : [],
   });
+  const [form, setForm] = useState(initial);
+
+  // Sempre que o dialog abrir, reseta para os valores do banco (evita cache "sujo")
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (v) setForm(initial());
+  };
+
+  const troncos = troncosData?.troncos ?? [];
+  const troncosDisponiveisTransbordo = troncos.filter((t) => t.nome !== form.tronco);
 
   const queryClient = useQueryClient();
   const update = useServerFn(updateRamal);
@@ -517,6 +531,10 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           ddi: form.ddi,
           especial: form.especial,
           cng: form.cng,
+          transbordo: form.transbordo,
+          transbordo_tronco: form.transbordo
+            ? form.transbordo_troncos.join("&")
+            : "",
         },
       }),
     onSuccess: () => {
@@ -528,13 +546,13 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar ramal {ramal.ramal}</DialogTitle>
           <DialogDescription>
@@ -543,10 +561,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
         </DialogHeader>
 
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mut.mutate();
-          }}
+          onSubmit={(e) => { e.preventDefault(); mut.mutate(); }}
           className="grid grid-cols-2 gap-3"
         >
           <div className="col-span-2 space-y-1">
@@ -555,33 +570,31 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           </div>
           <div className="space-y-1">
             <Label>DDD</Label>
-            <Input
-              value={form.ddd}
-              onChange={(e) => setForm({ ...form, ddd: e.target.value })}
-              maxLength={3}
-            />
+            <Input value={form.ddd} onChange={(e) => setForm({ ...form, ddd: e.target.value })} maxLength={3} />
           </div>
           <div className="space-y-1">
             <Label>CallerID</Label>
-            <Input
-              value={form.callerid}
-              onChange={(e) => setForm({ ...form, callerid: e.target.value })}
-              maxLength={32}
-            />
+            <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />
           </div>
           <div className="col-span-2 space-y-1">
             <Label>Tronco</Label>
-            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v })}>
+            <Select
+              value={form.tronco}
+              onValueChange={(v) => setForm({
+                ...form, tronco: v,
+                transbordo_troncos: form.transbordo_troncos.filter((t) => t !== v),
+              })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um tronco" />
               </SelectTrigger>
               <SelectContent>
-                {(troncosData?.troncos ?? []).map((t) => (
+                {troncos.map((t) => (
                   <SelectItem key={t.id} value={t.nome}>
                     {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}
-                {troncosData?.troncos.length === 0 && (
+                {troncos.length === 0 && (
                   <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco disponível</div>
                 )}
               </SelectContent>
@@ -590,15 +603,28 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           <div className="col-span-2 space-y-1">
             <Label>Senha</Label>
             <div className="flex gap-2">
-              <Input
-                value={form.senha}
-                onChange={(e) => setForm({ ...form, senha: e.target.value })}
-                minLength={6}
-              />
+              <Input value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
               <Button type="button" variant="outline" onClick={() => setForm({ ...form, senha: genPassword() })}>
                 Gerar
               </Button>
             </div>
+          </div>
+
+          <div className="col-span-2 rounded-md border p-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.transbordo}
+                onCheckedChange={(v) => setForm({ ...form, transbordo: v, transbordo_troncos: v ? form.transbordo_troncos : [] })}
+              />
+              Transbordo
+            </label>
+            {form.transbordo && (
+              <TransbordoTroncosSelector
+                available={troncosDisponiveisTransbordo}
+                selected={form.transbordo_troncos}
+                onChange={(v) => setForm({ ...form, transbordo_troncos: v })}
+              />
+            )}
           </div>
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
@@ -635,4 +661,5 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     </Dialog>
   );
 }
+
 
