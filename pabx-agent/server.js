@@ -647,14 +647,32 @@ app.delete("/blacklist/:id", async (req, res) => {
   }
 });
 
-// ---------- CDR queries ----------
-function cdrEndpoint(p, sql) {
+// ---------- CDR queries with filters ----------
+// cfg: { select, table, order, filters: { key -> column }, dateCol? }
+function cdrFilteredEndpoint(p, cfg) {
   app.get(p, async (req, res) => {
     const tenant = getTenant(req, res);
     if (!tenant) return;
     const limit = Math.min(Number(req.query.limit) || 500, 5000);
+    const where = [`${cfg.tenantCol || "tenant_id"} = ?`];
+    const vals = [tenant];
+    for (const [key, col] of Object.entries(cfg.filters || {})) {
+      const v = req.query[key];
+      if (v !== undefined && v !== null && String(v).trim() !== "") {
+        where.push(`${col} LIKE ?`);
+        vals.push(`%${String(v).trim()}%`);
+      }
+    }
+    if (cfg.dateCol) {
+      const from = req.query.from, to = req.query.to;
+      if (from) { where.push(`${cfg.dateCol} >= ?`); vals.push(String(from).replace("T", " ")); }
+      if (to)   { where.push(`${cfg.dateCol} <= ?`); vals.push(String(to).replace("T", " ")); }
+    }
+    const orderCol = cfg.order || "id";
+    const sql = `SELECT ${cfg.select} FROM ${cfg.table} WHERE ${where.join(" AND ")} ORDER BY ${orderCol} DESC LIMIT ?`;
+    vals.push(limit);
     try {
-      const [rows] = await pool.query(`${sql} LIMIT ?`, [tenant, limit]);
+      const [rows] = await pool.query(sql, vals);
       res.json({ rows });
     } catch (e) {
       res.status(500).json({ error: String(e.message || e) });
@@ -662,24 +680,36 @@ function cdrEndpoint(p, sql) {
   });
 }
 
-cdrEndpoint("/cdr/entrada",
-  `SELECT id, linkedid, date_time, origem, num_destino, dest_interno, duracao, status
-     FROM cdr_entrada WHERE tenant_id = ? ORDER BY date_time DESC`);
-cdrEndpoint("/cdr/ramal",
-  `SELECT id, linkedid, context, tipo_chamada, origem, destino, tronco, status, duracao, date_time
-     FROM cdr_ramal WHERE tenant_id = ? ORDER BY date_time DESC`);
-cdrEndpoint("/cdr/fila",
-  `SELECT id, linkedid, nome_fila, agente, ramal, evento, motivo, time_data
-     FROM cdr_fila WHERE tenant_id = ? ORDER BY time_data DESC`);
-cdrEndpoint("/cdr/ura",
-  `SELECT id, linkedid, num_did, nome_ura, opcao, dest_op, dest_nome
-     FROM cdr_ura WHERE tenant_id = ? ORDER BY id DESC`);
-cdrEndpoint("/cdr/cidades/entrada",
-  `SELECT id, ddd, numero, sigla_estado, estado
-     FROM cdr_cidades_entrada WHERE tenant_id = ? ORDER BY id DESC`);
-cdrEndpoint("/cdr/cidades/saida",
-  `SELECT id, ddd, numero, sigla_estado, estado
-     FROM cdr_cidades_saida WHERE tenant_id = ? ORDER BY id DESC`);
+cdrFilteredEndpoint("/cdr/entrada", {
+  select: "id, linkedid, date_time, origem, num_destino, dest_interno, duracao, status",
+  table: "cdr_entrada", order: "date_time", dateCol: "date_time",
+  filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
+});
+cdrFilteredEndpoint("/cdr/ramal", {
+  select: "id, linkedid, context, tipo_chamada, origem, destino, tronco, status, duracao, date_time",
+  table: "cdr_ramal", order: "date_time", dateCol: "date_time",
+  filters: { linkedid: "linkedid", origem: "origem", destino: "destino", status: "status" },
+});
+cdrFilteredEndpoint("/cdr/fila", {
+  select: "id, linkedid, nome_fila, agente, ramal, evento, motivo, time_data",
+  table: "cdr_fila", order: "time_data", dateCol: "time_data",
+  filters: { linkedid: "linkedid", origem: "agente", destino: "ramal", status: "evento" },
+});
+cdrFilteredEndpoint("/cdr/ura", {
+  select: "id, linkedid, num_did, nome_ura, opcao, dest_op, dest_nome",
+  table: "cdr_ura", order: "id",
+  filters: { linkedid: "linkedid", origem: "num_did", destino: "dest_op", status: "nome_ura" },
+});
+cdrFilteredEndpoint("/cdr/cidades/entrada", {
+  select: "id, ddd, numero, sigla_estado, estado, data_hora",
+  table: "cdr_cidades_entrada", order: "data_hora", dateCol: "data_hora",
+  filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
+});
+cdrFilteredEndpoint("/cdr/cidades/saida", {
+  select: "id, ddd, numero, sigla_estado, estado, data_hora",
+  table: "cdr_cidades_saida", order: "data_hora", dateCol: "data_hora",
+  filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
+});
 
 // ---------- Filas (gestão) ----------
 app.get("/filas", async (req, res) => {
@@ -1214,18 +1244,104 @@ app.get("/cdr/pesquisa", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const limit = Math.min(Number(req.query.limit) || 500, 5000);
+  const where = ["(ps.tenant_id = ? OR ps.tenant_id IS NULL)"];
+  const vals = [tenant];
+  const map = { linkedid: "p.unique_id", origem: "p.numero_origem", destino: "p.ramal", status: "p.nome_fila" };
+  for (const [k, col] of Object.entries(map)) {
+    const v = req.query[k];
+    if (v !== undefined && String(v).trim() !== "") {
+      where.push(`${col} LIKE ?`);
+      vals.push(`%${String(v).trim()}%`);
+    }
+  }
+  if (req.query.from) { where.push("p.data >= ?"); vals.push(String(req.query.from).replace("T", " ")); }
+  if (req.query.to)   { where.push("p.data <= ?"); vals.push(String(req.query.to).replace("T", " ")); }
+  vals.push(limit);
   try {
     const [rows] = await pool.query(
       `SELECT p.id, p.unique_id, p.numero_origem, p.ramal, p.agente, p.fila, p.nome_fila,
               p.pergunta_id, p.nota, p.data
          FROM cdr_pesquisa p
          LEFT JOIN pesquisa_satisfacao ps ON ps.id = p.pesquisa_id
-        WHERE ps.tenant_id = ? OR ps.tenant_id IS NULL
+        WHERE ${where.join(" AND ")}
         ORDER BY p.data DESC
         LIMIT ?`,
-      [tenant, limit],
+      vals,
     );
     res.json({ rows });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+// ---------- Regra Horário (horário de atendimento personalizado) ----------
+const ACAO_ENUM = ["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"];
+
+app.get("/regra-horario", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora
+         FROM regra_horario WHERE tenant_id = ? ORDER BY nome`,
+      [tenant],
+    );
+    res.json({ regras: rows });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+function validateRegra(body) {
+  const { nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora } = body || {};
+  if (!nome || !dias || !hora_inicial || !hora_final) return "nome, dias, hora_inicial e hora_final obrigatórios";
+  if (!ACAO_ENUM.includes(String(acao_dentro))) return "acao_dentro inválido";
+  if (!ACAO_ENUM.includes(String(acao_fora))) return "acao_fora inválido";
+  if (!destino_dentro || !destino_fora) return "destinos obrigatórios";
+  return null;
+}
+
+app.post("/regra-horario", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const err = validateRegra(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const b = req.body;
+  try {
+    const [r] = await pool.query(
+      `INSERT INTO regra_horario (tenant_id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tenant, String(b.nome).slice(0, 100), String(b.dias).slice(0, 100),
+       String(b.hora_inicial), String(b.hora_final),
+       String(b.acao_dentro), String(b.destino_dentro).slice(0, 100),
+       String(b.acao_fora), String(b.destino_fora).slice(0, 100)],
+    );
+    res.json({ ok: true, id: r.insertId });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.put("/regra-horario/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const err = validateRegra(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const b = req.body;
+  try {
+    await pool.query(
+      `UPDATE regra_horario SET nome=?, dias=?, hora_inicial=?, hora_final=?, acao_dentro=?, destino_dentro=?, acao_fora=?, destino_fora=?
+       WHERE id = ? AND tenant_id = ?`,
+      [String(b.nome).slice(0, 100), String(b.dias).slice(0, 100),
+       String(b.hora_inicial), String(b.hora_final),
+       String(b.acao_dentro), String(b.destino_dentro).slice(0, 100),
+       String(b.acao_fora), String(b.destino_fora).slice(0, 100),
+       Number(req.params.id), tenant],
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.delete("/regra-horario/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    await pool.query(`DELETE FROM regra_horario WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
