@@ -250,49 +250,74 @@ export const upsertTenantPabx = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ---------- CDR fetchers (inlined per endpoint — evita perder o contexto
-// do middleware quando o server-fn plugin do TanStack processa factories) ----------
-async function fetchCdr(path: string, ctxSupabase: SupabaseClient, userId: string, tenantIdInput?: number) {
+// ---------- CDR fetchers ----------
+const CdrFilter = z
+  .object({
+    tenant_id: z.number().int().positive().optional(),
+    linkedid: z.string().max(120).optional(),
+    origem: z.string().max(80).optional(),
+    destino: z.string().max(80).optional(),
+    status: z.string().max(80).optional(),
+    from: z.string().max(40).optional(),
+    to: z.string().max(40).optional(),
+  })
+  .optional()
+  .transform((v) => v ?? {});
+type CdrFilterT = z.infer<typeof CdrFilter>;
+
+function buildQuery(filters: CdrFilterT): string {
+  const q = new URLSearchParams();
+  for (const k of ["linkedid", "origem", "destino", "status", "from", "to"] as const) {
+    const v = filters[k];
+    if (v && v.trim() !== "") q.set(k, v.trim());
+  }
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
+async function fetchCdr(path: string, ctxSupabase: SupabaseClient, userId: string, filters: CdrFilterT) {
   const { agentFetch } = await import("./agent.server");
-  const tenantId = await resolveScopedTenant(ctxSupabase, userId, tenantIdInput);
-  const res = await agentFetch<{ rows: any[] }>(`${path}?tenant=${tenantId}`, { tenantId });
+  const tenantId = await resolveScopedTenant(ctxSupabase, userId, filters.tenant_id);
+  const qs = buildQuery(filters);
+  const sep = qs ? "&" : "?";
+  const res = await agentFetch<{ rows: any[] }>(`${path}${qs}${sep}tenant=${tenantId}`, { tenantId });
   return { tenantId, rows: res.rows ?? [] };
 }
 
 export const listCdrEntrada = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/entrada", context.supabase, context.userId, data.tenant_id));
+  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/entrada", context.supabase, context.userId, data));
 
 export const listCdrRamal = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.supabase, context.userId, data.tenant_id));
+  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.supabase, context.userId, data));
 
 export const listCdrFila = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/fila", context.supabase, context.userId, data.tenant_id));
+  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/fila", context.supabase, context.userId, data));
 
 export const listCdrUra = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/ura", context.supabase, context.userId, data.tenant_id));
+  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/ura", context.supabase, context.userId, data));
 
 export const listCdrPesquisa = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/pesquisa", context.supabase, context.userId, data.tenant_id));
+  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/pesquisa", context.supabase, context.userId, data));
 
 export const listCdrCidadesEntrada = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/cidades/entrada", context.supabase, context.userId, data.tenant_id));
+  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/cidades/entrada", context.supabase, context.userId, data));
 
 export const listCdrCidadesSaida = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.supabase, context.userId, data.tenant_id));
+  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.supabase, context.userId, data));
 
 
 // ---------- Blacklist ----------
