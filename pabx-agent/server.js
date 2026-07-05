@@ -1244,18 +1244,104 @@ app.get("/cdr/pesquisa", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const limit = Math.min(Number(req.query.limit) || 500, 5000);
+  const where = ["(ps.tenant_id = ? OR ps.tenant_id IS NULL)"];
+  const vals = [tenant];
+  const map = { linkedid: "p.unique_id", origem: "p.numero_origem", destino: "p.ramal", status: "p.nome_fila" };
+  for (const [k, col] of Object.entries(map)) {
+    const v = req.query[k];
+    if (v !== undefined && String(v).trim() !== "") {
+      where.push(`${col} LIKE ?`);
+      vals.push(`%${String(v).trim()}%`);
+    }
+  }
+  if (req.query.from) { where.push("p.data >= ?"); vals.push(String(req.query.from).replace("T", " ")); }
+  if (req.query.to)   { where.push("p.data <= ?"); vals.push(String(req.query.to).replace("T", " ")); }
+  vals.push(limit);
   try {
     const [rows] = await pool.query(
       `SELECT p.id, p.unique_id, p.numero_origem, p.ramal, p.agente, p.fila, p.nome_fila,
               p.pergunta_id, p.nota, p.data
          FROM cdr_pesquisa p
          LEFT JOIN pesquisa_satisfacao ps ON ps.id = p.pesquisa_id
-        WHERE ps.tenant_id = ? OR ps.tenant_id IS NULL
+        WHERE ${where.join(" AND ")}
         ORDER BY p.data DESC
         LIMIT ?`,
-      [tenant, limit],
+      vals,
     );
     res.json({ rows });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+// ---------- Regra Horário (horário de atendimento personalizado) ----------
+const ACAO_ENUM = ["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"];
+
+app.get("/regra-horario", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora
+         FROM regra_horario WHERE tenant_id = ? ORDER BY nome`,
+      [tenant],
+    );
+    res.json({ regras: rows });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+function validateRegra(body) {
+  const { nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora } = body || {};
+  if (!nome || !dias || !hora_inicial || !hora_final) return "nome, dias, hora_inicial e hora_final obrigatórios";
+  if (!ACAO_ENUM.includes(String(acao_dentro))) return "acao_dentro inválido";
+  if (!ACAO_ENUM.includes(String(acao_fora))) return "acao_fora inválido";
+  if (!destino_dentro || !destino_fora) return "destinos obrigatórios";
+  return null;
+}
+
+app.post("/regra-horario", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const err = validateRegra(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const b = req.body;
+  try {
+    const [r] = await pool.query(
+      `INSERT INTO regra_horario (tenant_id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tenant, String(b.nome).slice(0, 100), String(b.dias).slice(0, 100),
+       String(b.hora_inicial), String(b.hora_final),
+       String(b.acao_dentro), String(b.destino_dentro).slice(0, 100),
+       String(b.acao_fora), String(b.destino_fora).slice(0, 100)],
+    );
+    res.json({ ok: true, id: r.insertId });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.put("/regra-horario/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const err = validateRegra(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const b = req.body;
+  try {
+    await pool.query(
+      `UPDATE regra_horario SET nome=?, dias=?, hora_inicial=?, hora_final=?, acao_dentro=?, destino_dentro=?, acao_fora=?, destino_fora=?
+       WHERE id = ? AND tenant_id = ?`,
+      [String(b.nome).slice(0, 100), String(b.dias).slice(0, 100),
+       String(b.hora_inicial), String(b.hora_final),
+       String(b.acao_dentro), String(b.destino_dentro).slice(0, 100),
+       String(b.acao_fora), String(b.destino_fora).slice(0, 100),
+       Number(req.params.id), tenant],
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.delete("/regra-horario/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    await pool.query(`DELETE FROM regra_horario WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
