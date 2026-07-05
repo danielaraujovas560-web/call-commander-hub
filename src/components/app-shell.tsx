@@ -21,6 +21,7 @@ import {
   Cable,
   Star,
   MapPin,
+  Clock,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";

@@ -21,6 +21,7 @@ import { Route as AuthenticatedClientesTenantIdIndexRouteImport } from './routes
 import { Route as AuthenticatedClientesTenantIdUrasRouteImport } from './routes/_authenticated/clientes.$tenantId.uras'
 import { Route as AuthenticatedClientesTenantIdTroncosRouteImport } from './routes/_authenticated/clientes.$tenantId.troncos'
 import { Route as AuthenticatedClientesTenantIdRoteamentoRouteImport } from './routes/_authenticated/clientes.$tenantId.roteamento'
+import { Route as AuthenticatedClientesTenantIdRegraHorarioRouteImport } from './routes/_authenticated/clientes.$tenantId.regra-horario'
 import { Route as AuthenticatedClientesTenantIdRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.ramais'
 import { Route as AuthenticatedClientesTenantIdNumerosRouteImport } from './routes/_authenticated/clientes.$tenantId.numeros'
 import { Route as AuthenticatedClientesTenantIdFilasRouteImport } from './routes/_authenticated/clientes.$tenantId.filas'
@@ -97,6 +98,12 @@ const AuthenticatedClientesTenantIdRoteamentoRoute =
   AuthenticatedClientesTenantIdRoteamentoRouteImport.update({
     id: '/roteamento',
     path: '/roteamento',
+    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+  } as any)
+const AuthenticatedClientesTenantIdRegraHorarioRoute =
+  AuthenticatedClientesTenantIdRegraHorarioRouteImport.update({
+    id: '/regra-horario',
+    path: '/regra-horario',
     getParentRoute: () => AuthenticatedClientesTenantIdRoute,
   } as any)
 const AuthenticatedClientesTenantIdRamaisRoute =
@@ -179,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
+  '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   '/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
   '/clientes/$tenantId/troncos': typeof AuthenticatedClientesTenantIdTroncosRoute
   '/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
@@ -202,6 +210,7 @@ export interface FileRoutesByTo {
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
+  '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   '/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
   '/clientes/$tenantId/troncos': typeof AuthenticatedClientesTenantIdTroncosRoute
   '/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
@@ -228,6 +237,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/_authenticated/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
   '/_authenticated/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
+  '/_authenticated/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   '/_authenticated/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
   '/_authenticated/clientes/$tenantId/troncos': typeof AuthenticatedClientesTenantIdTroncosRoute
   '/_authenticated/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/filas'
     | '/clientes/$tenantId/numeros'
     | '/clientes/$tenantId/ramais'
+    | '/clientes/$tenantId/regra-horario'
     | '/clientes/$tenantId/roteamento'
     | '/clientes/$tenantId/troncos'
     | '/clientes/$tenantId/uras'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/filas'
     | '/clientes/$tenantId/numeros'
     | '/clientes/$tenantId/ramais'
+    | '/clientes/$tenantId/regra-horario'
     | '/clientes/$tenantId/roteamento'
     | '/clientes/$tenantId/troncos'
     | '/clientes/$tenantId/uras'
@@ -302,6 +314,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes/$tenantId/filas'
     | '/_authenticated/clientes/$tenantId/numeros'
     | '/_authenticated/clientes/$tenantId/ramais'
+    | '/_authenticated/clientes/$tenantId/regra-horario'
     | '/_authenticated/clientes/$tenantId/roteamento'
     | '/_authenticated/clientes/$tenantId/troncos'
     | '/_authenticated/clientes/$tenantId/uras'
@@ -406,6 +419,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesTenantIdRoteamentoRouteImport
       parentRoute: typeof AuthenticatedClientesTenantIdRoute
     }
+    '/_authenticated/clientes/$tenantId/regra-horario': {
+      id: '/_authenticated/clientes/$tenantId/regra-horario'
+      path: '/regra-horario'
+      fullPath: '/clientes/$tenantId/regra-horario'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdRegraHorarioRouteImport
+      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+    }
     '/_authenticated/clientes/$tenantId/ramais': {
       id: '/_authenticated/clientes/$tenantId/ramais'
       path: '/ramais'
@@ -492,6 +512,7 @@ interface AuthenticatedClientesTenantIdRouteChildren {
   AuthenticatedClientesTenantIdFilasRoute: typeof AuthenticatedClientesTenantIdFilasRoute
   AuthenticatedClientesTenantIdNumerosRoute: typeof AuthenticatedClientesTenantIdNumerosRoute
   AuthenticatedClientesTenantIdRamaisRoute: typeof AuthenticatedClientesTenantIdRamaisRoute
+  AuthenticatedClientesTenantIdRegraHorarioRoute: typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   AuthenticatedClientesTenantIdRoteamentoRoute: typeof AuthenticatedClientesTenantIdRoteamentoRoute
   AuthenticatedClientesTenantIdTroncosRoute: typeof AuthenticatedClientesTenantIdTroncosRoute
   AuthenticatedClientesTenantIdUrasRoute: typeof AuthenticatedClientesTenantIdUrasRoute
@@ -516,6 +537,8 @@ const AuthenticatedClientesTenantIdRouteChildren: AuthenticatedClientesTenantIdR
       AuthenticatedClientesTenantIdNumerosRoute,
     AuthenticatedClientesTenantIdRamaisRoute:
       AuthenticatedClientesTenantIdRamaisRoute,
+    AuthenticatedClientesTenantIdRegraHorarioRoute:
+      AuthenticatedClientesTenantIdRegraHorarioRoute,
     AuthenticatedClientesTenantIdRoteamentoRoute:
       AuthenticatedClientesTenantIdRoteamentoRoute,
     AuthenticatedClientesTenantIdTroncosRoute:
