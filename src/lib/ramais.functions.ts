@@ -756,3 +756,71 @@ export const deleteRoteamento = createServerFn({ method: "POST" })
     await agentFetch(`/roteamento/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
+
+// ---------- Regra Horário (horário de atendimento personalizado) ----------
+export type AcaoHorario = "RAMAL" | "FILA" | "URA" | "EXTERNO" | "INTERNO" | "AUDIO";
+export interface RegraHorario {
+  id: number;
+  nome: string;
+  dias: string;
+  hora_inicial: string;
+  hora_final: string;
+  acao_dentro: AcaoHorario;
+  destino_dentro: string;
+  acao_fora: AcaoHorario;
+  destino_fora: string;
+}
+
+const ACAO = z.enum(["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"]);
+const RegraHorarioInput = z.object({
+  tenant_id: z.number().int().positive().optional(),
+  nome: z.coerce.string().trim().min(1).max(100),
+  dias: z.coerce.string().trim().min(1).max(100),
+  hora_inicial: z.coerce.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  hora_final: z.coerce.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  acao_dentro: ACAO,
+  destino_dentro: z.coerce.string().trim().min(1).max(100),
+  acao_fora: ACAO,
+  destino_fora: z.coerce.string().trim().min(1).max(100),
+});
+
+export const listRegraHorario = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ regras: RegraHorario[] }>("/regra-horario", { tenantId });
+    return { regras: res.regras ?? [] };
+  });
+
+export const createRegraHorario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => RegraHorarioInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true; id: number }>("/regra-horario", { method: "POST", tenantId, body });
+  });
+
+export const updateRegraHorario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => RegraHorarioInput.extend({ id: z.number().int().positive() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { id, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/regra-horario/${id}`, { method: "PUT", tenantId, body });
+  });
+
+export const deleteRegraHorario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    await agentFetch(`/regra-horario/${data.id}`, { method: "DELETE", tenantId });
+    return { ok: true };
+  });
