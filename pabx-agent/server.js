@@ -647,14 +647,32 @@ app.delete("/blacklist/:id", async (req, res) => {
   }
 });
 
-// ---------- CDR queries ----------
-function cdrEndpoint(p, sql) {
+// ---------- CDR queries with filters ----------
+// cfg: { select, table, order, filters: { key -> column }, dateCol? }
+function cdrFilteredEndpoint(p, cfg) {
   app.get(p, async (req, res) => {
     const tenant = getTenant(req, res);
     if (!tenant) return;
     const limit = Math.min(Number(req.query.limit) || 500, 5000);
+    const where = [`${cfg.tenantCol || "tenant_id"} = ?`];
+    const vals = [tenant];
+    for (const [key, col] of Object.entries(cfg.filters || {})) {
+      const v = req.query[key];
+      if (v !== undefined && v !== null && String(v).trim() !== "") {
+        where.push(`${col} LIKE ?`);
+        vals.push(`%${String(v).trim()}%`);
+      }
+    }
+    if (cfg.dateCol) {
+      const from = req.query.from, to = req.query.to;
+      if (from) { where.push(`${cfg.dateCol} >= ?`); vals.push(String(from).replace("T", " ")); }
+      if (to)   { where.push(`${cfg.dateCol} <= ?`); vals.push(String(to).replace("T", " ")); }
+    }
+    const orderCol = cfg.order || "id";
+    const sql = `SELECT ${cfg.select} FROM ${cfg.table} WHERE ${where.join(" AND ")} ORDER BY ${orderCol} DESC LIMIT ?`;
+    vals.push(limit);
     try {
-      const [rows] = await pool.query(`${sql} LIMIT ?`, [tenant, limit]);
+      const [rows] = await pool.query(sql, vals);
       res.json({ rows });
     } catch (e) {
       res.status(500).json({ error: String(e.message || e) });
@@ -662,24 +680,36 @@ function cdrEndpoint(p, sql) {
   });
 }
 
-cdrEndpoint("/cdr/entrada",
-  `SELECT id, linkedid, date_time, origem, num_destino, dest_interno, duracao, status
-     FROM cdr_entrada WHERE tenant_id = ? ORDER BY date_time DESC`);
-cdrEndpoint("/cdr/ramal",
-  `SELECT id, linkedid, context, tipo_chamada, origem, destino, tronco, status, duracao, date_time
-     FROM cdr_ramal WHERE tenant_id = ? ORDER BY date_time DESC`);
-cdrEndpoint("/cdr/fila",
-  `SELECT id, linkedid, nome_fila, agente, ramal, evento, motivo, time_data
-     FROM cdr_fila WHERE tenant_id = ? ORDER BY time_data DESC`);
-cdrEndpoint("/cdr/ura",
-  `SELECT id, linkedid, num_did, nome_ura, opcao, dest_op, dest_nome
-     FROM cdr_ura WHERE tenant_id = ? ORDER BY id DESC`);
-cdrEndpoint("/cdr/cidades/entrada",
-  `SELECT id, ddd, numero, sigla_estado, estado
-     FROM cdr_cidades_entrada WHERE tenant_id = ? ORDER BY id DESC`);
-cdrEndpoint("/cdr/cidades/saida",
-  `SELECT id, ddd, numero, sigla_estado, estado
-     FROM cdr_cidades_saida WHERE tenant_id = ? ORDER BY id DESC`);
+cdrFilteredEndpoint("/cdr/entrada", {
+  select: "id, linkedid, date_time, origem, num_destino, dest_interno, duracao, status",
+  table: "cdr_entrada", order: "date_time", dateCol: "date_time",
+  filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
+});
+cdrFilteredEndpoint("/cdr/ramal", {
+  select: "id, linkedid, context, tipo_chamada, origem, destino, tronco, status, duracao, date_time",
+  table: "cdr_ramal", order: "date_time", dateCol: "date_time",
+  filters: { linkedid: "linkedid", origem: "origem", destino: "destino", status: "status" },
+});
+cdrFilteredEndpoint("/cdr/fila", {
+  select: "id, linkedid, nome_fila, agente, ramal, evento, motivo, time_data",
+  table: "cdr_fila", order: "time_data", dateCol: "time_data",
+  filters: { linkedid: "linkedid", origem: "agente", destino: "ramal", status: "evento" },
+});
+cdrFilteredEndpoint("/cdr/ura", {
+  select: "id, linkedid, num_did, nome_ura, opcao, dest_op, dest_nome",
+  table: "cdr_ura", order: "id",
+  filters: { linkedid: "linkedid", origem: "num_did", destino: "dest_op", status: "nome_ura" },
+});
+cdrFilteredEndpoint("/cdr/cidades/entrada", {
+  select: "id, ddd, numero, sigla_estado, estado, data_hora",
+  table: "cdr_cidades_entrada", order: "data_hora", dateCol: "data_hora",
+  filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
+});
+cdrFilteredEndpoint("/cdr/cidades/saida", {
+  select: "id, ddd, numero, sigla_estado, estado, data_hora",
+  table: "cdr_cidades_saida", order: "data_hora", dateCol: "data_hora",
+  filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
+});
 
 // ---------- Filas (gestão) ----------
 app.get("/filas", async (req, res) => {
