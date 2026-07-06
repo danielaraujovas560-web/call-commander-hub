@@ -973,7 +973,7 @@ app.get("/uras", async (req, res) => {
         `SELECT id, digito, tipo_destino, destino FROM ura_opcoes WHERE ura_id = ? ORDER BY digito`,
         [u.id],
       );
-      u.opcoes = opts;
+      u.opcoes = opts.map((o) => ({ ...o, tipo_destino: String(o.tipo_destino || "").toUpperCase() }));
     }
     res.json({ uras });
   } catch (e) {
