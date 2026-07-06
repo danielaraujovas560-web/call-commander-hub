@@ -1391,10 +1391,10 @@ app.put("/regra-horario/:id", async (req, res) => {
     await pool.query(
       `UPDATE regra_horario SET nome=?, dias=?, hora_inicial=?, hora_final=?, acao_dentro=?, destino_dentro=?, acao_fora=?, destino_fora=?
        WHERE id = ? AND tenant_id = ?`,
-      [String(b.nome).slice(0, 100), String(b.dias).slice(0, 100),
+      [slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
        String(b.hora_inicial), String(b.hora_final),
-       String(b.acao_dentro), String(b.destino_dentro).slice(0, 100),
-       String(b.acao_fora), String(b.destino_fora).slice(0, 100),
+       String(b.acao_dentro).toUpperCase(), String(b.destino_dentro).slice(0, 100),
+       String(b.acao_fora).toUpperCase(), String(b.destino_fora).slice(0, 100),
        Number(req.params.id), tenant],
     );
     res.json({ ok: true });
