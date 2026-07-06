@@ -1017,7 +1017,17 @@ app.get("/uras/destinos", async (req, res) => {
       `SELECT nome AS value, nome AS label FROM troncos WHERE tenant_id = ? ORDER BY nome`,
       [tenant],
     );
-    res.json({ filas, uras, ramais, troncos });
+    const [regras] = await pool.query(
+      `SELECT id AS value, nome AS label FROM regra_horario WHERE tenant_id = ? ORDER BY nome`,
+      [tenant],
+    );
+    let audios = [];
+    try {
+      const dir = path.join(URA_SOUNDS_BASE, `t${tenant}`);
+      const files = await fs.readdir(dir);
+      audios = files.filter((f) => f.toLowerCase().endsWith(".wav")).map((f) => f.replace(/\.wav$/i, ""));
+    } catch (_) {}
+    res.json({ filas, uras, ramais, troncos, regras, audios });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
