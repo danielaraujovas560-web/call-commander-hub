@@ -308,6 +308,25 @@ function UraFormDialog({
 }
 
 // ---------- Opções ----------
+type TipoOpc = "" | "FILA" | "URA" | "RAMAL" | "INTERNO" | "EXTERNO";
+type OpcaoForm = {
+  digito: string;
+  tipo_destino: TipoOpc;
+  destino: string;
+  externoNumero: string;
+  externoTronco: string;
+};
+const emptyOpcao: OpcaoForm = { digito: "", tipo_destino: "", destino: "", externoNumero: "", externoTronco: "" };
+
+function opcaoToForm(o: { digito: string; tipo_destino: string; destino: string }): OpcaoForm {
+  const t = String(o.tipo_destino || "").toUpperCase() as TipoOpc;
+  if (t === "EXTERNO" && o.destino.includes("/")) {
+    const [n, tr] = o.destino.split("/");
+    return { digito: o.digito, tipo_destino: t, destino: "", externoNumero: n, externoTronco: tr };
+  }
+  return { digito: o.digito, tipo_destino: t, destino: o.destino, externoNumero: "", externoTronco: "" };
+}
+
 function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ura; onClose: () => void }) {
   const destinosFn = useServerFn(listUraDestinos);
   const { data: destinos } = useQuery({
@@ -317,78 +336,72 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
 
   const qc = useQueryClient();
   const addFn = useServerFn(addUraOpcao);
+  const updateFn = useServerFn(updateUraOpcao);
   const delFn = useServerFn(deleteUraOpcao);
 
-  const [novo, setNovo] = useState({
-    digito: "",
-    tipo_destino: "" as "" | "fila" | "ura" | "ramal" | "interno" | "externo",
-    destino: "",
-    externoNumero: "",
-    externoTronco: "",
-  });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState<OpcaoForm>(emptyOpcao);
 
-  const addMut = useMutation({
+  function reset() { setForm(emptyOpcao); setEditingId(null); }
+
+  const saveMut = useMutation({
     mutationFn: () => {
-      const destino = novo.tipo_destino === "externo"
-        ? `${novo.externoNumero}/${novo.externoTronco}`
-        : novo.destino;
-      return addFn({
-        data: {
-          ura_id: ura.id,
-          tenant_id: tenantId,
-          digito: novo.digito,
-          tipo_destino: novo.tipo_destino as any,
-          destino,
-        },
-      });
+      const destino = form.tipo_destino === "EXTERNO"
+        ? `${form.externoNumero}/${form.externoTronco}`
+        : form.destino;
+      const body = {
+        tenant_id: tenantId,
+        digito: form.digito,
+        tipo_destino: form.tipo_destino as Exclude<TipoOpc, "">,
+        destino,
+      };
+      return editingId
+        ? updateFn({ data: { id: editingId, ...body } })
+        : addFn({ data: { ura_id: ura.id, ...body } });
     },
     onSuccess: () => {
-      toast.success("Opção adicionada");
+      toast.success(editingId ? "Opção atualizada" : "Opção adicionada");
       qc.invalidateQueries({ queryKey: ["uras", tenantId] });
-      setNovo({ digito: "", tipo_destino: "", destino: "", externoNumero: "", externoTronco: "" });
+      reset();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const delMut = useMutation({
     mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["uras", tenantId] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
   function renderDestino(o: { tipo_destino: string; destino: string }) {
-    if (o.tipo_destino === "fila") {
-      const f = destinos?.filas.find((x) => String(x.value) === o.destino);
-      return f?.label ?? o.destino;
+    const t = String(o.tipo_destino).toUpperCase();
+    if (t === "FILA") {
+      return destinos?.filas.find((x) => String(x.value) === o.destino)?.label ?? o.destino;
     }
-    if (o.tipo_destino === "ura") {
-      const u = destinos?.uras.find((x) => String(x.value) === o.destino);
-      return u?.label ?? o.destino;
+    if (t === "URA") {
+      return destinos?.uras.find((x) => String(x.value) === o.destino)?.label ?? o.destino;
     }
-    if (o.tipo_destino === "ramal") {
+    if (t === "RAMAL") {
       const r = destinos?.ramais.find((x) => String(x.value) === o.destino);
-      return r?.label ? `${r.label} (${o.destino})` : o.destino;
+      return r?.label ? displayFromBackend(r.label) : o.destino;
     }
-    if (o.tipo_destino === "interno") {
-      const t = TIPOS_INTERNOS.find((x) => x.value === o.destino);
-      return t?.label ?? o.destino;
+    if (t === "INTERNO") {
+      return TIPOS_INTERNOS.find((x) => x.value === o.destino)?.label ?? o.destino;
     }
     return o.destino;
   }
 
-  const disabled = !novo.tipo_destino || (
-    novo.tipo_destino === "externo"
-      ? !novo.externoNumero || !novo.externoTronco
-      : !novo.destino
+  const disabled = !form.tipo_destino || (
+    form.tipo_destino === "EXTERNO"
+      ? !form.externoNumero || !form.externoTronco
+      : !form.destino
   );
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{ura.nome} — Opções</DialogTitle>
+          <DialogTitle>{displayFromBackend(ura.nome)} — Opções</DialogTitle>
           <DialogDescription>Configure os destinos por dígito.</DialogDescription>
         </DialogHeader>
 
@@ -399,19 +412,24 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                 <TableHead>Dígito</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Destino</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="w-20 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(ura.opcoes ?? []).map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-mono">{o.digito || "-"}</TableCell>
-                  <TableCell><Badge variant="outline">{o.tipo_destino}</Badge></TableCell>
+                  <TableCell><Badge variant="outline">{String(o.tipo_destino).toUpperCase()}</Badge></TableCell>
                   <TableCell>{renderDestino(o)}</TableCell>
-                  <TableCell>
-                    <Button size="icon" variant="ghost" onClick={() => delMut.mutate(o.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditingId(o.id); setForm(opcaoToForm(o)); }}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => delMut.mutate(o.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -423,68 +441,68 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
         </div>
 
         <div className="rounded-md border p-3 space-y-2">
-          <div className="text-sm font-medium">Nova opção</div>
+          <div className="text-sm font-medium">{editingId ? "Editar opção" : "Nova opção"}</div>
           <div className="grid grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label>Dígito</Label>
-              <Input value={novo.digito} maxLength={4}
-                     onChange={(e) => setNovo({ ...novo, digito: e.target.value })} placeholder="0-9,*,#,t,i" />
+              <Input value={form.digito} maxLength={4}
+                     onChange={(e) => setForm({ ...form, digito: e.target.value })} placeholder="0-9,*,#,t,i" />
             </div>
             <div className="space-y-1">
               <Label>Tipo</Label>
-              <Select value={novo.tipo_destino} onValueChange={(v: any) => setNovo({ ...novo, tipo_destino: v, destino: "" })}>
+              <Select value={form.tipo_destino} onValueChange={(v: any) => setForm({ ...form, tipo_destino: v, destino: "" })}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fila">Fila</SelectItem>
-                  <SelectItem value="ura">URA</SelectItem>
-                  <SelectItem value="ramal">Ramal</SelectItem>
-                  <SelectItem value="interno">Função interna</SelectItem>
-                  <SelectItem value="externo">Externo</SelectItem>
+                  <SelectItem value="FILA">FILA</SelectItem>
+                  <SelectItem value="URA">URA</SelectItem>
+                  <SelectItem value="RAMAL">RAMAL</SelectItem>
+                  <SelectItem value="INTERNO">INTERNO</SelectItem>
+                  <SelectItem value="EXTERNO">EXTERNO</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="col-span-2 space-y-1">
               <Label>Destino</Label>
-              {novo.tipo_destino === "fila" && (
-                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+              {form.tipo_destino === "FILA" && (
+                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione a fila" /></SelectTrigger>
                   <SelectContent>
                     {destinos?.filas.map((f) => (<SelectItem key={f.value} value={String(f.value)}>{f.label}</SelectItem>))}
                   </SelectContent>
                 </Select>
               )}
-              {novo.tipo_destino === "ura" && (
-                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+              {form.tipo_destino === "URA" && (
+                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione a URA" /></SelectTrigger>
                   <SelectContent>
                     {destinos?.uras.filter((u) => u.value !== ura.id).map((u) => (
-                      <SelectItem key={u.value} value={String(u.value)}>{u.label}</SelectItem>
+                      <SelectItem key={u.value} value={String(u.value)}>{displayFromBackend(u.label)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
-              {novo.tipo_destino === "ramal" && (
-                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+              {form.tipo_destino === "RAMAL" && (
+                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione o ramal" /></SelectTrigger>
                   <SelectContent>
                     {destinos?.ramais.map((r) => (
-                      <SelectItem key={r.value} value={String(r.value)}>{r.label} ({r.value})</SelectItem>
+                      <SelectItem key={r.value} value={String(r.value)}>{displayFromBackend(r.label)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
-              {novo.tipo_destino === "interno" && (
-                <Select value={novo.destino} onValueChange={(v) => setNovo({ ...novo, destino: v })}>
+              {form.tipo_destino === "INTERNO" && (
+                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
                   <SelectTrigger><SelectValue placeholder="Função" /></SelectTrigger>
                   <SelectContent>
                     {TIPOS_INTERNOS.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
                   </SelectContent>
                 </Select>
               )}
-              {novo.tipo_destino === "externo" && (
+              {form.tipo_destino === "EXTERNO" && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Input value={novo.externoNumero} onChange={(e) => setNovo({ ...novo, externoNumero: e.target.value })} placeholder="Número" />
-                  <Select value={novo.externoTronco} onValueChange={(v) => setNovo({ ...novo, externoTronco: v })}>
+                  <Input value={form.externoNumero} onChange={(e) => setForm({ ...form, externoNumero: e.target.value })} placeholder="Número" />
+                  <Select value={form.externoTronco} onValueChange={(v) => setForm({ ...form, externoTronco: v })}>
                     <SelectTrigger><SelectValue placeholder="Tronco" /></SelectTrigger>
                     <SelectContent>
                       {destinos?.troncos.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
@@ -492,14 +510,15 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                   </Select>
                 </div>
               )}
-              {!novo.tipo_destino && (
+              {!form.tipo_destino && (
                 <Input disabled placeholder="Escolha o tipo primeiro" />
               )}
             </div>
           </div>
-          <div className="flex justify-end">
-            <Button disabled={disabled || addMut.isPending} onClick={() => addMut.mutate()}>
-              <Plus className="mr-1 h-4 w-4" /> Adicionar opção
+          <div className="flex justify-end gap-2">
+            {editingId && <Button type="button" variant="outline" onClick={reset}>Cancelar edição</Button>}
+            <Button disabled={disabled || saveMut.isPending} onClick={() => saveMut.mutate()}>
+              {editingId ? <><Pencil className="mr-1 h-4 w-4" /> Salvar</> : <><Plus className="mr-1 h-4 w-4" /> Adicionar opção</>}
             </Button>
           </div>
         </div>
