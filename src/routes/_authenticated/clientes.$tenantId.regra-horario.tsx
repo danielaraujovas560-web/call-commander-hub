@@ -102,7 +102,7 @@ function Page() {
             {regras.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.nome}</TableCell>
-                <TableCell className="font-mono text-xs">{r.dias}</TableCell>
+                <TableCell className="text-xs">{formatDias(r.dias)}</TableCell>
                 <TableCell className="font-mono text-xs">{r.hora_inicial} → {r.hora_final}</TableCell>
                 <TableCell><Badge variant="default">{r.acao_dentro}</Badge> <span className="font-mono text-xs ml-1">{r.destino_dentro}</span></TableCell>
                 <TableCell><Badge variant="secondary">{r.acao_fora}</Badge> <span className="font-mono text-xs ml-1">{r.destino_fora}</span></TableCell>
