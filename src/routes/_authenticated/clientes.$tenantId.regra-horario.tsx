@@ -39,6 +39,14 @@ const DIAS = [
   { key: "sun", label: "Dom" },
 ] as const;
 
+const DIA_FULL: Record<string, string> = {
+  mon: "Segunda", tue: "Terça", wed: "Quarta", thu: "Quinta",
+  fri: "Sexta", sat: "Sábado", sun: "Domingo",
+};
+function formatDias(dias: string): string {
+  return dias.split("&").map((d) => DIA_FULL[d.trim().toLowerCase()] ?? d).join(", ");
+}
+
 const ACOES: AcaoHorario[] = ["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"];
 
 function Page() {
