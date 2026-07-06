@@ -1227,6 +1227,22 @@ app.get("/roteamento", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
+// If tipo_destino is HORARIO_ATENDIMENTO and destino is a name, look up regra id.
+async function resolveRoteamentoDestino(tenant, tipo, destino) {
+  const t = String(tipo || "").toUpperCase();
+  if (t === "HORARIO_ATENDIMENTO" || t === "REGRA_HORARIO") {
+    // If already numeric, keep as-is; else resolve by name.
+    if (/^\d+$/.test(String(destino))) return String(destino);
+    const [rows] = await pool.query(
+      `SELECT id FROM regra_horario WHERE tenant_id = ? AND nome = ? LIMIT 1`,
+      [tenant, slugName(destino)],
+    );
+    if (!rows.length) throw new Error("Regra de horário não encontrada");
+    return String(rows[0].id);
+  }
+  return String(destino);
+}
+
 app.post("/roteamento", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
@@ -1243,9 +1259,11 @@ app.post("/roteamento", async (req, res) => {
       `SELECT id FROM roteamento WHERE numero_id = ? AND tenant_id = ?`, [Number(numero_id), tenant],
     );
     if (dup.length) return res.status(409).json({ error: "Número já possui roteamento (edite)." });
+    const tipo = String(tipo_destino).toUpperCase();
+    const dest = await resolveRoteamentoDestino(tenant, tipo, destino);
     const [r] = await pool.query(
       `INSERT INTO roteamento (tenant_id, numero_id, tipo_destino, destino) VALUES (?, ?, ?, ?)`,
-      [tenant, Number(numero_id), String(tipo_destino), String(destino)],
+      [tenant, Number(numero_id), tipo, dest],
     );
     res.json({ ok: true, id: r.insertId });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
@@ -1256,8 +1274,14 @@ app.put("/roteamento/:id", async (req, res) => {
   if (!tenant) return;
   const { tipo_destino, destino } = req.body || {};
   const sets = []; const vals = [];
-  if (tipo_destino !== undefined) { sets.push("tipo_destino = ?"); vals.push(String(tipo_destino)); }
-  if (destino !== undefined) { sets.push("destino = ?"); vals.push(String(destino)); }
+  const tipo = tipo_destino !== undefined ? String(tipo_destino).toUpperCase() : undefined;
+  if (tipo !== undefined) { sets.push("tipo_destino = ?"); vals.push(tipo); }
+  if (destino !== undefined) {
+    try {
+      const resolved = await resolveRoteamentoDestino(tenant, tipo ?? "", destino);
+      sets.push("destino = ?"); vals.push(resolved);
+    } catch (e) { return res.status(400).json({ error: String(e.message || e) }); }
+  }
   if (!sets.length) return res.json({ ok: true });
   try {
     await pool.query(
