@@ -1132,6 +1132,28 @@ app.delete("/uras/opcoes/:opcaoId", async (req, res) => {
   }
 });
 
+app.put("/uras/opcoes/:opcaoId", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const opcaoId = Number(req.params.opcaoId);
+  const { digito, tipo_destino, destino } = req.body || {};
+  const sets = []; const vals = [];
+  if (digito !== undefined)       { sets.push("digito = ?");       vals.push(String(digito)); }
+  if (tipo_destino !== undefined) { sets.push("tipo_destino = ?"); vals.push(String(tipo_destino).toUpperCase()); }
+  if (destino !== undefined)      { sets.push("destino = ?");      vals.push(String(destino)); }
+  if (!sets.length) return res.json({ ok: true });
+  try {
+    await pool.query(
+      `UPDATE ura_opcoes o JOIN uras u ON u.id = o.ura_id
+          SET ${sets.join(", ")}
+        WHERE o.id = ? AND u.tenant_id = ?`,
+      [...vals, opcaoId, tenant],
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+
 // ---------- Numeros ----------
 app.get("/numeros", async (req, res) => {
   const tenant = getTenant(req, res);
