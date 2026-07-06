@@ -242,9 +242,6 @@ function RegraFormDialog({
                 </label>
               ))}
             </div>
-            {form.dias.length > 0 && (
-              <p className="text-xs text-muted-foreground font-mono">→ {form.dias.join("&")}</p>
-            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
