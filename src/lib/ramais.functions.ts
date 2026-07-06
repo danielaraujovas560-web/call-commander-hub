@@ -521,7 +521,7 @@ export const addUraOpcao = createServerFn({ method: "POST" })
       ura_id: z.number().int().positive(),
       tenant_id: z.number().int().positive().optional(),
       digito: z.coerce.string().max(4),
-      tipo_destino: z.enum(["fila", "ura", "ramal", "interno", "externo"]),
+      tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]),
       destino: z.coerce.string().min(1).max(120),
     }).parse(d),
   )
@@ -531,6 +531,26 @@ export const addUraOpcao = createServerFn({ method: "POST" })
     const { ura_id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>(`/uras/${ura_id}/opcoes`, {
       method: "POST", tenantId, body,
+    });
+  });
+
+export const updateUraOpcao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.number().int().positive(),
+      tenant_id: z.number().int().positive().optional(),
+      digito: z.coerce.string().max(4).optional(),
+      tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]).optional(),
+      destino: z.coerce.string().min(1).max(120).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const { id, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/uras/opcoes/${id}`, {
+      method: "PUT", tenantId, body,
     });
   });
 
