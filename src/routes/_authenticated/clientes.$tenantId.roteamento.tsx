@@ -241,10 +241,10 @@ function RoteamentoFormDialog({
             <Select value={form.tipo_destino} onValueChange={(v: any) => setForm({ ...form, tipo_destino: v, destino: "" })}>
               <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="RAMAL">Ramal</SelectItem>
-                <SelectItem value="FILA">Fila</SelectItem>
+                <SelectItem value="RAMAL">RAMAL</SelectItem>
+                <SelectItem value="FILA">FILA</SelectItem>
                 <SelectItem value="URA">URA</SelectItem>
-                <SelectItem value="EXTERNO">Externo</SelectItem>
+                <SelectItem value="EXTERNO">EXTERNO</SelectItem>
               </SelectContent>
             </Select>
           </div>
