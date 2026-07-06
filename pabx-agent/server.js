@@ -1108,7 +1108,7 @@ app.post("/uras/:id/opcoes", async (req, res) => {
     if (!own.length) return res.status(404).json({ error: "URA não encontrada" });
     const [r] = await pool.query(
       `INSERT INTO ura_opcoes (ura_id, digito, tipo_destino, destino) VALUES (?, ?, ?, ?)`,
-      [uraId, String(digito ?? ""), String(tipo_destino), String(destino)],
+      [uraId, String(digito ?? ""), String(tipo_destino).toUpperCase(), String(destino)],
     );
     res.json({ ok: true, id: r.insertId });
   } catch (e) {
