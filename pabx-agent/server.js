@@ -195,6 +195,7 @@ app.post("/ramais", async (req, res) => {
   }
   ramal = String(ramal);
   if (!nome || String(nome).trim() === "") nome = ramal;
+  nome = slugName(nome);
   if (!senha) senha = genPassword();
   const endpointId = `${tenant}${ramal}`;
   const authId = `auth-${endpointId}`;
