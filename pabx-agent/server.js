@@ -1539,7 +1539,7 @@ app.delete("/horario-ramais/:id", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
-
+app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "internal" });
 });
