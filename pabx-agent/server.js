@@ -77,6 +77,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Slug helper — only replaces spaces with "-" so pre-hyphenated inputs pass through unchanged.
+function slugName(v) {
+  if (v == null) return v;
+  const s = String(v).trim();
+  if (!s) return s;
+  return /\s/.test(s) ? s.replace(/\s+/g, "-") : s;
+}
+
 function getTenant(req, res) {
   const t = Number(req.header("X-Tenant-Id"));
   if (!t || Number.isNaN(t)) {
