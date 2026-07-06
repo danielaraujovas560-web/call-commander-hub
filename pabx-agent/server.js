@@ -1372,10 +1372,10 @@ app.post("/regra-horario", async (req, res) => {
     const [r] = await pool.query(
       `INSERT INTO regra_horario (tenant_id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tenant, String(b.nome).slice(0, 100), String(b.dias).slice(0, 100),
+      [tenant, slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
        String(b.hora_inicial), String(b.hora_final),
-       String(b.acao_dentro), String(b.destino_dentro).slice(0, 100),
-       String(b.acao_fora), String(b.destino_fora).slice(0, 100)],
+       String(b.acao_dentro).toUpperCase(), String(b.destino_dentro).slice(0, 100),
+       String(b.acao_fora).toUpperCase(), String(b.destino_fora).slice(0, 100)],
     );
     res.json({ ok: true, id: r.insertId });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
