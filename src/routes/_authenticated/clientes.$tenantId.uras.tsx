@@ -21,20 +21,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/uras")({
   head: () => ({ meta: [{ title: "URAs — Cliente — Painel PABX" }] }),
@@ -108,10 +117,18 @@ function UrasPage() {
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  Carregando…
+                </TableCell>
+              </TableRow>
             )}
             {!isLoading && uras.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Nenhuma URA cadastrada.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  Nenhuma URA cadastrada.
+                </TableCell>
+              </TableRow>
             )}
             {uras.map((u) => (
               <TableRow key={u.id}>
@@ -163,14 +180,7 @@ function UrasPage() {
           onClose={() => setSelected(null)}
         />
       )}
-      {editing && (
-        <UraFormDialog
-          tenantId={tenantId}
-          ura={editing}
-          open
-          onOpenChange={(v) => !v && setEditing(null)}
-        />
-      )}
+      {editing && <UraFormDialog tenantId={tenantId} ura={editing} open onOpenChange={(v) => !v && setEditing(null)} />}
     </div>
   );
 }
@@ -256,20 +266,39 @@ function UraFormDialog({
         <DialogHeader>
           <DialogTitle>{editing ? `Editar URA ${ura!.nome}` : "Nova URA"}</DialogTitle>
           <DialogDescription>
-            {audiosData?.warn ? `Pasta de áudios: ${audiosData.dir} (${audiosData.warn})` : `Áudios em ${audiosData?.dir ?? "…"}`}
+            {audiosData?.warn
+              ? `Pasta de áudios: ${audiosData.dir} (${audiosData.warn})`
+              : `Áudios na pasta do cliente`}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            mut.mutate();
+          }}
+          className="space-y-3"
+        >
           <div className="space-y-1">
             <Label>Nome *</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required maxLength={80} />
+            <Input
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              required
+              maxLength={80}
+            />
           </div>
           <div className="space-y-1">
-            <Label>Áudio * (arquivos em /ura/t{tenantId}/)</Label>
+            <Label>Áudio *</Label>
             <Select value={form.audio} onValueChange={(v) => setForm({ ...form, audio: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecione o áudio" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o áudio" />
+              </SelectTrigger>
               <SelectContent>
-                {audios.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
+                {audios.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {a}
+                  </SelectItem>
+                ))}
                 {audios.length === 0 && (
                   <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum .wav encontrado</div>
                 )}
@@ -279,18 +308,33 @@ function UraFormDialog({
           <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
               <Label>Máx. dígitos</Label>
-              <Input type="number" min={1} max={20} value={form.max_digits}
-                     onChange={(e) => setForm({ ...form, max_digits: Number(e.target.value) })} />
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={form.max_digits}
+                onChange={(e) => setForm({ ...form, max_digits: Number(e.target.value) })}
+              />
             </div>
             <div className="space-y-1">
               <Label>Tentativas</Label>
-              <Input type="number" min={1} max={10} value={form.tentativas}
-                     onChange={(e) => setForm({ ...form, tentativas: Number(e.target.value) })} />
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={form.tentativas}
+                onChange={(e) => setForm({ ...form, tentativas: Number(e.target.value) })}
+              />
             </div>
             <div className="space-y-1">
               <Label>Timeout (s)</Label>
-              <Input type="number" min={1} max={120} value={form.timeout}
-                     onChange={(e) => setForm({ ...form, timeout: Number(e.target.value) })} />
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                value={form.timeout}
+                onChange={(e) => setForm({ ...form, timeout: Number(e.target.value) })}
+              />
             </div>
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -298,7 +342,9 @@ function UraFormDialog({
             Ativo
           </label>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={mut.isPending || !form.audio || !form.nome}>
               {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
             </Button>
@@ -344,22 +390,21 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<OpcaoForm>(emptyOpcao);
 
-  function reset() { setForm(emptyOpcao); setEditingId(null); }
+  function reset() {
+    setForm(emptyOpcao);
+    setEditingId(null);
+  }
 
   const saveMut = useMutation({
     mutationFn: () => {
-      const destino = form.tipo_destino === "EXTERNO"
-        ? `${form.externoNumero}/${form.externoTronco}`
-        : form.destino;
+      const destino = form.tipo_destino === "EXTERNO" ? `${form.externoNumero}/${form.externoTronco}` : form.destino;
       const body = {
         tenant_id: tenantId,
         digito: form.digito,
         tipo_destino: form.tipo_destino as Exclude<TipoOpc, "">,
         destino,
       };
-      return editingId
-        ? updateFn({ data: { id: editingId, ...body } })
-        : addFn({ data: { ura_id: ura.id, ...body } });
+      return editingId ? updateFn({ data: { id: editingId, ...body } }) : addFn({ data: { ura_id: ura.id, ...body } });
     },
     onSuccess: () => {
       toast.success(editingId ? "Opção atualizada" : "Opção adicionada");
@@ -393,11 +438,9 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
     return o.destino;
   }
 
-  const disabled = !form.tipo_destino || (
-    form.tipo_destino === "EXTERNO"
-      ? !form.externoNumero || !form.externoTronco
-      : !form.destino
-  );
+  const disabled =
+    !form.tipo_destino ||
+    (form.tipo_destino === "EXTERNO" ? !form.externoNumero || !form.externoTronco : !form.destino);
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -421,11 +464,20 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
               {(ura.opcoes ?? []).map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-mono">{o.digito || "-"}</TableCell>
-                  <TableCell><Badge variant="outline">{String(o.tipo_destino).toUpperCase()}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{String(o.tipo_destino).toUpperCase()}</Badge>
+                  </TableCell>
                   <TableCell>{renderDestino(o)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => { setEditingId(o.id); setForm(opcaoToForm(o)); }}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingId(o.id);
+                          setForm(opcaoToForm(o));
+                        }}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button size="icon" variant="ghost" onClick={() => delMut.mutate(o.id)}>
@@ -436,7 +488,11 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                 </TableRow>
               ))}
               {(ura.opcoes ?? []).length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sem opções.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                    Sem opções.
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
@@ -447,13 +503,22 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
           <div className="grid grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label>Dígito</Label>
-              <Input value={form.digito} maxLength={4}
-                     onChange={(e) => setForm({ ...form, digito: e.target.value })} placeholder="0-9,*,#,t,i" />
+              <Input
+                value={form.digito}
+                maxLength={4}
+                onChange={(e) => setForm({ ...form, digito: e.target.value })}
+                placeholder="0-9,*,#,t,i"
+              />
             </div>
             <div className="space-y-1">
               <Label>Tipo</Label>
-              <Select value={form.tipo_destino} onValueChange={(v: any) => setForm({ ...form, tipo_destino: v, destino: "" })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <Select
+                value={form.tipo_destino}
+                onValueChange={(v: any) => setForm({ ...form, tipo_destino: v, destino: "" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="FILA">FILA</SelectItem>
                   <SelectItem value="URA">URA</SelectItem>
@@ -467,60 +532,102 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
               <Label>Destino</Label>
               {form.tipo_destino === "FILA" && (
                 <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione a fila" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a fila" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {destinos?.filas.map((f) => (<SelectItem key={f.value} value={String(f.value)}>{f.label}</SelectItem>))}
+                    {destinos?.filas.map((f) => (
+                      <SelectItem key={f.value} value={String(f.value)}>
+                        {f.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
               {form.tipo_destino === "URA" && (
                 <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione a URA" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a URA" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {destinos?.uras.filter((u) => u.value !== ura.id).map((u) => (
-                      <SelectItem key={u.value} value={String(u.value)}>{displayFromBackend(u.label)}</SelectItem>
-                    ))}
+                    {destinos?.uras
+                      .filter((u) => u.value !== ura.id)
+                      .map((u) => (
+                        <SelectItem key={u.value} value={String(u.value)}>
+                          {displayFromBackend(u.label)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               )}
               {form.tipo_destino === "RAMAL" && (
                 <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o ramal" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o ramal" />
+                  </SelectTrigger>
                   <SelectContent>
                     {destinos?.ramais.map((r) => (
-                      <SelectItem key={r.value} value={String(r.value)}>{displayFromBackend(r.label)}</SelectItem>
+                      <SelectItem key={r.value} value={String(r.value)}>
+                        {displayFromBackend(r.label)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
               {form.tipo_destino === "INTERNO" && (
                 <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
-                  <SelectTrigger><SelectValue placeholder="Função" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Função" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {TIPOS_INTERNOS.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                    {TIPOS_INTERNOS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
               {form.tipo_destino === "EXTERNO" && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Input value={form.externoNumero} onChange={(e) => setForm({ ...form, externoNumero: e.target.value })} placeholder="Número" />
+                  <Input
+                    value={form.externoNumero}
+                    onChange={(e) => setForm({ ...form, externoNumero: e.target.value })}
+                    placeholder="Número"
+                  />
                   <Select value={form.externoTronco} onValueChange={(v) => setForm({ ...form, externoTronco: v })}>
-                    <SelectTrigger><SelectValue placeholder="Tronco" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tronco" />
+                    </SelectTrigger>
                     <SelectContent>
-                      {destinos?.troncos.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                      {destinos?.troncos.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               )}
-              {!form.tipo_destino && (
-                <Input disabled placeholder="Escolha o tipo primeiro" />
-              )}
+              {!form.tipo_destino && <Input disabled placeholder="Escolha o tipo primeiro" />}
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            {editingId && <Button type="button" variant="outline" onClick={reset}>Cancelar edição</Button>}
+            {editingId && (
+              <Button type="button" variant="outline" onClick={reset}>
+                Cancelar edição
+              </Button>
+            )}
             <Button disabled={disabled || saveMut.isPending} onClick={() => saveMut.mutate()}>
-              {editingId ? <><Pencil className="mr-1 h-4 w-4" /> Salvar</> : <><Plus className="mr-1 h-4 w-4" /> Adicionar opção</>}
+              {editingId ? (
+                <>
+                  <Pencil className="mr-1 h-4 w-4" /> Salvar
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-1 h-4 w-4" /> Adicionar opção
+                </>
+              )}
             </Button>
           </div>
         </div>
