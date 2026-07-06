@@ -274,7 +274,7 @@ app.put("/ramais/:id", async (req, res) => {
     const sets = [];
     const vals = [];
     const pushIf = (col, val) => { if (val !== undefined) { sets.push(`${col} = ?`); vals.push(val); } };
-    pushIf("nome", nome);
+    pushIf("nome", nome !== undefined ? slugName(nome) : undefined);
     pushIf("tronco", tronco);
     if (ddd !== undefined) { sets.push("ddd = ?"); vals.push(String(ddd)); }
     pushIf("callerid", callerid);
