@@ -104,7 +104,8 @@ function genPassword() {
 // formata nome para uso em ids pjsip: sem espaços/acentos, mantém letras/números/_/-
 function slugName(s) {
   return String(s || "")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^A-Za-z0-9_-]/g, "");
@@ -172,8 +173,11 @@ app.get("/ramais", async (req, res) => {
       ramais: rows.map((r) => ({
         ...r,
         ddd: r.ddd == null ? null : String(r.ddd),
-        fixo: !!r.fixo, movel: !!r.movel, ddi: !!r.ddi,
-        especial: !!r.especial, cng: !!r.cng,
+        fixo: !!r.fixo,
+        movel: !!r.movel,
+        ddi: !!r.ddi,
+        especial: !!r.especial,
+        cng: !!r.cng,
         transbordo: !!r.transbordo,
       })),
     });
@@ -185,11 +189,8 @@ app.get("/ramais", async (req, res) => {
 app.post("/ramais", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  let {
-    nome, ramal, senha, tronco, ddd, callerid,
-    fixo, movel, ddi, especial, cng,
-    transbordo, transbordo_tronco,
-  } = req.body || {};
+  let { nome, ramal, senha, tronco, ddd, callerid, fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco } =
+    req.body || {};
   if (!ramal || !tronco || !ddd) {
     return res.status(400).json({ error: "Campos obrigatórios: ramal, tronco, ddd" });
   }
@@ -206,13 +207,9 @@ app.post("/ramais", async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    await conn.query(
-      `INSERT IGNORE INTO tenants (id, nome) VALUES (?, ?)`,
-      [tenant, `tenant-${tenant}`],
-    );
+    await conn.query(`INSERT IGNORE INTO tenants (id, nome) VALUES (?, ?)`, [tenant, `tenant-${tenant}`]);
 
-    await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`,
-      [authId, endpointId, senha]);
+    await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [authId, endpointId, senha]);
     await conn.query(`INSERT INTO ps_aors (id) VALUES (?)`, [endpointId]);
     await conn.query(
       `INSERT INTO ps_endpoints (id, aors, auth, context, call_group, pickup_group)
@@ -224,18 +221,40 @@ app.post("/ramais", async (req, res) => {
                            fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        tenant, nome, ramal, endpointId, senha, tronco, String(ddd), callerid || null,
-        fixo ? 1 : 0, movel ? 1 : 0, ddi ? 1 : 0, especial ? 1 : 0, cng ? 1 : 0,
-        transbordoInt, transbordoTroncoVal,
+        tenant,
+        nome,
+        ramal,
+        endpointId,
+        senha,
+        tronco,
+        String(ddd),
+        callerid || null,
+        fixo ? 1 : 0,
+        movel ? 1 : 0,
+        ddi ? 1 : 0,
+        especial ? 1 : 0,
+        cng ? 1 : 0,
+        transbordoInt,
+        transbordoTroncoVal,
       ],
     );
 
     await conn.commit();
     res.json({
       ramal: {
-        ramal, nome, tronco, ddd: String(ddd), callerid, senha,
-        fixo: !!fixo, movel: !!movel, ddi: !!ddi, especial: !!especial, cng: !!cng,
-        transbordo: !!transbordoInt, transbordo_tronco: transbordoTroncoVal,
+        ramal,
+        nome,
+        tronco,
+        ddd: String(ddd),
+        callerid,
+        senha,
+        fixo: !!fixo,
+        movel: !!movel,
+        ddi: !!ddi,
+        especial: !!especial,
+        cng: !!cng,
+        transbordo: !!transbordoInt,
+        transbordo_tronco: transbordoTroncoVal,
         endpoint_id: endpointId,
       },
     });
@@ -252,18 +271,12 @@ app.put("/ramais/:id", async (req, res) => {
   if (!tenant) return;
   const id = Number(req.params.id);
   if (!id) return res.status(400).json({ error: "id inválido" });
-  const {
-    nome, tronco, ddd, callerid, senha,
-    fixo, movel, ddi, especial, cng,
-    transbordo, transbordo_tronco,
-  } = req.body || {};
+  const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco } =
+    req.body || {};
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(
-      `SELECT endpoint_id FROM ramais WHERE id = ? AND tenant_id = ?`,
-      [id, tenant],
-    );
+    const [rows] = await conn.query(`SELECT endpoint_id FROM ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     if (rows.length === 0) {
       await conn.rollback();
       return res.status(404).json({ error: "Ramal não encontrado" });
@@ -273,20 +286,47 @@ app.put("/ramais/:id", async (req, res) => {
 
     const sets = [];
     const vals = [];
-    const pushIf = (col, val) => { if (val !== undefined) { sets.push(`${col} = ?`); vals.push(val); } };
+    const pushIf = (col, val) => {
+      if (val !== undefined) {
+        sets.push(`${col} = ?`);
+        vals.push(val);
+      }
+    };
     pushIf("nome", nome !== undefined ? slugName(nome) : undefined);
     pushIf("tronco", tronco);
-    if (ddd !== undefined) { sets.push("ddd = ?"); vals.push(String(ddd)); }
+    if (ddd !== undefined) {
+      sets.push("ddd = ?");
+      vals.push(String(ddd));
+    }
     pushIf("callerid", callerid);
     pushIf("senha", senha);
-    if (fixo !== undefined)     { sets.push("fixo = ?");     vals.push(fixo ? 1 : 0); }
-    if (movel !== undefined)    { sets.push("movel = ?");    vals.push(movel ? 1 : 0); }
-    if (ddi !== undefined)      { sets.push("ddi = ?");      vals.push(ddi ? 1 : 0); }
-    if (especial !== undefined) { sets.push("especial = ?"); vals.push(especial ? 1 : 0); }
-    if (cng !== undefined)      { sets.push("cng = ?");      vals.push(cng ? 1 : 0); }
+    if (fixo !== undefined) {
+      sets.push("fixo = ?");
+      vals.push(fixo ? 1 : 0);
+    }
+    if (movel !== undefined) {
+      sets.push("movel = ?");
+      vals.push(movel ? 1 : 0);
+    }
+    if (ddi !== undefined) {
+      sets.push("ddi = ?");
+      vals.push(ddi ? 1 : 0);
+    }
+    if (especial !== undefined) {
+      sets.push("especial = ?");
+      vals.push(especial ? 1 : 0);
+    }
+    if (cng !== undefined) {
+      sets.push("cng = ?");
+      vals.push(cng ? 1 : 0);
+    }
     if (transbordo !== undefined) {
-      sets.push("transbordo = ?"); vals.push(transbordo ? 1 : 0);
-      if (!transbordo) { sets.push("transbordo_tronco = ?"); vals.push(null); }
+      sets.push("transbordo = ?");
+      vals.push(transbordo ? 1 : 0);
+      if (!transbordo) {
+        sets.push("transbordo_tronco = ?");
+        vals.push(null);
+      }
     }
     if (transbordo_tronco !== undefined && transbordo !== false) {
       sets.push("transbordo_tronco = ?");
@@ -294,10 +334,7 @@ app.put("/ramais/:id", async (req, res) => {
     }
 
     if (sets.length > 0) {
-      await conn.query(
-        `UPDATE ramais SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`,
-        [...vals, id, tenant],
-      );
+      await conn.query(`UPDATE ramais SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [...vals, id, tenant]);
     }
     if (senha !== undefined) {
       await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, authId]);
@@ -320,10 +357,7 @@ app.delete("/ramais/:id", async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(
-      `SELECT endpoint_id FROM ramais WHERE id = ? AND tenant_id = ?`,
-      [id, tenant],
-    );
+    const [rows] = await conn.query(`SELECT endpoint_id FROM ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     if (rows.length === 0) {
       await conn.rollback();
       return res.status(404).json({ error: "Ramal não encontrado" });
@@ -366,18 +400,14 @@ app.get("/troncos/:id/status", async (req, res) => {
   if (!tenant) return;
   const id = Number(req.params.id);
   try {
-    const [rows] = await pool.query(
-      `SELECT tronco_pjsip FROM troncos WHERE id = ? AND tenant_id = ?`,
-      [id, tenant],
-    );
+    const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     if (!rows.length) return res.status(404).json({ error: "Tronco não encontrado" });
     const endpointName = rows[0].tronco_pjsip;
     const r = await asteriskRx(`pjsip show endpoint ${endpointName}`);
     if (!r.ok) return res.json({ endpoint: endpointName, status: "unknown", error: r.error });
     const m = r.stdout.match(/Endpoint:\s+\S+\s+(\S+)/i);
     const state = m ? m[1] : "";
-    const status = /unavailable/i.test(state) ? "offline"
-                 : state ? "online" : "unknown";
+    const status = /unavailable/i.test(state) ? "offline" : state ? "online" : "unknown";
     res.json({ endpoint: endpointName, state, status });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -387,10 +417,7 @@ app.get("/troncos/:id/status", async (req, res) => {
 app.post("/troncos", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const {
-    nome, ip, porta, tipo, techprefix, registrar,
-    login, senha,
-  } = req.body || {};
+  const { nome, ip, porta, tipo, techprefix, registrar, login, senha } = req.body || {};
   if (!nome || !ip || !tipo) {
     return res.status(400).json({ error: "nome, ip e tipo obrigatórios" });
   }
@@ -403,8 +430,8 @@ app.post("/troncos", async (req, res) => {
   const idIps = `${pjsipName}-identify`;
   const regId = `${pjsipName}-reg`;
   const wantsReg = registrar === "sim" || registrar === true;
-  const authPass = wantsReg ? (senha || genPassword()) : null;
-  const authUser = wantsReg ? (login || slug) : null;
+  const authPass = wantsReg ? senha || genPassword() : null;
+  const authUser = wantsReg ? login || slug : null;
   if (techprefix != null && techprefix !== "" && !/^\d+$/.test(String(techprefix))) {
     return res.status(400).json({ error: "techprefix deve conter apenas números" });
   }
@@ -413,16 +440,10 @@ app.post("/troncos", async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    await conn.query(
-      `INSERT INTO ps_aors (id, contact) VALUES (?, ?)`,
-      [aorId, `sip:${ip}:${portaVal}`],
-    );
+    await conn.query(`INSERT INTO ps_aors (id, contact) VALUES (?, ?)`, [aorId, `sip:${ip}:${portaVal}`]);
 
     if (wantsReg) {
-      await conn.query(
-        `INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`,
-        [authId, authUser, authPass],
-      );
+      await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [authId, authUser, authPass]);
     }
 
     await conn.query(
@@ -431,10 +452,11 @@ app.post("/troncos", async (req, res) => {
       [pjsipName, aorId, wantsReg ? authId : null, ip],
     );
 
-    await conn.query(
-      `INSERT INTO ps_endpoint_id_ips (id, endpoint, \`match\`) VALUES (?, ?, ?)`,
-      [idIps, pjsipName, ip],
-    );
+    await conn.query(`INSERT INTO ps_endpoint_id_ips (id, endpoint, \`match\`) VALUES (?, ?, ?)`, [
+      idIps,
+      pjsipName,
+      ip,
+    ]);
 
     if (wantsReg) {
       await conn.query(
@@ -448,11 +470,16 @@ app.post("/troncos", async (req, res) => {
       `INSERT INTO troncos (tenant_id, nome, tronco_pjsip, techprefix, tipo, registrar, login, senha, ip, porta, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
-        tenant, nome, pjsipName,
+        tenant,
+        nome,
+        pjsipName,
         techprefix ? String(techprefix) : null,
         tipo,
         wantsReg ? "sim" : "não",
-        authUser, authPass, ip, portaVal,
+        authUser,
+        authPass,
+        ip,
+        portaVal,
       ],
     );
 
@@ -470,17 +497,12 @@ app.put("/troncos/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
-  const {
-    nome, ip, porta, tipo, techprefix, registrar,
-    login, senha,
-  } = req.body || {};
+  const { nome, ip, porta, tipo, techprefix, registrar, login, senha } = req.body || {};
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(
-      `SELECT * FROM troncos WHERE id = ? AND tenant_id = ?`, [id, tenant],
-    );
+    const [rows] = await conn.query(`SELECT * FROM troncos WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Tronco não encontrado" });
@@ -504,7 +526,7 @@ app.put("/troncos/:id", async (req, res) => {
     const newPorta = porta ? String(porta) : t.porta;
     const newTipo = tipo ?? t.tipo;
     const newTech = techprefix !== undefined ? (techprefix ? String(techprefix) : null) : t.techprefix;
-    const wantsReg = registrar !== undefined ? (registrar === "sim" || registrar === true) : wasReg;
+    const wantsReg = registrar !== undefined ? registrar === "sim" || registrar === true : wasReg;
     const newLogin = login !== undefined ? login : t.login;
     const newSenha = senha !== undefined ? senha : t.senha;
 
@@ -517,11 +539,23 @@ app.put("/troncos/:id", async (req, res) => {
     if (newPjsip !== oldPjsip) {
       await conn.query(`UPDATE ps_aors SET id = ? WHERE id = ?`, [newAor, oldAor]);
       await conn.query(`UPDATE ps_endpoints SET id = ?, aors = ? WHERE id = ?`, [newPjsip, newAor, oldPjsip]);
-      await conn.query(`UPDATE ps_endpoint_id_ips SET id = ?, endpoint = ? WHERE id = ?`, [newIdIps, newPjsip, oldIdIps]);
+      await conn.query(`UPDATE ps_endpoint_id_ips SET id = ?, endpoint = ? WHERE id = ?`, [
+        newIdIps,
+        newPjsip,
+        oldIdIps,
+      ]);
       if (wasReg) {
         await conn.query(`UPDATE ps_auths SET id = ? WHERE id = ?`, [newAuth, oldAuth]);
-        await conn.query(`UPDATE ps_endpoints SET auth = ?, outbound_auth = ? WHERE id = ?`, [newAuth, newAuth, newPjsip]);
-        await conn.query(`UPDATE ps_registrations SET id = ?, outbound_auth = ? WHERE id = ?`, [newReg, newAuth, oldReg]);
+        await conn.query(`UPDATE ps_endpoints SET auth = ?, outbound_auth = ? WHERE id = ?`, [
+          newAuth,
+          newAuth,
+          newPjsip,
+        ]);
+        await conn.query(`UPDATE ps_registrations SET id = ?, outbound_auth = ? WHERE id = ?`, [
+          newReg,
+          newAuth,
+          oldReg,
+        ]);
       }
     }
 
@@ -535,11 +569,17 @@ app.put("/troncos/:id", async (req, res) => {
       const pw = newSenha || genPassword();
       const user = newLogin || slug;
       await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [newAuth, user, pw]);
-      await conn.query(`UPDATE ps_endpoints SET auth = ?, outbound_auth = ? WHERE id = ?`, [newAuth, newAuth, newPjsip]);
-      await conn.query(
-        `INSERT INTO ps_registrations (id, client_uri, server_uri, outbound_auth) VALUES (?, ?, ?, ?)`,
-        [newReg, `sip:${user}@${newIp}:${newPorta}`, `sip:${newIp}:${newPorta}`, newAuth],
-      );
+      await conn.query(`UPDATE ps_endpoints SET auth = ?, outbound_auth = ? WHERE id = ?`, [
+        newAuth,
+        newAuth,
+        newPjsip,
+      ]);
+      await conn.query(`INSERT INTO ps_registrations (id, client_uri, server_uri, outbound_auth) VALUES (?, ?, ?, ?)`, [
+        newReg,
+        `sip:${user}@${newIp}:${newPorta}`,
+        `sip:${newIp}:${newPorta}`,
+        newAuth,
+      ]);
     } else if (!wantsReg && wasReg) {
       await conn.query(`UPDATE ps_endpoints SET auth = NULL, outbound_auth = NULL WHERE id = ?`, [newPjsip]);
       await conn.query(`DELETE FROM ps_registrations WHERE id = ?`, [newReg]);
@@ -549,10 +589,12 @@ app.put("/troncos/:id", async (req, res) => {
       const user = newLogin || slug;
       const pw = newSenha || t.senha || genPassword();
       await conn.query(`UPDATE ps_auths SET username = ?, password = ? WHERE id = ?`, [user, pw, newAuth]);
-      await conn.query(
-        `UPDATE ps_registrations SET client_uri = ?, server_uri = ?, outbound_auth = ? WHERE id = ?`,
-        [`sip:${user}@${newIp}:${newPorta}`, `sip:${newIp}:${newPorta}`, newAuth, newReg],
-      );
+      await conn.query(`UPDATE ps_registrations SET client_uri = ?, server_uri = ?, outbound_auth = ? WHERE id = ?`, [
+        `sip:${user}@${newIp}:${newPorta}`,
+        `sip:${newIp}:${newPorta}`,
+        newAuth,
+        newReg,
+      ]);
     }
 
     await conn.query(
@@ -560,11 +602,17 @@ app.put("/troncos/:id", async (req, res) => {
                           registrar = ?, login = ?, senha = ?
         WHERE id = ? AND tenant_id = ?`,
       [
-        newNome, newPjsip, newIp, newPorta, newTipo, newTech,
+        newNome,
+        newPjsip,
+        newIp,
+        newPorta,
+        newTipo,
+        newTech,
         wantsReg ? "sim" : "não",
-        wantsReg ? (newLogin || slug) : null,
-        wantsReg ? (newSenha || null) : null,
-        id, tenant,
+        wantsReg ? newLogin || slug : null,
+        wantsReg ? newSenha || null : null,
+        id,
+        tenant,
       ],
     );
 
@@ -585,10 +633,10 @@ app.delete("/troncos/:id", async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(
-      `SELECT tronco_pjsip, registrar FROM troncos WHERE id = ? AND tenant_id = ?`,
-      [id, tenant],
-    );
+    const [rows] = await conn.query(`SELECT tronco_pjsip, registrar FROM troncos WHERE id = ? AND tenant_id = ?`, [
+      id,
+      tenant,
+    ]);
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Tronco não encontrado" });
@@ -673,9 +721,16 @@ function cdrFilteredEndpoint(p, cfg) {
       }
     }
     if (cfg.dateCol) {
-      const from = req.query.from, to = req.query.to;
-      if (from) { where.push(`${cfg.dateCol} >= ?`); vals.push(String(from).replace("T", " ")); }
-      if (to)   { where.push(`${cfg.dateCol} <= ?`); vals.push(String(to).replace("T", " ")); }
+      const from = req.query.from,
+        to = req.query.to;
+      if (from) {
+        where.push(`${cfg.dateCol} >= ?`);
+        vals.push(String(from).replace("T", " "));
+      }
+      if (to) {
+        where.push(`${cfg.dateCol} <= ?`);
+        vals.push(String(to).replace("T", " "));
+      }
     }
     const orderCol = cfg.order || "id";
     const sql = `SELECT ${cfg.select} FROM ${cfg.table} WHERE ${where.join(" AND ")} ORDER BY ${orderCol} DESC LIMIT ?`;
@@ -691,32 +746,43 @@ function cdrFilteredEndpoint(p, cfg) {
 
 cdrFilteredEndpoint("/cdr/entrada", {
   select: "id, linkedid, date_time, origem, num_destino, dest_interno, duracao, status",
-  table: "cdr_entrada", order: "date_time", dateCol: "date_time",
+  table: "cdr_entrada",
+  order: "date_time",
+  dateCol: "date_time",
   filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/ramal", {
   select: "id, linkedid, context, tipo_chamada, origem, destino, tronco, status, duracao, date_time",
-  table: "cdr_ramal", order: "date_time", dateCol: "date_time",
+  table: "cdr_ramal",
+  order: "date_time",
+  dateCol: "date_time",
   filters: { linkedid: "linkedid", origem: "origem", destino: "destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/fila", {
   select: "id, linkedid, nome_fila, agente, ramal, evento, motivo, time_data",
-  table: "cdr_fila", order: "time_data", dateCol: "time_data",
+  table: "cdr_fila",
+  order: "time_data",
+  dateCol: "time_data",
   filters: { linkedid: "linkedid", origem: "agente", destino: "ramal", status: "evento" },
 });
 cdrFilteredEndpoint("/cdr/ura", {
   select: "id, linkedid, num_did, nome_ura, opcao, dest_op, dest_nome",
-  table: "cdr_ura", order: "id",
+  table: "cdr_ura",
+  order: "id",
   filters: { linkedid: "linkedid", origem: "num_did", destino: "dest_op", status: "nome_ura" },
 });
 cdrFilteredEndpoint("/cdr/cidades/entrada", {
   select: "id, ddd, numero, sigla_estado, estado, data_hora",
-  table: "cdr_cidades_entrada", order: "data_hora", dateCol: "data_hora",
+  table: "cdr_cidades_entrada",
+  order: "data_hora",
+  dateCol: "data_hora",
   filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
 });
 cdrFilteredEndpoint("/cdr/cidades/saida", {
   select: "id, ddd, numero, sigla_estado, estado, data_hora",
-  table: "cdr_cidades_saida", order: "data_hora", dateCol: "data_hora",
+  table: "cdr_cidades_saida",
+  order: "data_hora",
+  dateCol: "data_hora",
   filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
 });
 
@@ -765,10 +831,10 @@ app.get("/filas/:virtualExt/membros", async (req, res) => {
       [Number(tenant), String(tenant), virtualExt],
     );
 
-    const [queueRows] = await pool.query(
-      `SELECT * FROM queues WHERE tenant_id = ? AND name = ? LIMIT 1`,
-      [String(tenant), fila.name],
-    );
+    const [queueRows] = await pool.query(`SELECT * FROM queues WHERE tenant_id = ? AND name = ? LIMIT 1`, [
+      String(tenant),
+      fila.name,
+    ]);
 
     const [members] = await pool.query(
       `SELECT interface, membername, penalty, paused, reason_paused
@@ -804,7 +870,15 @@ async function ensureMoh(conn, tenant) {
 app.post("/filas", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const { virtual_extension, display_name, description, strategy = "ringall", timeout = 15, active = true, ramais = [] } = req.body || {};
+  const {
+    virtual_extension,
+    display_name,
+    description,
+    strategy = "ringall",
+    timeout = 15,
+    active = true,
+    ramais = [],
+  } = req.body || {};
   if (!virtual_extension || !display_name) {
     return res.status(400).json({ error: "virtual_extension e display_name obrigatórios" });
   }
@@ -814,19 +888,19 @@ app.post("/filas", async (req, res) => {
   try {
     await conn.beginTransaction();
     // ramal virtual não pode colidir com ramais
-    const [dupR] = await conn.query(
-      `SELECT 1 FROM ramais WHERE tenant_id = ? AND ramal = ? LIMIT 1`,
-      [tenant, String(virtual_extension)],
-    );
+    const [dupR] = await conn.query(`SELECT 1 FROM ramais WHERE tenant_id = ? AND ramal = ? LIMIT 1`, [
+      tenant,
+      String(virtual_extension),
+    ]);
     if (dupR.length) {
       await conn.rollback();
       return res.status(409).json({ error: "Já existe ramal com esse número neste tenant." });
     }
     // duplicidade de virtual_extension em filas
-    const [dupF] = await conn.query(
-      `SELECT 1 FROM filas WHERE tenant_id = ? AND virtual_extension = ? LIMIT 1`,
-      [String(tenant), String(virtual_extension)],
-    );
+    const [dupF] = await conn.query(`SELECT 1 FROM filas WHERE tenant_id = ? AND virtual_extension = ? LIMIT 1`, [
+      String(tenant),
+      String(virtual_extension),
+    ]);
     if (dupF.length) {
       await conn.rollback();
       return res.status(409).json({ error: "Ramal virtual já cadastrado como fila." });
@@ -847,10 +921,12 @@ app.post("/filas", async (req, res) => {
 
     for (const r of ramais) {
       if (!r || !r.nome_ramal) continue;
-      await conn.query(
-        `INSERT INTO filas_ramais (tenant_id, nome_ramal, fila_ramal, prioridade) VALUES (?, ?, ?, ?)`,
-        [String(tenant), r.nome_ramal, String(virtual_extension), Number(r.prioridade) || 1],
-      );
+      await conn.query(`INSERT INTO filas_ramais (tenant_id, nome_ramal, fila_ramal, prioridade) VALUES (?, ?, ?, ?)`, [
+        String(tenant),
+        r.nome_ramal,
+        String(virtual_extension),
+        Number(r.prioridade) || 1,
+      ]);
       await conn.query(
         `INSERT IGNORE INTO queue_members (tenant_id, queue_name, interface, penalty)
          VALUES (?, ?, ?, 0)`,
@@ -877,10 +953,11 @@ app.put("/filas/:id", async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(
-      `SELECT * FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)],
-    );
-    if (!rows.length) { await conn.rollback(); return res.status(404).json({ error: "Fila não encontrada" }); }
+    const [rows] = await conn.query(`SELECT * FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Fila não encontrada" });
+    }
     const f = rows[0];
     const oldName = f.name;
     const newDisplay = display_name ?? f.display_name;
@@ -890,22 +967,51 @@ app.put("/filas/:id", async (req, res) => {
     await conn.query(
       `UPDATE filas SET display_name = ?, description = ?, active = ?, name = ?
         WHERE id = ? AND tenant_id = ?`,
-      [newDisplay, description ?? f.description, active === undefined ? f.active : (active ? 1 : 0), newName, id, String(tenant)],
+      [
+        newDisplay,
+        description ?? f.description,
+        active === undefined ? f.active : active ? 1 : 0,
+        newName,
+        id,
+        String(tenant),
+      ],
     );
 
     if (newName !== oldName) {
-      await conn.query(`UPDATE queues SET name = ? WHERE tenant_id = ? AND name = ?`, [newName, String(tenant), oldName]);
-      await conn.query(`UPDATE queue_members SET queue_name = ? WHERE tenant_id = ? AND queue_name = ?`, [newName, String(tenant), oldName]);
+      await conn.query(`UPDATE queues SET name = ? WHERE tenant_id = ? AND name = ?`, [
+        newName,
+        String(tenant),
+        oldName,
+      ]);
+      await conn.query(`UPDATE queue_members SET queue_name = ? WHERE tenant_id = ? AND queue_name = ?`, [
+        newName,
+        String(tenant),
+        oldName,
+      ]);
     }
     if (strategy !== undefined || timeout !== undefined) {
-      const sets = []; const vals = [];
-      if (strategy !== undefined) { sets.push("strategy = ?"); vals.push(strategy); }
-      if (timeout !== undefined) { sets.push("timeout = ?"); vals.push(Number(timeout) || 0); }
-      await conn.query(`UPDATE queues SET ${sets.join(", ")} WHERE tenant_id = ? AND name = ?`, [...vals, String(tenant), newName]);
+      const sets = [];
+      const vals = [];
+      if (strategy !== undefined) {
+        sets.push("strategy = ?");
+        vals.push(strategy);
+      }
+      if (timeout !== undefined) {
+        sets.push("timeout = ?");
+        vals.push(Number(timeout) || 0);
+      }
+      await conn.query(`UPDATE queues SET ${sets.join(", ")} WHERE tenant_id = ? AND name = ?`, [
+        ...vals,
+        String(tenant),
+        newName,
+      ]);
     }
 
     if (Array.isArray(ramais)) {
-      await conn.query(`DELETE FROM filas_ramais WHERE tenant_id = ? AND fila_ramal = ?`, [String(tenant), f.virtual_extension]);
+      await conn.query(`DELETE FROM filas_ramais WHERE tenant_id = ? AND fila_ramal = ?`, [
+        String(tenant),
+        f.virtual_extension,
+      ]);
       await conn.query(`DELETE FROM queue_members WHERE tenant_id = ? AND queue_name = ?`, [String(tenant), newName]);
       for (const r of ramais) {
         if (!r || !r.nome_ramal) continue;
@@ -940,11 +1046,17 @@ app.delete("/filas/:id", async (req, res) => {
   try {
     await conn.beginTransaction();
     const [rows] = await conn.query(`SELECT * FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
-    if (!rows.length) { await conn.rollback(); return res.status(404).json({ error: "Fila não encontrada" }); }
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Fila não encontrada" });
+    }
     const f = rows[0];
     await conn.query(`DELETE FROM queue_members WHERE tenant_id = ? AND queue_name = ?`, [String(tenant), f.name]);
     await conn.query(`DELETE FROM queues WHERE tenant_id = ? AND name = ?`, [String(tenant), f.name]);
-    await conn.query(`DELETE FROM filas_ramais WHERE tenant_id = ? AND fila_ramal = ?`, [String(tenant), f.virtual_extension]);
+    await conn.query(`DELETE FROM filas_ramais WHERE tenant_id = ? AND fila_ramal = ?`, [
+      String(tenant),
+      f.virtual_extension,
+    ]);
     await conn.query(`DELETE FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
     await conn.commit();
     asteriskRx("queue reload all").catch(() => {});
@@ -987,9 +1099,7 @@ app.get("/uras/audios", async (req, res) => {
   const dir = path.join(URA_SOUNDS_BASE, `t${tenant}`);
   try {
     const files = await fs.readdir(dir);
-    const audios = files
-      .filter((f) => f.toLowerCase().endsWith(".wav"))
-      .map((f) => f.replace(/\.wav$/i, ""));
+    const audios = files.filter((f) => f.toLowerCase().endsWith(".wav")).map((f) => f.replace(/\.wav$/i, ""));
     res.json({ audios, dir });
   } catch (e) {
     if (e.code === "ENOENT") return res.json({ audios: [], dir, warn: "diretório inexistente" });
@@ -1005,10 +1115,9 @@ app.get("/uras/destinos", async (req, res) => {
       `SELECT virtual_extension AS value, display_name AS label FROM filas WHERE tenant_id = ? ORDER BY display_name`,
       [String(tenant)],
     );
-    const [uras] = await pool.query(
-      `SELECT id AS value, nome AS label FROM uras WHERE tenant_id = ? ORDER BY nome`,
-      [tenant],
-    );
+    const [uras] = await pool.query(`SELECT id AS value, nome AS label FROM uras WHERE tenant_id = ? ORDER BY nome`, [
+      tenant,
+    ]);
     const [ramais] = await pool.query(
       `SELECT ramal AS value, nome AS label FROM ramais WHERE tenant_id = ? ORDER BY ramal`,
       [tenant],
@@ -1041,9 +1150,7 @@ app.post("/uras", async (req, res) => {
     return res.status(400).json({ error: "nome, audio, max_digits, tentativas, timeout obrigatórios" });
   }
   try {
-    const [dup] = await pool.query(
-      `SELECT id FROM uras WHERE tenant_id = ? AND nome = ? LIMIT 1`, [tenant, nome],
-    );
+    const [dup] = await pool.query(`SELECT id FROM uras WHERE tenant_id = ? AND nome = ? LIMIT 1`, [tenant, nome]);
     if (dup.length) return res.status(409).json({ error: "Já existe uma URA com esse nome neste tenant" });
     const [r] = await pool.query(
       `INSERT INTO uras (tenant_id, nome, audio, max_digits, tentativas, timeout, ativo)
@@ -1061,20 +1168,31 @@ app.put("/uras/:id", async (req, res) => {
   if (!tenant) return;
   const id = Number(req.params.id);
   const { nome, audio, max_digits, tentativas, timeout, ativo } = req.body || {};
-  const sets = []; const vals = [];
-  const pushIf = (c, v, tr = (x) => x) => { if (v !== undefined) { sets.push(`${c} = ?`); vals.push(tr(v)); } };
+  const sets = [];
+  const vals = [];
+  const pushIf = (c, v, tr = (x) => x) => {
+    if (v !== undefined) {
+      sets.push(`${c} = ?`);
+      vals.push(tr(v));
+    }
+  };
   pushIf("nome", nome);
   pushIf("audio", audio);
   pushIf("max_digits", max_digits, Number);
   pushIf("tentativas", tentativas, Number);
   pushIf("timeout", timeout, Number);
-  if (ativo !== undefined) { sets.push("ativo = ?"); vals.push(ativo ? 1 : 0); }
+  if (ativo !== undefined) {
+    sets.push("ativo = ?");
+    vals.push(ativo ? 1 : 0);
+  }
   if (!sets.length) return res.json({ ok: true });
   try {
     if (nome !== undefined) {
-      const [dup] = await pool.query(
-        `SELECT id FROM uras WHERE tenant_id = ? AND nome = ? AND id <> ? LIMIT 1`, [tenant, nome, id],
-      );
+      const [dup] = await pool.query(`SELECT id FROM uras WHERE tenant_id = ? AND nome = ? AND id <> ? LIMIT 1`, [
+        tenant,
+        nome,
+        id,
+      ]);
       if (dup.length) return res.status(409).json({ error: "Já existe uma URA com esse nome neste tenant" });
     }
     await pool.query(`UPDATE uras SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [...vals, id, tenant]);
@@ -1106,10 +1224,12 @@ app.post("/uras/:id/opcoes", async (req, res) => {
   try {
     const [own] = await pool.query(`SELECT id FROM uras WHERE id = ? AND tenant_id = ?`, [uraId, tenant]);
     if (!own.length) return res.status(404).json({ error: "URA não encontrada" });
-    const [r] = await pool.query(
-      `INSERT INTO ura_opcoes (ura_id, digito, tipo_destino, destino) VALUES (?, ?, ?, ?)`,
-      [uraId, String(digito ?? ""), String(tipo_destino).toUpperCase(), String(destino)],
-    );
+    const [r] = await pool.query(`INSERT INTO ura_opcoes (ura_id, digito, tipo_destino, destino) VALUES (?, ?, ?, ?)`, [
+      uraId,
+      String(digito ?? ""),
+      String(tipo_destino).toUpperCase(),
+      String(destino),
+    ]);
     res.json({ ok: true, id: r.insertId });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -1137,10 +1257,20 @@ app.put("/uras/opcoes/:opcaoId", async (req, res) => {
   if (!tenant) return;
   const opcaoId = Number(req.params.opcaoId);
   const { digito, tipo_destino, destino } = req.body || {};
-  const sets = []; const vals = [];
-  if (digito !== undefined)       { sets.push("digito = ?");       vals.push(String(digito)); }
-  if (tipo_destino !== undefined) { sets.push("tipo_destino = ?"); vals.push(String(tipo_destino).toUpperCase()); }
-  if (destino !== undefined)      { sets.push("destino = ?");      vals.push(String(destino)); }
+  const sets = [];
+  const vals = [];
+  if (digito !== undefined) {
+    sets.push("digito = ?");
+    vals.push(String(digito));
+  }
+  if (tipo_destino !== undefined) {
+    sets.push("tipo_destino = ?");
+    vals.push(String(tipo_destino).toUpperCase());
+  }
+  if (destino !== undefined) {
+    sets.push("destino = ?");
+    vals.push(String(destino));
+  }
   if (!sets.length) return res.json({ ok: true });
   try {
     await pool.query(
@@ -1153,18 +1283,19 @@ app.put("/uras/opcoes/:opcaoId", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
-
+});
 // ---------- Numeros ----------
 app.get("/numeros", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
-    const [rows] = await pool.query(
-      `SELECT id, numero, descricao FROM numeros WHERE tenant_id = ? ORDER BY numero`,
-      [tenant],
-    );
+    const [rows] = await pool.query(`SELECT id, numero, descricao FROM numeros WHERE tenant_id = ? ORDER BY numero`, [
+      tenant,
+    ]);
     res.json({ numeros: rows });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.post("/numeros", async (req, res) => {
@@ -1173,29 +1304,42 @@ app.post("/numeros", async (req, res) => {
   const { numero, descricao } = req.body || {};
   if (!numero) return res.status(400).json({ error: "numero obrigatório" });
   try {
-    const [r] = await pool.query(
-      `INSERT INTO numeros (tenant_id, numero, descricao) VALUES (?, ?, ?)`,
-      [tenant, String(numero), descricao || null],
-    );
+    const [r] = await pool.query(`INSERT INTO numeros (tenant_id, numero, descricao) VALUES (?, ?, ?)`, [
+      tenant,
+      String(numero),
+      descricao || null,
+    ]);
     res.json({ ok: true, id: r.insertId });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.put("/numeros/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const { numero, descricao } = req.body || {};
-  const sets = []; const vals = [];
-  if (numero !== undefined) { sets.push("numero = ?"); vals.push(String(numero)); }
-  if (descricao !== undefined) { sets.push("descricao = ?"); vals.push(descricao || null); }
+  const sets = [];
+  const vals = [];
+  if (numero !== undefined) {
+    sets.push("numero = ?");
+    vals.push(String(numero));
+  }
+  if (descricao !== undefined) {
+    sets.push("descricao = ?");
+    vals.push(descricao || null);
+  }
   if (!sets.length) return res.json({ ok: true });
   try {
-    await pool.query(
-      `UPDATE numeros SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`,
-      [...vals, Number(req.params.id), tenant],
-    );
+    await pool.query(`UPDATE numeros SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [
+      ...vals,
+      Number(req.params.id),
+      tenant,
+    ]);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.delete("/numeros/:id", async (req, res) => {
@@ -1206,7 +1350,9 @@ app.delete("/numeros/:id", async (req, res) => {
     await pool.query(`DELETE FROM roteamento WHERE numero_id = ? AND tenant_id = ?`, [id, tenant]);
     await pool.query(`DELETE FROM numeros WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 // ---------- Roteamento ----------
@@ -1224,7 +1370,9 @@ app.get("/roteamento", async (req, res) => {
       [tenant],
     );
     res.json({ roteamento: rows });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 // If tipo_destino is HORARIO_ATENDIMENTO and destino is a name, look up regra id.
@@ -1233,10 +1381,10 @@ async function resolveRoteamentoDestino(tenant, tipo, destino) {
   if (t === "HORARIO_ATENDIMENTO" || t === "REGRA_HORARIO") {
     // If already numeric, keep as-is; else resolve by name.
     if (/^\d+$/.test(String(destino))) return String(destino);
-    const [rows] = await pool.query(
-      `SELECT id FROM regra_horario WHERE tenant_id = ? AND nome = ? LIMIT 1`,
-      [tenant, slugName(destino)],
-    );
+    const [rows] = await pool.query(`SELECT id FROM regra_horario WHERE tenant_id = ? AND nome = ? LIMIT 1`, [
+      tenant,
+      slugName(destino),
+    ]);
     if (!rows.length) throw new Error("Regra de horário não encontrada");
     return String(rows[0].id);
   }
@@ -1251,13 +1399,15 @@ app.post("/roteamento", async (req, res) => {
     return res.status(400).json({ error: "numero_id, tipo_destino e destino obrigatórios" });
   }
   try {
-    const [own] = await pool.query(
-      `SELECT id FROM numeros WHERE id = ? AND tenant_id = ?`, [Number(numero_id), tenant],
-    );
+    const [own] = await pool.query(`SELECT id FROM numeros WHERE id = ? AND tenant_id = ?`, [
+      Number(numero_id),
+      tenant,
+    ]);
     if (!own.length) return res.status(404).json({ error: "Número não pertence ao tenant" });
-    const [dup] = await pool.query(
-      `SELECT id FROM roteamento WHERE numero_id = ? AND tenant_id = ?`, [Number(numero_id), tenant],
-    );
+    const [dup] = await pool.query(`SELECT id FROM roteamento WHERE numero_id = ? AND tenant_id = ?`, [
+      Number(numero_id),
+      tenant,
+    ]);
     if (dup.length) return res.status(409).json({ error: "Número já possui roteamento (edite)." });
     const tipo = String(tipo_destino).toUpperCase();
     const dest = await resolveRoteamentoDestino(tenant, tipo, destino);
@@ -1266,42 +1416,53 @@ app.post("/roteamento", async (req, res) => {
       [tenant, Number(numero_id), tipo, dest],
     );
     res.json({ ok: true, id: r.insertId });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.put("/roteamento/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const { tipo_destino, destino } = req.body || {};
-  const sets = []; const vals = [];
+  const sets = [];
+  const vals = [];
   const tipo = tipo_destino !== undefined ? String(tipo_destino).toUpperCase() : undefined;
-  if (tipo !== undefined) { sets.push("tipo_destino = ?"); vals.push(tipo); }
+  if (tipo !== undefined) {
+    sets.push("tipo_destino = ?");
+    vals.push(tipo);
+  }
   if (destino !== undefined) {
     try {
       const resolved = await resolveRoteamentoDestino(tenant, tipo ?? "", destino);
-      sets.push("destino = ?"); vals.push(resolved);
-    } catch (e) { return res.status(400).json({ error: String(e.message || e) }); }
+      sets.push("destino = ?");
+      vals.push(resolved);
+    } catch (e) {
+      return res.status(400).json({ error: String(e.message || e) });
+    }
   }
   if (!sets.length) return res.json({ ok: true });
   try {
-    await pool.query(
-      `UPDATE roteamento SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`,
-      [...vals, Number(req.params.id), tenant],
-    );
+    await pool.query(`UPDATE roteamento SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [
+      ...vals,
+      Number(req.params.id),
+      tenant,
+    ]);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.delete("/roteamento/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
-    await pool.query(
-      `DELETE FROM roteamento WHERE id = ? AND tenant_id = ?`,
-      [Number(req.params.id), tenant],
-    );
+    await pool.query(`DELETE FROM roteamento WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 // cdr_pesquisa
@@ -1319,8 +1480,14 @@ app.get("/cdr/pesquisa", async (req, res) => {
       vals.push(`%${String(v).trim()}%`);
     }
   }
-  if (req.query.from) { where.push("p.data >= ?"); vals.push(String(req.query.from).replace("T", " ")); }
-  if (req.query.to)   { where.push("p.data <= ?"); vals.push(String(req.query.to).replace("T", " ")); }
+  if (req.query.from) {
+    where.push("p.data >= ?");
+    vals.push(String(req.query.from).replace("T", " "));
+  }
+  if (req.query.to) {
+    where.push("p.data <= ?");
+    vals.push(String(req.query.to).replace("T", " "));
+  }
   vals.push(limit);
   try {
     const [rows] = await pool.query(
@@ -1334,7 +1501,9 @@ app.get("/cdr/pesquisa", async (req, res) => {
       vals,
     );
     res.json({ rows });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 // ---------- Regra Horário (horário de atendimento personalizado) ----------
@@ -1350,7 +1519,9 @@ app.get("/regra-horario", async (req, res) => {
       [tenant],
     );
     res.json({ regras: rows });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 function validateRegra(body) {
@@ -1372,13 +1543,22 @@ app.post("/regra-horario", async (req, res) => {
     const [r] = await pool.query(
       `INSERT INTO regra_horario (tenant_id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tenant, slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
-       String(b.hora_inicial), String(b.hora_final),
-       String(b.acao_dentro).toUpperCase(), String(b.destino_dentro).slice(0, 100),
-       String(b.acao_fora).toUpperCase(), String(b.destino_fora).slice(0, 100)],
+      [
+        tenant,
+        slugName(String(b.nome).slice(0, 100)),
+        String(b.dias).slice(0, 100),
+        String(b.hora_inicial),
+        String(b.hora_final),
+        String(b.acao_dentro).toUpperCase(),
+        String(b.destino_dentro).slice(0, 100),
+        String(b.acao_fora).toUpperCase(),
+        String(b.destino_fora).slice(0, 100),
+      ],
     );
     res.json({ ok: true, id: r.insertId });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.put("/regra-horario/:id", async (req, res) => {
@@ -1391,14 +1571,23 @@ app.put("/regra-horario/:id", async (req, res) => {
     await pool.query(
       `UPDATE regra_horario SET nome=?, dias=?, hora_inicial=?, hora_final=?, acao_dentro=?, destino_dentro=?, acao_fora=?, destino_fora=?
        WHERE id = ? AND tenant_id = ?`,
-      [slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
-       String(b.hora_inicial), String(b.hora_final),
-       String(b.acao_dentro).toUpperCase(), String(b.destino_dentro).slice(0, 100),
-       String(b.acao_fora).toUpperCase(), String(b.destino_fora).slice(0, 100),
-       Number(req.params.id), tenant],
+      [
+        slugName(String(b.nome).slice(0, 100)),
+        String(b.dias).slice(0, 100),
+        String(b.hora_inicial),
+        String(b.hora_final),
+        String(b.acao_dentro).toUpperCase(),
+        String(b.destino_dentro).slice(0, 100),
+        String(b.acao_fora).toUpperCase(),
+        String(b.destino_fora).slice(0, 100),
+        Number(req.params.id),
+        tenant,
+      ],
     );
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.delete("/regra-horario/:id", async (req, res) => {
@@ -1407,7 +1596,9 @@ app.delete("/regra-horario/:id", async (req, res) => {
   try {
     await pool.query(`DELETE FROM regra_horario WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 // ---------- Regra Horário para Ramais (grupo de ramais com regra de saída) ----------
@@ -1429,7 +1620,9 @@ app.get("/horario-ramais", async (req, res) => {
       r.membros = Number(c.n) || 0;
     }
     res.json({ regras });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.get("/horario-ramais/:id/membros", async (req, res) => {
@@ -1445,7 +1638,9 @@ app.get("/horario-ramais/:id/membros", async (req, res) => {
       [tenant, Number(req.params.id)],
     );
     res.json({ membros: rows });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 function validateHorarioRamal(body) {
@@ -1467,23 +1662,31 @@ app.post("/horario-ramais", async (req, res) => {
     const [r] = await conn.query(
       `INSERT INTO regra_horario_ramais (tenant_id, nome, dias, hora_inicial, hora_final)
        VALUES (?, ?, ?, ?, ?)`,
-      [tenant, slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
-       String(b.hora_inicial), String(b.hora_final)],
+      [
+        tenant,
+        slugName(String(b.nome).slice(0, 100)),
+        String(b.dias).slice(0, 100),
+        String(b.hora_inicial),
+        String(b.hora_final),
+      ],
     );
     const regraId = r.insertId;
     for (const ramal of ramais) {
       if (!ramal) continue;
-      await conn.query(
-        `INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`,
-        [tenant, regraId, String(ramal)],
-      );
+      await conn.query(`INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`, [
+        tenant,
+        regraId,
+        String(ramal),
+      ]);
     }
     await conn.commit();
     res.json({ ok: true, id: regraId });
   } catch (e) {
     await conn.rollback();
     res.status(500).json({ error: String(e.message || e) });
-  } finally { conn.release(); }
+  } finally {
+    conn.release();
+  }
 });
 
 app.put("/horario-ramais/:id", async (req, res) => {
@@ -1501,20 +1704,24 @@ app.put("/horario-ramais/:id", async (req, res) => {
       `UPDATE regra_horario_ramais
          SET nome=?, dias=?, hora_inicial=?, hora_final=?
        WHERE id = ? AND tenant_id = ?`,
-      [slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
-       String(b.hora_inicial), String(b.hora_final), id, tenant],
+      [
+        slugName(String(b.nome).slice(0, 100)),
+        String(b.dias).slice(0, 100),
+        String(b.hora_inicial),
+        String(b.hora_final),
+        id,
+        tenant,
+      ],
     );
     if (ramais) {
-      await conn.query(
-        `DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`,
-        [tenant, id],
-      );
+      await conn.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`, [tenant, id]);
       for (const ramal of ramais) {
         if (!ramal) continue;
-        await conn.query(
-          `INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`,
-          [tenant, id, String(ramal)],
-        );
+        await conn.query(`INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`, [
+          tenant,
+          id,
+          String(ramal),
+        ]);
       }
     }
     await conn.commit();
@@ -1522,7 +1729,9 @@ app.put("/horario-ramais/:id", async (req, res) => {
   } catch (e) {
     await conn.rollback();
     res.status(500).json({ error: String(e.message || e) });
-  } finally { conn.release(); }
+  } finally {
+    conn.release();
+  }
 });
 
 app.delete("/horario-ramais/:id", async (req, res) => {
@@ -1530,13 +1739,12 @@ app.delete("/horario-ramais/:id", async (req, res) => {
   if (!tenant) return;
   try {
     const id = Number(req.params.id);
-    await pool.query(
-      `DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`,
-      [tenant, id],
-    );
+    await pool.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`, [tenant, id]);
     await pool.query(`DELETE FROM regra_horario_ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.use((err, _req, res, _next) => {
