@@ -1410,7 +1410,136 @@ app.delete("/regra-horario/:id", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
-app.use((err, _req, res, _next) => {
+// ---------- Regra Horário para Ramais (grupo de ramais com regra de saída) ----------
+app.get("/horario-ramais", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [regras] = await pool.query(
+      `SELECT id, nome, dias, hora_inicial, hora_final
+         FROM regra_horario_ramais WHERE tenant_id = ? ORDER BY nome`,
+      [tenant],
+    );
+    // count members
+    for (const r of regras) {
+      const [[c]] = await pool.query(
+        `SELECT COUNT(*) AS n FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`,
+        [tenant, r.id],
+      );
+      r.membros = Number(c.n) || 0;
+    }
+    res.json({ regras });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.get("/horario-ramais/:id/membros", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT g.id, g.ramal, r.nome
+         FROM ramais_grupo_horario g
+         LEFT JOIN ramais r ON r.ramal = g.ramal AND r.tenant_id = g.tenant_id
+        WHERE g.tenant_id = ? AND g.id_regra_horario = ?
+        ORDER BY g.ramal`,
+      [tenant, Number(req.params.id)],
+    );
+    res.json({ membros: rows });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+function validateHorarioRamal(body) {
+  const { nome, dias, hora_inicial, hora_final } = body || {};
+  if (!nome || !dias || !hora_inicial || !hora_final) return "nome, dias, hora_inicial e hora_final obrigatórios";
+  return null;
+}
+
+app.post("/horario-ramais", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const err = validateHorarioRamal(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const b = req.body;
+  const ramais = Array.isArray(b.ramais) ? b.ramais : [];
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [r] = await conn.query(
+      `INSERT INTO regra_horario_ramais (tenant_id, nome, dias, hora_inicial, hora_final)
+       VALUES (?, ?, ?, ?, ?)`,
+      [tenant, slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
+       String(b.hora_inicial), String(b.hora_final)],
+    );
+    const regraId = r.insertId;
+    for (const ramal of ramais) {
+      if (!ramal) continue;
+      await conn.query(
+        `INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`,
+        [tenant, regraId, String(ramal)],
+      );
+    }
+    await conn.commit();
+    res.json({ ok: true, id: regraId });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally { conn.release(); }
+});
+
+app.put("/horario-ramais/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const err = validateHorarioRamal(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const b = req.body;
+  const id = Number(req.params.id);
+  const ramais = Array.isArray(b.ramais) ? b.ramais : null;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(
+      `UPDATE regra_horario_ramais
+         SET nome=?, dias=?, hora_inicial=?, hora_final=?
+       WHERE id = ? AND tenant_id = ?`,
+      [slugName(String(b.nome).slice(0, 100)), String(b.dias).slice(0, 100),
+       String(b.hora_inicial), String(b.hora_final), id, tenant],
+    );
+    if (ramais) {
+      await conn.query(
+        `DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`,
+        [tenant, id],
+      );
+      for (const ramal of ramais) {
+        if (!ramal) continue;
+        await conn.query(
+          `INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`,
+          [tenant, id, String(ramal)],
+        );
+      }
+    }
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally { conn.release(); }
+});
+
+app.delete("/horario-ramais/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const id = Number(req.params.id);
+    await pool.query(
+      `DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`,
+      [tenant, id],
+    );
+    await pool.query(`DELETE FROM regra_horario_ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+
   console.error(err);
   res.status(500).json({ error: "internal" });
 });
