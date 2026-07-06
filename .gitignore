@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+## Arquivos privados
+.env
+src/routeTree.gen.ts

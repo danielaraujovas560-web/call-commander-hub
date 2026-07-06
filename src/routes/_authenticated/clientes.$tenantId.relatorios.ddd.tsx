@@ -53,7 +53,7 @@ function TableSection({ title, rows, loading, error, onFilter }: any) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead><TableHead>DDD</TableHead><TableHead>Número</TableHead><TableHead>Estado</TableHead>
+                <TableHead>Data e Hora</TableHead><TableHead>DDD</TableHead><TableHead>Número</TableHead><TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

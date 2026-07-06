@@ -89,7 +89,7 @@ function ClienteOverview() {
         </Button>
         <Button asChild variant="outline">
           <Link
-            to="/clientes/$tenantId/relatorios"
+            to="/clientes/$tenantId/relatorios/entrada"
             params={{ tenantId: tenantParam }}
           >
             <BarChart3 className="mr-2 h-4 w-4" /> Ver relatórios
