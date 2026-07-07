@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Router as RouterIcon, RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
 import {
@@ -9,8 +9,12 @@ import {
   listNumeros, listUraDestinos,
   type RoteamentoItem,
 } from "@/lib/ramais.functions";
+import {
+  DestinoPicker, emptyDestino, parseDestinoFromBackend, buildDestinoForBackend,
+  isDestinoIncomplete, renderDestinoLabel,
+  type DestinoValue, type DestinoTipo,
+} from "@/components/destino-picker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,7 +31,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
-type TipoDest = "RAMAL" | "FILA" | "URA" | "EXTERNO";
+// Roteamento pode apontar para qualquer ação (inclui HORARIO_ATENDIMENTO
+// para redirecionar a chamada pra regra que decide dentro/fora).
+const ACOES_ROTEAMENTO: readonly DestinoTipo[] = [
+  "RAMAL", "FILA", "URA", "EXTERNO", "HORARIO_ATENDIMENTO", "AUDIO",
+];
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/roteamento")({
   head: () => ({ meta: [{ title: "Roteamento — Cliente — Painel PABX" }] }),
@@ -58,13 +66,6 @@ function RoteamentoPage() {
     onSuccess: () => { toast.success("Roteamento removido"); qc.invalidateQueries({ queryKey: ["roteamento", tenantId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  function renderDest(r: RoteamentoItem) {
-    if (r.tipo_destino === "FILA") return destinos?.filas.find((f) => String(f.value) === r.destino)?.label ?? r.destino;
-    if (r.tipo_destino === "URA") return destinos?.uras.find((u) => String(u.value) === r.destino)?.label ?? r.destino;
-    if (r.tipo_destino === "RAMAL") return destinos?.ramais.find((x) => String(x.value) === r.destino)?.label ?? r.destino;
-    return r.destino;
-  }
 
   return (
     <div className="space-y-4">
@@ -100,7 +101,7 @@ function RoteamentoPage() {
                 <TableCell className="font-mono">{r.numero}</TableCell>
                 <TableCell>{r.descricao ?? "-"}</TableCell>
                 <TableCell><Badge variant="outline">{r.tipo_destino}</Badge></TableCell>
-                <TableCell>{renderDest(r)}</TableCell>
+                <TableCell>{renderDestinoLabel(destinos, r.tipo_destino, r.destino)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setEditing(r)}><Pencil className="h-4 w-4" /></Button>
@@ -145,44 +146,16 @@ function RoteamentoFormDialog({
     queryFn: () => numerosFn({ data: { tenant_id: tenantId } }),
     enabled: open,
   });
-  const destinosFn = useServerFn(listUraDestinos);
-  const { data: destinos } = useQuery({
-    queryKey: ["ura-destinos", tenantId],
-    queryFn: () => destinosFn({ data: { tenant_id: tenantId } }),
-    enabled: open,
-  });
 
-  const [form, setForm] = useState<{
-    numero_id: string;
-    tipo_destino: TipoDest | "";
-    destino: string;
-    externoNumero: string;
-    externoTronco: string;
-  }>({
-    numero_id: item?.numero_id ? String(item.numero_id) : "",
-    tipo_destino: (item?.tipo_destino as TipoDest) ?? "",
-    destino: item?.destino ?? "",
-    externoNumero: "",
-    externoTronco: "",
-  });
+  const [numeroId, setNumeroId] = useState<string>(item?.numero_id ? String(item.numero_id) : "");
+  const [dest, setDest] = useState<DestinoValue>(
+    item ? parseDestinoFromBackend(item.tipo_destino, item.destino) : { ...emptyDestino },
+  );
 
   useEffect(() => {
     if (open) {
-      if (item) {
-        let externoNumero = "", externoTronco = "";
-        if (item.tipo_destino === "EXTERNO" && item.destino.includes("/")) {
-          const [n, t] = item.destino.split("/");
-          externoNumero = n; externoTronco = t;
-        }
-        setForm({
-          numero_id: String(item.numero_id),
-          tipo_destino: item.tipo_destino as TipoDest,
-          destino: item.destino,
-          externoNumero, externoTronco,
-        });
-      } else {
-        setForm({ numero_id: "", tipo_destino: "", destino: "", externoNumero: "", externoTronco: "" });
-      }
+      setNumeroId(item?.numero_id ? String(item.numero_id) : "");
+      setDest(item ? parseDestinoFromBackend(item.tipo_destino, item.destino) : { ...emptyDestino });
     }
   }, [open, item]);
 
@@ -192,14 +165,11 @@ function RoteamentoFormDialog({
 
   const mut = useMutation({
     mutationFn: () => {
-      const destino = form.tipo_destino === "EXTERNO"
-        ? `${form.externoNumero}/${form.externoTronco}`
-        : form.destino;
-      const body: any = {
+      const body = {
         tenant_id: tenantId,
-        numero_id: Number(form.numero_id),
-        tipo_destino: form.tipo_destino as TipoDest,
-        destino,
+        numero_id: Number(numeroId),
+        tipo_destino: dest.tipo as Exclude<DestinoTipo, "INTERNO">,
+        destino: buildDestinoForBackend(dest),
       };
       return editing
         ? updateFn({ data: { id: item!.id, ...body } })
@@ -213,10 +183,7 @@ function RoteamentoFormDialog({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const disabled = !form.numero_id || !form.tipo_destino ||
-    (form.tipo_destino === "EXTERNO"
-      ? !form.externoNumero || !form.externoTronco
-      : !form.destino);
+  const disabled = !numeroId || isDestinoIncomplete(dest);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -228,7 +195,7 @@ function RoteamentoFormDialog({
         </DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
           <div className="space-y-1"><Label>Número *</Label>
-            <Select value={form.numero_id} onValueChange={(v) => setForm({ ...form, numero_id: v })} disabled={editing}>
+            <Select value={numeroId} onValueChange={setNumeroId} disabled={editing}>
               <SelectTrigger><SelectValue placeholder="Selecione o número" /></SelectTrigger>
               <SelectContent>
                 {(numData?.numeros ?? []).map((n) => (
@@ -237,55 +204,12 @@ function RoteamentoFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1"><Label>Tipo *</Label>
-            <Select value={form.tipo_destino} onValueChange={(v: any) => setForm({ ...form, tipo_destino: v, destino: "" })}>
-              <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="RAMAL">RAMAL</SelectItem>
-                <SelectItem value="FILA">FILA</SelectItem>
-                <SelectItem value="URA">URA</SelectItem>
-                <SelectItem value="EXTERNO">EXTERNO</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1"><Label>Destino *</Label>
-            {form.tipo_destino === "RAMAL" && (
-              <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione o ramal" /></SelectTrigger>
-                <SelectContent>
-                  {destinos?.ramais.map((r) => <SelectItem key={r.value} value={String(r.value)}>{r.label} ({r.value})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-            {form.tipo_destino === "FILA" && (
-              <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione a fila" /></SelectTrigger>
-                <SelectContent>
-                  {destinos?.filas.map((f) => <SelectItem key={f.value} value={String(f.value)}>{f.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-            {form.tipo_destino === "URA" && (
-              <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione a URA" /></SelectTrigger>
-                <SelectContent>
-                  {destinos?.uras.map((u) => <SelectItem key={u.value} value={String(u.value)}>{u.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-            {form.tipo_destino === "EXTERNO" && (
-              <div className="grid grid-cols-2 gap-2">
-                <Input value={form.externoNumero} onChange={(e) => setForm({ ...form, externoNumero: e.target.value })} placeholder="Número" />
-                <Select value={form.externoTronco} onValueChange={(v) => setForm({ ...form, externoTronco: v })}>
-                  <SelectTrigger><SelectValue placeholder="Tronco" /></SelectTrigger>
-                  <SelectContent>
-                    {destinos?.troncos.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {!form.tipo_destino && <Input disabled placeholder="Escolha o tipo primeiro" />}
-          </div>
+          <DestinoPicker
+            tenantId={tenantId}
+            value={dest}
+            onChange={setDest}
+            allow={ACOES_ROTEAMENTO}
+          />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={disabled || mut.isPending}>{mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}</Button>

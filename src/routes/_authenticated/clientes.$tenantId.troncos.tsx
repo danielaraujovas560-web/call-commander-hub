@@ -5,9 +5,10 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Cable, RefreshCw, Plus, Pencil, Trash2, Lock } from "lucide-react";
 import {
-  listTroncos, createTronco, updateTronco, deleteTronco,
+  listTroncos, listTroncosStatus, createTronco, updateTronco, deleteTronco,
   type Tronco,
 } from "@/lib/ramais.functions";
+import { OnlineBadge } from "@/components/online-badge";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,12 @@ function TroncosPage() {
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
   });
   const troncos = data?.troncos ?? [];
+  const statusFn = useServerFn(listTroncosStatus);
+  const { data: statusData } = useQuery({
+    queryKey: ["troncos-status", tenantId],
+    queryFn: () => statusFn({ data: { tenant_id: tenantId } }),
+    refetchInterval: 10_000,
+  });
   const [editing, setEditing] = useState<Tronco | null>(null);
 
   const delFn = useServerFn(deleteTronco);
@@ -105,7 +112,7 @@ function TroncosPage() {
                 <TableCell><Badge variant="outline">{t.tipo}</Badge></TableCell>
                 <TableCell className="font-mono">{t.techprefix ?? "-"}</TableCell>
                 <TableCell>{t.registrar === "sim" ? "Sim" : "Não"}</TableCell>
-                <TableCell><Badge variant={t.status ? "default" : "secondary"}>{t.status ? "Ativo" : "Inativo"}</Badge></TableCell>
+                <TableCell><OnlineBadge state={statusData?.endpoints?.[String(t.id)]} showLabel /></TableCell>
                 {isAdmin && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

@@ -625,6 +625,28 @@ export const getTroncoStatus = createServerFn({ method: "GET" })
     return await agentFetch<{ endpoint: string; state?: string; status: string }>(`/troncos/${data.id}/status`, { tenantId });
   });
 
+// ---------- Status em lote (online/offline) ----------
+export const listRamaisStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ endpoints: Record<string, string> }>(`/ramais/status`, { tenantId });
+    return { endpoints: res.endpoints ?? {} };
+  });
+
+export const listTroncosStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const res = await agentFetch<{ endpoints: Record<string, string> }>(`/troncos/status`, { tenantId });
+    return { endpoints: res.endpoints ?? {} };
+  });
+
+
 // ---------- Filas CRUD ----------
 const FilaInput = z.object({
   tenant_id: z.number().int().positive().optional(),

@@ -24,6 +24,7 @@ import { Route as AuthenticatedClientesTenantIdRoteamentoRouteImport } from './r
 import { Route as AuthenticatedClientesTenantIdRegraHorarioRouteImport } from './routes/_authenticated/clientes.$tenantId.regra-horario'
 import { Route as AuthenticatedClientesTenantIdRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.ramais'
 import { Route as AuthenticatedClientesTenantIdNumerosRouteImport } from './routes/_authenticated/clientes.$tenantId.numeros'
+import { Route as AuthenticatedClientesTenantIdHorarioRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.horario-ramais'
 import { Route as AuthenticatedClientesTenantIdFilasRouteImport } from './routes/_authenticated/clientes.$tenantId.filas'
 import { Route as AuthenticatedClientesTenantIdBlacklistRouteImport } from './routes/_authenticated/clientes.$tenantId.blacklist'
 import { Route as AuthenticatedClientesTenantIdAudiosRouteImport } from './routes/_authenticated/clientes.$tenantId.audios'
@@ -118,6 +119,12 @@ const AuthenticatedClientesTenantIdNumerosRoute =
     path: '/numeros',
     getParentRoute: () => AuthenticatedClientesTenantIdRoute,
   } as any)
+const AuthenticatedClientesTenantIdHorarioRamaisRoute =
+  AuthenticatedClientesTenantIdHorarioRamaisRouteImport.update({
+    id: '/horario-ramais',
+    path: '/horario-ramais',
+    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+  } as any)
 const AuthenticatedClientesTenantIdFilasRoute =
   AuthenticatedClientesTenantIdFilasRouteImport.update({
     id: '/filas',
@@ -184,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
   '/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
+  '/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   '/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
@@ -208,6 +216,7 @@ export interface FileRoutesByTo {
   '/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
   '/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
+  '/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   '/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
@@ -235,6 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
   '/_authenticated/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
   '/_authenticated/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
+  '/_authenticated/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   '/_authenticated/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
   '/_authenticated/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/_authenticated/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/audios'
     | '/clientes/$tenantId/blacklist'
     | '/clientes/$tenantId/filas'
+    | '/clientes/$tenantId/horario-ramais'
     | '/clientes/$tenantId/numeros'
     | '/clientes/$tenantId/ramais'
     | '/clientes/$tenantId/regra-horario'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/audios'
     | '/clientes/$tenantId/blacklist'
     | '/clientes/$tenantId/filas'
+    | '/clientes/$tenantId/horario-ramais'
     | '/clientes/$tenantId/numeros'
     | '/clientes/$tenantId/ramais'
     | '/clientes/$tenantId/regra-horario'
@@ -312,6 +324,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes/$tenantId/audios'
     | '/_authenticated/clientes/$tenantId/blacklist'
     | '/_authenticated/clientes/$tenantId/filas'
+    | '/_authenticated/clientes/$tenantId/horario-ramais'
     | '/_authenticated/clientes/$tenantId/numeros'
     | '/_authenticated/clientes/$tenantId/ramais'
     | '/_authenticated/clientes/$tenantId/regra-horario'
@@ -440,6 +453,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesTenantIdNumerosRouteImport
       parentRoute: typeof AuthenticatedClientesTenantIdRoute
     }
+    '/_authenticated/clientes/$tenantId/horario-ramais': {
+      id: '/_authenticated/clientes/$tenantId/horario-ramais'
+      path: '/horario-ramais'
+      fullPath: '/clientes/$tenantId/horario-ramais'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdHorarioRamaisRouteImport
+      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+    }
     '/_authenticated/clientes/$tenantId/filas': {
       id: '/_authenticated/clientes/$tenantId/filas'
       path: '/filas'
@@ -510,6 +530,7 @@ interface AuthenticatedClientesTenantIdRouteChildren {
   AuthenticatedClientesTenantIdAudiosRoute: typeof AuthenticatedClientesTenantIdAudiosRoute
   AuthenticatedClientesTenantIdBlacklistRoute: typeof AuthenticatedClientesTenantIdBlacklistRoute
   AuthenticatedClientesTenantIdFilasRoute: typeof AuthenticatedClientesTenantIdFilasRoute
+  AuthenticatedClientesTenantIdHorarioRamaisRoute: typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   AuthenticatedClientesTenantIdNumerosRoute: typeof AuthenticatedClientesTenantIdNumerosRoute
   AuthenticatedClientesTenantIdRamaisRoute: typeof AuthenticatedClientesTenantIdRamaisRoute
   AuthenticatedClientesTenantIdRegraHorarioRoute: typeof AuthenticatedClientesTenantIdRegraHorarioRoute
@@ -533,6 +554,8 @@ const AuthenticatedClientesTenantIdRouteChildren: AuthenticatedClientesTenantIdR
       AuthenticatedClientesTenantIdBlacklistRoute,
     AuthenticatedClientesTenantIdFilasRoute:
       AuthenticatedClientesTenantIdFilasRoute,
+    AuthenticatedClientesTenantIdHorarioRamaisRoute:
+      AuthenticatedClientesTenantIdHorarioRamaisRoute,
     AuthenticatedClientesTenantIdNumerosRoute:
       AuthenticatedClientesTenantIdNumerosRoute,
     AuthenticatedClientesTenantIdRamaisRoute:
@@ -594,13 +617,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
