@@ -174,7 +174,7 @@ function RamaisPage() {
             {data?.ramais.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-mono">{r.ramal}</TableCell>
-                <TableCell>{r.nome ?? "-"}</TableCell>
+                <TableCell>{r.nome ? r.nome.replace(/-/g, " ") : "-"}</TableCell>
                 <TableCell>{r.tronco ?? "-"}</TableCell>
                 <TableCell>{r.ddd ?? "-"}</TableCell>
                 <TableCell className="font-mono text-xs">{r.callerid ?? "-"}</TableCell>
