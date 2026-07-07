@@ -161,30 +161,28 @@ function RegraFormDialog({
   const setOpen = (v: boolean) => onOpenChange ? onOpenChange(v) : setInternalOpen(v);
   const editing = !!regra;
 
-  const [form, setForm] = useState(() => ({
-    nome: regra?.nome ?? "",
-    dias: regra ? parseDias(regra.dias) : [] as string[],
-    hora_inicial: trimTime(regra?.hora_inicial ?? "08:00"),
-    hora_final: trimTime(regra?.hora_final ?? "18:00"),
-    acao_dentro: (regra?.acao_dentro ?? "URA") as AcaoHorario,
-    destino_dentro: regra?.destino_dentro ?? "",
-    acao_fora: (regra?.acao_fora ?? "INTERNO") as AcaoHorario,
-    destino_fora: regra?.destino_fora ?? "desligar",
-  }));
+  const initialDentro = (): DestinoValue =>
+    regra ? parseDestinoFromBackend(regra.acao_dentro, regra.destino_dentro) : { ...emptyDestino };
+  const initialFora = (): DestinoValue =>
+    regra ? parseDestinoFromBackend(regra.acao_fora, regra.destino_fora) : { ...emptyDestino, tipo: "INTERNO", destino: "desligar" };
+
+  const [nome, setNome] = useState(regra?.nome ?? "");
+  const [dias, setDias] = useState<string[]>(regra ? parseDias(regra.dias) : []);
+  const [horaIni, setHoraIni] = useState(trimTime(regra?.hora_inicial ?? "08:00"));
+  const [horaFim, setHoraFim] = useState(trimTime(regra?.hora_final ?? "18:00"));
+  const [dentro, setDentro] = useState<DestinoValue>(initialDentro());
+  const [fora, setFora] = useState<DestinoValue>(initialFora());
 
   useEffect(() => {
     if (open) {
-      setForm({
-        nome: regra?.nome ?? "",
-        dias: regra ? parseDias(regra.dias) : [],
-        hora_inicial: trimTime(regra?.hora_inicial ?? "08:00"),
-        hora_final: trimTime(regra?.hora_final ?? "18:00"),
-        acao_dentro: (regra?.acao_dentro ?? "URA") as AcaoHorario,
-        destino_dentro: regra?.destino_dentro ?? "",
-        acao_fora: (regra?.acao_fora ?? "INTERNO") as AcaoHorario,
-        destino_fora: regra?.destino_fora ?? "desligar",
-      });
+      setNome(regra?.nome ?? "");
+      setDias(regra ? parseDias(regra.dias) : []);
+      setHoraIni(trimTime(regra?.hora_inicial ?? "08:00"));
+      setHoraFim(trimTime(regra?.hora_final ?? "18:00"));
+      setDentro(initialDentro());
+      setFora(initialFora());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, regra]);
 
   const qc = useQueryClient();
@@ -194,14 +192,14 @@ function RegraFormDialog({
     mutationFn: () => {
       const body = {
         tenant_id: tenantId,
-        nome: form.nome,
-        dias: form.dias.join("&"),
-        hora_inicial: form.hora_inicial,
-        hora_final: form.hora_final,
-        acao_dentro: form.acao_dentro,
-        destino_dentro: form.destino_dentro,
-        acao_fora: form.acao_fora,
-        destino_fora: form.destino_fora,
+        nome,
+        dias: dias.join("&"),
+        hora_inicial: horaIni,
+        hora_final: horaFim,
+        acao_dentro: dentro.tipo as AcaoHorario,
+        destino_dentro: buildDestinoForBackend(dentro),
+        acao_fora: fora.tipo as AcaoHorario,
+        destino_fora: buildDestinoForBackend(fora),
       };
       return editing
         ? updateFn({ data: { id: regra!.id, ...body } })
@@ -216,13 +214,10 @@ function RegraFormDialog({
   });
 
   const toggleDia = (d: string, checked: boolean) => {
-    setForm((s) => ({
-      ...s,
-      dias: checked ? [...s.dias, d] : s.dias.filter((x) => x !== d),
-    }));
+    setDias((s) => (checked ? [...s, d] : s.filter((x) => x !== d)));
   };
 
-  const canSubmit = form.nome && form.dias.length > 0 && form.destino_dentro && form.destino_fora;
+  const canSubmit = !!nome && dias.length > 0 && !isDestinoIncomplete(dentro) && !isDestinoIncomplete(fora);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -235,7 +230,7 @@ function RegraFormDialog({
         <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
           <div className="space-y-1">
             <Label>Nome *</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required maxLength={100} />
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} required maxLength={100} />
           </div>
 
           <div className="space-y-1">
@@ -243,10 +238,7 @@ function RegraFormDialog({
             <div className="flex flex-wrap gap-3 pt-1">
               {DIAS.map((d) => (
                 <label key={d.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                  <Checkbox
-                    checked={form.dias.includes(d.key)}
-                    onCheckedChange={(v) => toggleDia(d.key, !!v)}
-                  />
+                  <Checkbox checked={dias.includes(d.key)} onCheckedChange={(v) => toggleDia(d.key, !!v)} />
                   <span>{d.label}</span>
                 </label>
               ))}
@@ -256,48 +248,22 @@ function RegraFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Hora inicial *</Label>
-              <Input type="time" value={form.hora_inicial} onChange={(e) => setForm({ ...form, hora_inicial: e.target.value })} required />
+              <Input type="time" value={horaIni} onChange={(e) => setHoraIni(e.target.value)} required />
             </div>
             <div className="space-y-1">
               <Label>Hora final *</Label>
-              <Input type="time" value={form.hora_final} onChange={(e) => setForm({ ...form, hora_final: e.target.value })} required />
+              <Input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} required />
             </div>
           </div>
 
           <fieldset className="rounded-md border p-3 space-y-2">
             <legend className="px-1 text-xs font-medium">Dentro do horário</legend>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Ação</Label>
-                <select className="flex h-9 w-full rounded-md border bg-transparent px-2 text-sm"
-                  value={form.acao_dentro}
-                  onChange={(e) => setForm({ ...form, acao_dentro: e.target.value as AcaoHorario })}>
-                  {ACOES.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs">Destino</Label>
-                <Input value={form.destino_dentro} onChange={(e) => setForm({ ...form, destino_dentro: e.target.value })} maxLength={100} />
-              </div>
-            </div>
+            <DestinoPicker tenantId={tenantId} value={dentro} onChange={setDentro} allow={ACOES_REGRA} compact />
           </fieldset>
 
           <fieldset className="rounded-md border p-3 space-y-2">
             <legend className="px-1 text-xs font-medium">Fora do horário</legend>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Ação</Label>
-                <select className="flex h-9 w-full rounded-md border bg-transparent px-2 text-sm"
-                  value={form.acao_fora}
-                  onChange={(e) => setForm({ ...form, acao_fora: e.target.value as AcaoHorario })}>
-                  {ACOES.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs">Destino</Label>
-                <Input value={form.destino_fora} onChange={(e) => setForm({ ...form, destino_fora: e.target.value })} maxLength={100} />
-              </div>
-            </div>
+            <DestinoPicker tenantId={tenantId} value={fora} onChange={setFora} allow={ACOES_REGRA} compact />
           </fieldset>
 
           <DialogFooter>
@@ -310,4 +276,5 @@ function RegraFormDialog({
       </DialogContent>
     </Dialog>
   );
+
 }
