@@ -112,7 +112,7 @@ function TroncosPage() {
                 <TableCell><Badge variant="outline">{t.tipo}</Badge></TableCell>
                 <TableCell className="font-mono">{t.techprefix ?? "-"}</TableCell>
                 <TableCell>{t.registrar === "sim" ? "Sim" : "Não"}</TableCell>
-                <TableCell><Badge variant={t.status ? "default" : "secondary"}>{t.status ? "Ativo" : "Inativo"}</Badge></TableCell>
+                <TableCell><OnlineBadge state={statusData?.endpoints?.[String(t.id)]} showLabel /></TableCell>
                 {isAdmin && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
