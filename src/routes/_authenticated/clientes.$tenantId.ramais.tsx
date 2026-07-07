@@ -150,6 +150,7 @@ function RamaisPage() {
               <TableHead>CallerID</TableHead>
               <TableHead>Permissões</TableHead>
               <TableHead>Senha</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
