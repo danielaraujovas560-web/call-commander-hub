@@ -414,6 +414,68 @@ app.get("/troncos/:id/status", async (req, res) => {
   }
 });
 
+// ---------- Status em lote (ramais/troncos) via `pjsip show endpoints` ----------
+// Faz um único CLI e distribui pros endpoints do tenant. Ver ASTERISK-STATUS.md.
+let _endpointsCache = { at: 0, map: {} };
+async function fetchEndpointsMap() {
+  const now = Date.now();
+  if (now - _endpointsCache.at < 3000) return _endpointsCache.map;
+  const r = await asteriskRx("pjsip show endpoints");
+  const map = {};
+  if (r.ok) {
+    // Linhas: "  Endpoint:  <name>/<contact>            <State>   <n of n>"
+    const re = /^\s*Endpoint:\s+(\S+)\s+(.+?)\s{2,}\d+\s+of\s+\S+/gim;
+    let m;
+    while ((m = re.exec(r.stdout))) {
+      const name = String(m[1]).split("/")[0];
+      map[name] = String(m[2]).trim();
+    }
+  }
+  _endpointsCache = { at: now, map };
+  return map;
+}
+
+app.get("/ramais/status", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT ramal, endpoint_id FROM ramais WHERE tenant_id = ?`,
+      [tenant],
+    );
+    const map = await fetchEndpointsMap();
+    const endpoints = {};
+    for (const row of rows) {
+      const key = row.endpoint_id || `t${tenant}-${row.ramal}`;
+      endpoints[String(row.ramal)] = map[key] || "Unknown";
+    }
+    res.json({ endpoints });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.get("/troncos/status", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, tronco_pjsip FROM troncos WHERE tenant_id = ?`,
+      [tenant],
+    );
+    const map = await fetchEndpointsMap();
+    const endpoints = {};
+    for (const row of rows) {
+      endpoints[String(row.id)] = map[row.tronco_pjsip] || "Unknown";
+    }
+    res.json({ endpoints });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+
+
 app.post("/troncos", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
