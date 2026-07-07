@@ -14,12 +14,14 @@ import {
 } from "lucide-react";
 import {
   listRamais,
+  listRamaisStatus,
   listTroncos,
   createRamal,
   updateRamal,
   deleteRamal,
   type Ramal,
 } from "@/lib/ramais.functions";
+import { OnlineBadge } from "@/components/online-badge";
 
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
