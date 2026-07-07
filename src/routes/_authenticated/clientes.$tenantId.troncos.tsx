@@ -45,6 +45,12 @@ function TroncosPage() {
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
   });
   const troncos = data?.troncos ?? [];
+  const statusFn = useServerFn(listTroncosStatus);
+  const { data: statusData } = useQuery({
+    queryKey: ["troncos-status", tenantId],
+    queryFn: () => statusFn({ data: { tenant_id: tenantId } }),
+    refetchInterval: 10_000,
+  });
   const [editing, setEditing] = useState<Tronco | null>(null);
 
   const delFn = useServerFn(deleteTronco);
