@@ -9,6 +9,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const { exec } = require("child_process");
 const rateLimit = require("express-rate-limit");
+const { getEndpointsDeviceState } = require("./ami");
 
 const {
   DB_HOST = "127.0.0.1",
@@ -420,19 +421,14 @@ let _endpointsCache = { at: 0, map: {} };
 async function fetchEndpointsMap() {
   const now = Date.now();
   if (now - _endpointsCache.at < 3000) return _endpointsCache.map;
-  const r = await asteriskRx("pjsip show endpoints");
-  const map = {};
-  if (r.ok) {
-    // Linhas: "  Endpoint:  <name>/<contact>            <State>   <n of n>"
-    const re = /^\s*Endpoint:\s+(\S+)\s+(.+?)\s{2,}\d+\s+of\s+\S+/gim;
-    let m;
-    while ((m = re.exec(r.stdout))) {
-      const name = String(m[1]).split("/")[0];
-      map[name] = String(m[2]).trim();
-    }
+  try {
+    const map = await getEndpointsDeviceState();
+    _endpointsCache = { at: now, map };
+    return map;
+  } catch (e) {
+    console.error("[ami] fetchEndpointsMap falhou:", e.message || e);
+    return _endpointsCache.map; // mantém o último estado conhecido em caso de falha
   }
-  _endpointsCache = { at: now, map };
-  return map;
 }
 
 app.get("/ramais/status", async (req, res) => {
@@ -1440,7 +1436,7 @@ app.get("/roteamento", async (req, res) => {
 // If tipo_destino is HORARIO_ATENDIMENTO and destino is a name, look up regra id.
 async function resolveRoteamentoDestino(tenant, tipo, destino) {
   const t = String(tipo || "").toUpperCase();
-  if (t === "REGRA_HORARIO") {
+  if ( t === "REGRA_HORARIO") {
     // If already numeric, keep as-is; else resolve by name.
     if (/^\d+$/.test(String(destino))) return String(destino);
     const [rows] = await pool.query(`SELECT id FROM regra_horario WHERE tenant_id = ? AND nome = ? LIMIT 1`, [
