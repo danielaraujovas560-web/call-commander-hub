@@ -6,8 +6,14 @@ import { toast } from "sonner";
 import { Clock, RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
 import {
   listRegraHorario, createRegraHorario, updateRegraHorario, deleteRegraHorario,
+  listUraDestinos,
   type RegraHorario, type AcaoHorario,
 } from "@/lib/ramais.functions";
+import {
+  DestinoPicker, emptyDestino, parseDestinoFromBackend, buildDestinoForBackend,
+  isDestinoIncomplete, renderDestinoLabel,
+  type DestinoValue, type DestinoTipo,
+} from "@/components/destino-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,7 +53,10 @@ function formatDias(dias: string): string {
   return dias.split("&").map((d) => DIA_FULL[d.trim().toLowerCase()] ?? d).join(", ");
 }
 
-const ACOES: AcaoHorario[] = ["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"];
+// Regra de horário aceita ações "terminais" (não outra HORARIO_ATENDIMENTO para
+// evitar recursão) — mesmo conjunto do backend ENUM `acao_dentro/acao_fora`.
+const ACOES_REGRA: readonly DestinoTipo[] = ["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"];
+
 
 function Page() {
   const { tenantId: p } = Route.useParams();
