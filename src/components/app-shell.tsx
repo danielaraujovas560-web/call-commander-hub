@@ -170,7 +170,9 @@ function ClienteSidebar({
     { to: "/clientes/$tenantId/numeros", label: "Números", icon: Hash, exact: false },
     { to: "/clientes/$tenantId/troncos", label: "Troncos", icon: Cable, exact: false },
     { to: "/clientes/$tenantId/regra-horario", label: "Horário Atendimento", icon: Clock, exact: false },
+    { to: "/clientes/$tenantId/horario-ramais", label: "Horário Ramais", icon: Users, exact: false },
   ] as const;
+
 
   const relatorios = [
     { to: "/clientes/$tenantId/relatorios/entrada", label: "Entrada geral", icon: PhoneIncoming },
