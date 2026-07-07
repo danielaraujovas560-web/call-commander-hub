@@ -1440,7 +1440,7 @@ app.get("/roteamento", async (req, res) => {
 // If tipo_destino is HORARIO_ATENDIMENTO and destino is a name, look up regra id.
 async function resolveRoteamentoDestino(tenant, tipo, destino) {
   const t = String(tipo || "").toUpperCase();
-  if (t === "HORARIO_ATENDIMENTO" || t === "REGRA_HORARIO") {
+  if (t === "REGRA_HORARIO") {
     // If already numeric, keep as-is; else resolve by name.
     if (/^\d+$/.test(String(destino))) return String(destino);
     const [rows] = await pool.query(`SELECT id FROM regra_horario WHERE tenant_id = ? AND nome = ? LIMIT 1`, [

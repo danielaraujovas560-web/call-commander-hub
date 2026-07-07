@@ -6,6 +6,7 @@ export type OnlineState = "online" | "offline" | "unknown";
 export function statusFromState(state?: string | null): OnlineState {
   const s = String(state || "").trim().toUpperCase();
   if (!s || s === "UNKNOWN") return "unknown";
+  if (!s || s === "INVALID") return "invalid";
   if (s === "UNAVAILABLE") return "offline";
   return "online";
 }

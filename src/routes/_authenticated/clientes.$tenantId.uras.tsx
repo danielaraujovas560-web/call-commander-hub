@@ -520,11 +520,11 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="FILA">FILA</SelectItem>
-                  <SelectItem value="URA">URA</SelectItem>
-                  <SelectItem value="RAMAL">RAMAL</SelectItem>
-                  <SelectItem value="INTERNO">INTERNO</SelectItem>
-                  <SelectItem value="EXTERNO">EXTERNO</SelectItem>
+                  <SelectItem value="FILA">Fila</SelectItem>
+                  <SelectItem value="URA">Ura</SelectItem>
+                  <SelectItem value="RAMAL">Ramal</SelectItem>
+                  <SelectItem value="INTERNO">Interno</SelectItem>
+                  <SelectItem value="EXTERNO">Exteno</SelectItem>
                 </SelectContent>
               </Select>
             </div>

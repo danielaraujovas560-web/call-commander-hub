@@ -33,9 +33,20 @@ import {
 
 // Roteamento pode apontar para qualquer ação (inclui HORARIO_ATENDIMENTO
 // para redirecionar a chamada pra regra que decide dentro/fora).
-const ACOES_ROTEAMENTO: readonly DestinoTipo[] = [
-  "RAMAL", "FILA", "URA", "EXTERNO", "HORARIO_ATENDIMENTO", "AUDIO",
-];
+const ACOES_ROTEAMENTO = [
+  { value: "RAMAL", label: "Ramal" },
+  { value: "FILA", label: "Fila" },
+  { value: "URA", label: "Ura" },
+  { value: "EXTERNO", label: "Número Externo" },
+  { value: "REGRA_HORARIO", label: "Horário de Atendimento" },
+  { value: "AUDIO", label: "Áudio" },
+] as const;
+
+const ACOES_ROTEAMENTO_VALUES = ACOES_ROTEAMENTO.map((a) => a.value);
+
+function getAcaoLabel(tipo: string): string {
+  return ACOES_ROTEAMENTO.find((a) => a.value === tipo)?.label ?? tipo;
+}
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/roteamento")({
   head: () => ({ meta: [{ title: "Roteamento — Cliente — Painel PABX" }] }),
@@ -100,7 +111,7 @@ function RoteamentoPage() {
               <TableRow key={r.id}>
                 <TableCell className="font-mono">{r.numero}</TableCell>
                 <TableCell>{r.descricao ?? "-"}</TableCell>
-                <TableCell><Badge variant="outline">{r.tipo_destino}</Badge></TableCell>
+                <TableCell><Badge variant="outline">{getAcaoLabel(r.tipo_destino)}</Badge></TableCell>
                 <TableCell>{renderDestinoLabel(destinos, r.tipo_destino, r.destino)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">

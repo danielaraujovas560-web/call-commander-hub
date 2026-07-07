@@ -55,8 +55,14 @@ function formatDias(dias: string): string {
 
 // Regra de horário aceita ações "terminais" (não outra HORARIO_ATENDIMENTO para
 // evitar recursão) — mesmo conjunto do backend ENUM `acao_dentro/acao_fora`.
-const ACOES_REGRA: readonly DestinoTipo[] = ["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"];
-
+const ACOES_REGRA: { value: DestinoTipo; label: string }[] = [
+  { value: "RAMAL", label: "Ramal" },
+  { value: "FILA", label: "Fila" },
+  { value: "URA", label: "URA" },
+  { value: "EXTERNO", label: "Número Externo" },
+  { value: "INTERNO", label: "Função Interna" },
+  { value: "AUDIO", label: "Áudio" },
+];
 
 function Page() {
   const { tenantId: p } = Route.useParams();

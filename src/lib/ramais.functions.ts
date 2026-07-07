@@ -766,7 +766,7 @@ export const listRoteamento = createServerFn({ method: "GET" })
 const RoteamentoInput = z.object({
   tenant_id: z.number().int().positive().optional(),
   numero_id: z.coerce.number().int().positive(),
-  tipo_destino: z.enum(["RAMAL", "FILA", "URA", "EXTERNO", "HORARIO_ATENDIMENTO", "AUDIO"]),
+  tipo_destino: z.enum(["RAMAL", "FILA", "URA", "EXTERNO", "REGRA_HORARIO", "AUDIO"]),
   destino: z.coerce.string().trim().min(1).max(50),
 });
 

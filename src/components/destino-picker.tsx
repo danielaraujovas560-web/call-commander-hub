@@ -15,7 +15,7 @@ export type DestinoTipo =
   | "EXTERNO"
   | "INTERNO"
   | "AUDIO"
-  | "HORARIO_ATENDIMENTO";
+  | "REGRA_HORARIO";
 
 export type DestinoValue = {
   tipo: DestinoTipo | "";
@@ -61,7 +61,7 @@ type Props = {
   value: DestinoValue;
   onChange: (v: DestinoValue) => void;
   /** Tipos permitidos, na ordem em que devem aparecer no select. */
-  allow: readonly DestinoTipo[];
+  allow: readonly {value: DestinoTipo; label: string}[];
   /** ID da URA atual, para evitar auto-referência ao listar URAs. */
   excludeUraId?: number;
   compact?: boolean;
@@ -85,9 +85,9 @@ export function DestinoPicker({ tenantId, value, onChange, allow, excludeUraId, 
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-            {allow.map((t) => (
-              <SelectItem key={t} value={t}>
-                {t}
+             {allow.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>
+              {label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -175,7 +175,7 @@ export function DestinoPicker({ tenantId, value, onChange, allow, excludeUraId, 
           </Select>
         )}
 
-        {value.tipo === "HORARIO_ATENDIMENTO" && (
+        {value.tipo === "REGRA_HORARIO" && (
           <Select value={value.destino} onValueChange={(v) => onChange({ ...value, destino: v })}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione a regra" />
@@ -233,7 +233,7 @@ export function renderDestinoLabel(
   }
   if (t === "FILA") return displayFromBackend(data.filas.find((x) => String(x.value) === destino)?.label ?? destino);
   if (t === "URA") return displayFromBackend(data.uras.find((x) => String(x.value) === destino)?.label ?? destino);
-  if (t === "HORARIO_ATENDIMENTO")
+  if (t === "REGRA_HORARIO")
     return displayFromBackend(data.regras.find((x) => String(x.value) === destino)?.label ?? destino);
   if (t === "INTERNO") return INTERNO_OPTS.find((x) => x.value === destino)?.label ?? destino;
   return destino;
