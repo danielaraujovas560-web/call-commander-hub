@@ -120,8 +120,9 @@ function Page() {
                 <TableCell className="font-medium">{r.nome}</TableCell>
                 <TableCell className="text-xs">{formatDias(r.dias)}</TableCell>
                 <TableCell className="font-mono text-xs">{r.hora_inicial} → {r.hora_final}</TableCell>
-                <TableCell><Badge variant="default">{r.acao_dentro}</Badge> <span className="font-mono text-xs ml-1">{r.destino_dentro}</span></TableCell>
-                <TableCell><Badge variant="secondary">{r.acao_fora}</Badge> <span className="font-mono text-xs ml-1">{r.destino_fora}</span></TableCell>
+                <TableCell><Badge variant="default">{r.acao_dentro}</Badge> <span className="text-xs ml-1">{renderDestinoLabel(destinos, r.acao_dentro, r.destino_dentro)}</span></TableCell>
+                <TableCell><Badge variant="secondary">{r.acao_fora}</Badge> <span className="text-xs ml-1">{renderDestinoLabel(destinos, r.acao_fora, r.destino_fora)}</span></TableCell>
+
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setEditing(r)}><Pencil className="h-4 w-4" /></Button>
