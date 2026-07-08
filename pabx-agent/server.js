@@ -430,17 +430,25 @@ app.get("/troncos/:id/status", async (req, res) => {
 
 // ---------- Status em lote (ramais/troncos) via `pjsip show endpoints` ----------
 // Faz um único CLI e distribui pros endpoints do tenant. Ver ASTERISK-STATUS.md.
-let _endpointsCache = { at: 0, map: {} };
+let _endpointsCache = { at: 0, lastOk: 0, map: {} };
+const ENDPOINTS_CACHE_MS = 3000;         // reusa se muito recente
+const ENDPOINTS_STALE_MS = 15000;        // além disso, se AMI falhar, marca tudo como UNKNOWN
 async function fetchEndpointsMap() {
   const now = Date.now();
-  if (now - _endpointsCache.at < 3000) return _endpointsCache.map;
+  if (now - _endpointsCache.at < ENDPOINTS_CACHE_MS) return _endpointsCache.map;
   try {
     const map = await getEndpointsDeviceState();
-    _endpointsCache = { at: now, map };
+    _endpointsCache = { at: now, lastOk: now, map };
     return map;
   } catch (e) {
     console.error("[ami] fetchEndpointsMap falhou:", e.message || e);
-    return _endpointsCache.map; // mantém o último estado conhecido em caso de falha
+    _endpointsCache.at = now;
+    // Se faz muito tempo desde a última leitura boa, não devolve estado
+    // "velho" — melhor sinalizar unknown/offline pro painel.
+    if (now - _endpointsCache.lastOk > ENDPOINTS_STALE_MS) {
+      return {};
+    }
+    return _endpointsCache.map;
   }
 }
 
