@@ -22,7 +22,7 @@ export interface FieldConfig {
   type?: "text" | "datetime-local";
   options?: {
     value: string;
-    label: stirng;
+    label: string;
   }[]; // if provided, render as <select>
 }
 
