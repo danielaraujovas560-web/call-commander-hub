@@ -9,7 +9,20 @@ const fs = require("fs/promises");
 const path = require("path");
 const { exec } = require("child_process");
 const rateLimit = require("express-rate-limit");
-const { getEndpointsDeviceState } = require("./ami");
+const { getEndpointsDeviceState, amiCommand, amiReady } = require("./ami");
+
+// Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
+// travar se o AMI cair; mas logamos para investigação.
+function amiPjsipReload() {
+  return amiCommand("pjsip reload").catch((e) => {
+    console.error("[ami] pjsip reload falhou:", e.message || e);
+  });
+}
+function amiQueueReloadAll() {
+  return amiCommand("queue reload all").catch((e) => {
+    console.error("[ami] queue reload all falhou:", e.message || e);
+  });
+}
 
 const {
   DB_HOST = "127.0.0.1",
@@ -241,6 +254,7 @@ app.post("/ramais", async (req, res) => {
     );
 
     await conn.commit();
+    amiPjsipReload();
     res.json({
       ramal: {
         ramal,
@@ -341,6 +355,7 @@ app.put("/ramais/:id", async (req, res) => {
       await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, authId]);
     }
     await conn.commit();
+    if (senha !== undefined) amiPjsipReload();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
@@ -370,6 +385,7 @@ app.delete("/ramais/:id", async (req, res) => {
     await conn.query(`DELETE FROM ps_aors      WHERE id = ?`, [endpointId]);
     await conn.query(`DELETE FROM ramais       WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
@@ -404,11 +420,11 @@ app.get("/troncos/:id/status", async (req, res) => {
     const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     if (!rows.length) return res.status(404).json({ error: "Tronco não encontrado" });
     const endpointName = rows[0].tronco_pjsip;
-    const r = await asteriskRx(`pjsip show endpoint ${endpointName}`);
-    if (!r.ok) return res.json({ endpoint: endpointName, status: "unknown", error: r.error });
-    const m = r.stdout.match(/Endpoint:\s+\S+\s+(\S+)/i);
-    const state = m ? m[1] : "";
-    const status = /unavailable/i.test(state) ? "offline" : state ? "online" : "unknown";
+    // usa o cache do AMI (PJSIPShowEndpoints) — mesma fonte do /troncos/status
+    const map = await fetchEndpointsMap();
+    const state = map[endpointName] || "";
+    const status =
+      !state || state === "UNKNOWN" ? "unknown" : state === "UNAVAILABLE" ? "offline" : "online";
     res.json({ endpoint: endpointName, state, status });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -417,17 +433,25 @@ app.get("/troncos/:id/status", async (req, res) => {
 
 // ---------- Status em lote (ramais/troncos) via `pjsip show endpoints` ----------
 // Faz um único CLI e distribui pros endpoints do tenant. Ver ASTERISK-STATUS.md.
-let _endpointsCache = { at: 0, map: {} };
+let _endpointsCache = { at: 0, lastOk: 0, map: {} };
+const ENDPOINTS_CACHE_MS = 3000;         // reusa se muito recente
+const ENDPOINTS_STALE_MS = 15000;        // além disso, se AMI falhar, marca tudo como UNKNOWN
 async function fetchEndpointsMap() {
   const now = Date.now();
-  if (now - _endpointsCache.at < 3000) return _endpointsCache.map;
+  if (now - _endpointsCache.at < ENDPOINTS_CACHE_MS) return _endpointsCache.map;
   try {
     const map = await getEndpointsDeviceState();
-    _endpointsCache = { at: now, map };
+    _endpointsCache = { at: now, lastOk: now, map };
     return map;
   } catch (e) {
     console.error("[ami] fetchEndpointsMap falhou:", e.message || e);
-    return _endpointsCache.map; // mantém o último estado conhecido em caso de falha
+    _endpointsCache.at = now;
+    // Se faz muito tempo desde a última leitura boa, não devolve estado
+    // "velho" — melhor sinalizar unknown/offline pro painel.
+    if (now - _endpointsCache.lastOk > ENDPOINTS_STALE_MS) {
+      return {};
+    }
+    return _endpointsCache.map;
   }
 }
 
@@ -542,6 +566,7 @@ app.post("/troncos", async (req, res) => {
     );
 
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true, id: r.insertId, tronco_pjsip: pjsipName });
   } catch (e) {
     await conn.rollback();
@@ -675,6 +700,7 @@ app.put("/troncos/:id", async (req, res) => {
     );
 
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true, tronco_pjsip: newPjsip });
   } catch (e) {
     await conn.rollback();
@@ -707,6 +733,7 @@ app.delete("/troncos/:id", async (req, res) => {
     await conn.query(`DELETE FROM ps_aors            WHERE id = ?`, [`${pj}-aor`]);
     await conn.query(`DELETE FROM troncos            WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
@@ -998,7 +1025,7 @@ app.post("/filas", async (req, res) => {
     }
 
     await conn.commit();
-    asteriskRx("queue reload all").catch(() => {});
+    amiQueueReloadAll();
     res.json({ ok: true, name });
   } catch (e) {
     await conn.rollback();
@@ -1091,7 +1118,7 @@ app.put("/filas/:id", async (req, res) => {
     }
 
     await conn.commit();
-    asteriskRx("queue reload all").catch(() => {});
+    amiQueueReloadAll();
     res.json({ ok: true, name: newName });
   } catch (e) {
     await conn.rollback();
@@ -1122,7 +1149,7 @@ app.delete("/filas/:id", async (req, res) => {
     ]);
     await conn.query(`DELETE FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
     await conn.commit();
-    asteriskRx("queue reload all").catch(() => {});
+    amiQueueReloadAll();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
