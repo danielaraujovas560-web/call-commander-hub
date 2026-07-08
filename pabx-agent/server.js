@@ -1019,7 +1019,7 @@ app.post("/filas", async (req, res) => {
     }
 
     await conn.commit();
-    asteriskRx("queue reload all").catch(() => {});
+    amiQueueReloadAll();
     res.json({ ok: true, name });
   } catch (e) {
     await conn.rollback();
@@ -1112,7 +1112,7 @@ app.put("/filas/:id", async (req, res) => {
     }
 
     await conn.commit();
-    asteriskRx("queue reload all").catch(() => {});
+    amiQueueReloadAll();
     res.json({ ok: true, name: newName });
   } catch (e) {
     await conn.rollback();
@@ -1143,7 +1143,7 @@ app.delete("/filas/:id", async (req, res) => {
     ]);
     await conn.query(`DELETE FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
     await conn.commit();
-    asteriskRx("queue reload all").catch(() => {});
+    amiQueueReloadAll();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
