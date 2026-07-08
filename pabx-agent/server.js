@@ -254,6 +254,7 @@ app.post("/ramais", async (req, res) => {
     );
 
     await conn.commit();
+    amiPjsipReload();
     res.json({
       ramal: {
         ramal,
@@ -354,6 +355,7 @@ app.put("/ramais/:id", async (req, res) => {
       await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, authId]);
     }
     await conn.commit();
+    if (senha !== undefined) amiPjsipReload();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
@@ -383,6 +385,7 @@ app.delete("/ramais/:id", async (req, res) => {
     await conn.query(`DELETE FROM ps_aors      WHERE id = ?`, [endpointId]);
     await conn.query(`DELETE FROM ramais       WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
@@ -563,6 +566,7 @@ app.post("/troncos", async (req, res) => {
     );
 
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true, id: r.insertId, tronco_pjsip: pjsipName });
   } catch (e) {
     await conn.rollback();
@@ -696,6 +700,7 @@ app.put("/troncos/:id", async (req, res) => {
     );
 
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true, tronco_pjsip: newPjsip });
   } catch (e) {
     await conn.rollback();
@@ -728,6 +733,7 @@ app.delete("/troncos/:id", async (req, res) => {
     await conn.query(`DELETE FROM ps_aors            WHERE id = ?`, [`${pj}-aor`]);
     await conn.query(`DELETE FROM troncos            WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     await conn.commit();
+    amiPjsipReload();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
