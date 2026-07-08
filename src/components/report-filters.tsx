@@ -20,10 +20,10 @@ export interface FieldConfig {
   label: string;
   placeholder?: string;
   type?: "text" | "datetime-local";
-  options?: {
+  options?: ReadonlyArray<{
     value: string;
     label: string;
-  }[]; // if provided, render as <select>
+  }>; // if provided, render as <select>
 }
 
 export function ReportFilters({
