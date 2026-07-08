@@ -420,11 +420,11 @@ app.get("/troncos/:id/status", async (req, res) => {
     const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     if (!rows.length) return res.status(404).json({ error: "Tronco não encontrado" });
     const endpointName = rows[0].tronco_pjsip;
-    const r = await asteriskRx(`pjsip show endpoint ${endpointName}`);
-    if (!r.ok) return res.json({ endpoint: endpointName, status: "unknown", error: r.error });
-    const m = r.stdout.match(/Endpoint:\s+\S+\s+(\S+)/i);
-    const state = m ? m[1] : "";
-    const status = /unavailable/i.test(state) ? "offline" : state ? "online" : "unknown";
+    // usa o cache do AMI (PJSIPShowEndpoints) — mesma fonte do /troncos/status
+    const map = await fetchEndpointsMap();
+    const state = map[endpointName] || "";
+    const status =
+      !state || state === "UNKNOWN" ? "unknown" : state === "UNAVAILABLE" ? "offline" : "online";
     res.json({ endpoint: endpointName, state, status });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
