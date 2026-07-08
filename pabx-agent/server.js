@@ -9,7 +9,20 @@ const fs = require("fs/promises");
 const path = require("path");
 const { exec } = require("child_process");
 const rateLimit = require("express-rate-limit");
-const { getEndpointsDeviceState } = require("./ami");
+const { getEndpointsDeviceState, amiCommand, amiReady } = require("./ami");
+
+// Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
+// travar se o AMI cair; mas logamos para investigação.
+function amiPjsipReload() {
+  return amiCommand("pjsip reload").catch((e) => {
+    console.error("[ami] pjsip reload falhou:", e.message || e);
+  });
+}
+function amiQueueReloadAll() {
+  return amiCommand("queue reload all").catch((e) => {
+    console.error("[ami] queue reload all falhou:", e.message || e);
+  });
+}
 
 const {
   DB_HOST = "127.0.0.1",
