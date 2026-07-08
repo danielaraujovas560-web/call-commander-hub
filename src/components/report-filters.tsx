@@ -20,7 +20,10 @@ export interface FieldConfig {
   label: string;
   placeholder?: string;
   type?: "text" | "datetime-local";
-  options?: string[]; // if provided, render as <select>
+  options?: {
+    value: string;
+    label: stirng;
+  }[]; // if provided, render as <select>
 }
 
 export function ReportFilters({
@@ -49,7 +52,7 @@ export function ReportFilters({
               onChange={(e) => set(f.key, e.target.value)}
             >
               <option value="">Todos</option>
-              {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+              {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           ) : (
             <Input

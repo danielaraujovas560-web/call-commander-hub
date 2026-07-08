@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
+import { reasonOptions, getReasonLabel, eventOptions, getEventLabel} from "@/lib/report-labels";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/filas")({
   head: () => ({ meta: [{ title: "Relatório filas — Painel PABX" }] }),
@@ -35,7 +36,7 @@ function Page() {
           { key: "linkedid", label: "Linked ID" },
           { key: "origem", label: "Agente" },
           { key: "destino", label: "Ramal" },
-          { key: "status", label: "Evento", options: ["ATENDEU", "NAO_ATENDEU", "OCUPADO", "DESLIGADO"] },
+          { key: "status", label: "Evento", options: eventOptions },
           { key: "from", label: "De", type: "datetime-local" },
           { key: "to", label: "Até", type: "datetime-local" },
         ]}
@@ -58,9 +59,9 @@ function Page() {
                   <TableCell>{r.agente}</TableCell>
                   <TableCell className="font-mono">{r.ramal}</TableCell>
                   <TableCell>
-                    <Badge variant={r.evento === "ATENDEU" ? "default" : "secondary"}>{r.evento}</Badge>
+                    <Badge variant={r.evento === "ATENDEU" ? "default" : "secondary"}>{getEventLabel(r.evento)}</Badge>
                   </TableCell>
-                  <TableCell className="text-xs">{r.motivo}</TableCell>
+                  <TableCell className="text-xs">{getReasonLabel(r.motivo)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

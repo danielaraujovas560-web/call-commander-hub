@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
+import { statusOptions, getStatusLabel } from "@/lib/report-labels";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/entrada")({
   head: () => ({ meta: [{ title: "Relatório entrada — Painel PABX" }] }),
@@ -35,7 +36,7 @@ function EntradaPage() {
           { key: "linkedid", label: "Linked ID", placeholder: "1782..." },
           { key: "origem", label: "Origem" },
           { key: "destino", label: "Destino" },
-          { key: "status", label: "Status", options: ["ANSWER", "NO ANSWER", "BUSY", "FAILED", "CANCEL"] },
+          { key: "status", label: "Status", options: statusOptions },
           { key: "from", label: "De", type: "datetime-local" },
           { key: "to", label: "Até", type: "datetime-local" },
         ]}
@@ -58,7 +59,7 @@ function EntradaPage() {
                   <TableCell className="font-mono">{r.num_destino}</TableCell>
                   <TableCell>{r.dest_interno || "-"}</TableCell>
                   <TableCell className="font-mono">{r.duracao}</TableCell>
-                  <TableCell><Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>{r.status}</Badge></TableCell>
+                  <TableCell><Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>{getStatusLabel(r.status)}</Badge></TableCell>
                 </TableRow>
               ))}
             </TableBody>

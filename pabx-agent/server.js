@@ -774,8 +774,13 @@ function cdrFilteredEndpoint(p, cfg) {
     for (const [key, col] of Object.entries(cfg.filters || {})) {
       const v = req.query[key];
       if (v !== undefined && v !== null && String(v).trim() !== "") {
-        where.push(`${col} LIKE ?`);
-        vals.push(`%${String(v).trim()}%`);
+          if (col === "evento") {
+          where.push(`${col} = ?`);
+          vals.push(`%${String(v).trim()}%`);
+        } else {
+           where.push(`${col} LIKE ?`);
+           vals.push(`%${String(v).trim()}%`);
+        }
       }
     }
     if (cfg.dateCol) {
