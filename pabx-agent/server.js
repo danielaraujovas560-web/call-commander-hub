@@ -2,6 +2,8 @@
 // Autentica via HMAC-SHA256 (compatível com src/lib/agent.server.ts do Lovable).
 
 require("dotenv").config();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const express = require("express");
 const mysql = require("mysql2/promise");
 const crypto = require("crypto");
@@ -42,6 +44,12 @@ if (!AGENT_SECRET || AGENT_SECRET.length < 16) {
   process.exit(1);
 }
 
+const { JWT_SECRET } = process.env;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  console.error("JWT_SECRET ausente ou curto demais. Edite .env e reinicie.");
+  process.exit(1);
+}
+
 const pool = mysql.createPool({
   host: DB_HOST,
   port: Number(DB_PORT),
@@ -66,6 +74,7 @@ app.use(
 
 // ---------- HMAC verification ----------
 app.use((req, res, next) => {
+ if (req.path.startsWith("/auth/") || req.path.startsWith("/tenant/") || req.path.startsWith("/admin/") || req.path.startsWith("/clientes") || req.path.startsWith("/my/") || req.path.startsWith("/audit-log/")) return next();
   const ts = req.header("X-Timestamp");
   const sig = req.header("X-Signature");
   if (!ts || !sig) return res.status(401).json({ error: "Missing signature headers" });
@@ -89,6 +98,457 @@ app.use((req, res, next) => {
     return res.status(401).json({ error: "Invalid signature" });
   }
   next();
+});
+
+// ---------- Autenticação (login do painel) ----------
+function requireJwt(req, res, next) {
+  const h = req.headers.authorization || "";
+  const m = h.match(/^Bearer (.+)$/);
+  if (!m) return res.status(401).json({ error: "sem token" });
+  try {
+    const p = jwt.verify(m[1], JWT_SECRET);
+    req.userId = p.sub;
+    req.role = p.role;
+    next();
+  } catch {
+    res.status(401).json({ error: "token inválido" });
+  }
+}
+
+app.post("/auth/login", async (req, res) => {
+  const { email, senha } = req.body || {};
+  if (!email || !senha) return res.status(400).json({ error: "email e senha obrigatórios" });
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, nome, email, senha_hash FROM profiles WHERE email = ? LIMIT 1",
+      [email],
+    );
+    if (!rows.length) return res.status(401).json({ error: "credenciais inválidas" });
+    const u = rows[0];
+    const ok = await bcrypt.compare(senha, u.senha_hash);
+    if (!ok) return res.status(401).json({ error: "credenciais inválidas" });
+
+    const [[roleRow]] = await pool.query(
+      "SELECT role FROM user_roles WHERE user_id = ? ORDER BY role LIMIT 1",
+      [u.id],
+    );
+    const role = roleRow?.role || "cliente";
+    const token = jwt.sign({ sub: u.id, role }, JWT_SECRET, { expiresIn: "12h" });
+    res.json({ token, user: { id: u.id, nome: u.nome, email: u.email, role } });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.get("/auth/me", requireJwt, async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT id, nome, email FROM profiles WHERE id = ?", [req.userId]);
+    if (!rows.length) return res.status(404).json({ error: "usuário não encontrado" });
+    res.json({ user: rows[0], role: req.role });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---------- Identidade: role + resolução de tenant ----------
+async function getUserRole(userId) {
+  const [[row]] = await pool.query(
+    "SELECT role FROM user_roles WHERE user_id = ? ORDER BY role LIMIT 1",
+    [userId],
+  );
+  return row?.role || "cliente";
+}
+
+// Resolve qual tenant_id o usuário deve usar.
+// - Se `override` for passado: admin pode usar qualquer tenant; cliente só
+//   se estiver em tenants_link (ou se o tenant existir em `clientes`, mantendo
+//   a mesma regra de fallback que já existia no lado Supabase).
+// - Se `override` for omitido: pega o tenant padrão do usuário (is_default),
+//   e se for admin sem vínculo, cai no primeiro tenant cadastrado.
+async function resolveTenantId(userId, role, override) {
+  if (override != null) {
+    if (role === "admin") return Number(override);
+    const [[linked]] = await pool.query(
+      "SELECT 1 AS ok FROM tenants_link WHERE user_id = ? AND tenant_id = ? LIMIT 1",
+      [userId, Number(override)],
+    );
+    if (linked) return Number(override);
+    const [[cliente]] = await pool.query(
+      "SELECT 1 AS ok FROM clientes WHERE tenant_id = ? LIMIT 1",
+      [Number(override)],
+    );
+    if (cliente) return Number(override);
+    throw new Error("Sem permissão para este tenant.");
+  }
+
+  const [[link]] = await pool.query(
+    `SELECT tenant_id FROM tenants_link WHERE user_id = ?
+     ORDER BY is_default DESC, created_at DESC LIMIT 1`,
+    [userId],
+  );
+  if (link) return Number(link.tenant_id);
+
+  if (role === "admin") {
+    const [[anyLink]] = await pool.query(
+      "SELECT tenant_id FROM tenants_link ORDER BY created_at ASC LIMIT 1",
+    );
+    if (anyLink) return Number(anyLink.tenant_id);
+    throw new Error("Nenhum tenant cadastrado no sistema. Crie um usuário cliente vinculado a um tenant_id primeiro.");
+  }
+
+  throw new Error("Nenhum tenant vinculado ao seu usuário. Peça a um administrador para vincular seu acesso.");
+}
+
+// Endpoint que o frontend chama em vez de resolveTenantId/resolveScopedTenant (Supabase).
+app.get("/tenant/resolve", requireJwt, async (req, res) => {
+  try {
+    const override = req.query.tenant_id != null ? Number(req.query.tenant_id) : undefined;
+    const tenantId = await resolveTenantId(req.userId, req.role, override);
+    res.json({ tenant_id: tenantId });
+  } catch (e) {
+    res.status(403).json({ error: String(e.message || e) });
+  }
+});
+
+app.get("/my/tenants", requireJwt, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT tenant_id, label, is_default FROM tenants_link
+       WHERE user_id = ? ORDER BY is_default DESC, created_at DESC LIMIT 10`,
+      [req.userId],
+    );
+    res.json({ tenants: rows.map((r) => ({ ...r, is_default: !!r.is_default })) });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.post("/audit-log", requireJwt, async (req, res) => {
+  const { tenant_id, action, payload } = req.body || {};
+  if (!action) return res.status(400).json({ error: "action obrigatório" });
+  try {
+    await pool.query(
+      "INSERT INTO audit_log (id, user_id, tenant_id, action, payload) VALUES (?, ?, ?, ?, ?)",
+      [crypto.randomUUID(), req.userId, tenant_id ?? null, String(action), payload ? JSON.stringify(payload) : null],
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// Middleware: exige role=admin (checa no banco, não confia só na claim do JWT,
+// já que a role pode ter mudado depois do token emitido).
+async function requireAdmin(req, res, next) {
+  try {
+    const role = await getUserRole(req.userId);
+    if (role !== "admin") return res.status(403).json({ error: "Acesso restrito a administradores." });
+    req.role = role;
+    next();
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+}
+
+// ---------- Admin: usuários ----------
+app.get("/admin/users", requireJwt, requireAdmin, async (req, res) => {
+  try {
+    const [profiles] = await pool.query(
+      "SELECT id, nome, email, created_at FROM profiles ORDER BY created_at DESC LIMIT 500",
+    );
+    const ids = profiles.map((p) => p.id);
+    if (!ids.length) return res.json({ users: [] });
+
+    const [roles] = await pool.query(
+      `SELECT user_id, role FROM user_roles WHERE user_id IN (${ids.map(() => "?").join(",")})`,
+      ids,
+    );
+    const [links] = await pool.query(
+      `SELECT user_id, tenant_id, label, is_default FROM tenants_link WHERE user_id IN (${ids.map(() => "?").join(",")})`,
+      ids,
+    );
+
+    res.json({
+      users: profiles.map((p) => ({
+        id: p.id,
+        email: p.email,
+        created_at: p.created_at,
+        nome: p.nome,
+        role: roles.find((r) => r.user_id === p.id)?.role || "cliente",
+        tenants: links
+          .filter((l) => l.user_id === p.id)
+          .map((l) => ({ tenant_id: l.tenant_id, label: l.label, is_default: !!l.is_default })),
+      })),
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.post("/admin/users", requireJwt, requireAdmin, async (req, res) => {
+  const { email, password, nome, role = "cliente", tenant_id, tenant_label } = req.body || {};
+  if (!email || !password || !nome) {
+    return res.status(400).json({ error: "email, password e nome obrigatórios" });
+  }
+  if (password.length < 8) return res.status(400).json({ error: "senha deve ter ao menos 8 caracteres" });
+  if (!["admin", "cliente"].includes(role)) return res.status(400).json({ error: "role inválida" });
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [dup] = await conn.query("SELECT id FROM profiles WHERE email = ? LIMIT 1", [email]);
+    if (dup.length) {
+      await conn.rollback();
+      return res.status(409).json({ error: "Já existe um usuário com este e-mail." });
+    }
+    const uid = crypto.randomUUID();
+    const hash = await bcrypt.hash(password, 10);
+    await conn.query("INSERT INTO profiles (id, nome, email, senha_hash) VALUES (?, ?, ?, ?)", [
+      uid,
+      nome,
+      email,
+      hash,
+    ]);
+    await conn.query("INSERT INTO user_roles (id, user_id, role) VALUES (?, ?, ?)", [
+      crypto.randomUUID(),
+      uid,
+      role,
+    ]);
+    if (tenant_id) {
+      await conn.query(
+        "INSERT INTO tenants_link (id, user_id, tenant_id, label, is_default) VALUES (?, ?, ?, ?, 1)",
+        [crypto.randomUUID(), uid, Number(tenant_id), tenant_label || null],
+      );
+    }
+    await conn.commit();
+    res.json({ ok: true, id: uid });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.post("/admin/users/:id/delete", requireJwt, requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  if (userId === req.userId) {
+    return res.status(400).json({ error: "Você não pode remover sua própria conta." });
+  }
+  try {
+    await pool.query("DELETE FROM profiles WHERE id = ?", [userId]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.post("/admin/users/:id/role", requireJwt, requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  const { role } = req.body || {};
+  if (!["admin", "cliente"].includes(role)) return res.status(400).json({ error: "role inválida" });
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query("DELETE FROM user_roles WHERE user_id = ?", [userId]);
+    await conn.query("INSERT INTO user_roles (id, user_id, role) VALUES (?, ?, ?)", [
+      crypto.randomUUID(),
+      userId,
+      role,
+    ]);
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/admin/users/:id", requireJwt, requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  const { email, password, nome, role } = req.body || {};
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const sets = [];
+    const vals = [];
+    if (email !== undefined) {
+      sets.push("email = ?");
+      vals.push(email);
+    }
+    if (nome !== undefined) {
+      sets.push("nome = ?");
+      vals.push(nome);
+    }
+    if (password !== undefined) {
+      if (String(password).length < 8) throw new Error("senha deve ter ao menos 8 caracteres");
+      sets.push("senha_hash = ?");
+      vals.push(await bcrypt.hash(password, 10));
+    }
+    if (sets.length) {
+      await conn.query(`UPDATE profiles SET ${sets.join(", ")} WHERE id = ?`, [...vals, userId]);
+    }
+    if (role !== undefined) {
+      if (!["admin", "cliente"].includes(role)) throw new Error("role inválida");
+      await conn.query("DELETE FROM user_roles WHERE user_id = ?", [userId]);
+      await conn.query("INSERT INTO user_roles (id, user_id, role) VALUES (?, ?, ?)", [
+        crypto.randomUUID(),
+        userId,
+        role,
+      ]);
+    }
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    await conn.rollback();
+    res.status(400).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+// ---------- Admin: vínculos usuário↔tenant ----------
+app.post("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
+  const { user_id, tenant_id, label, is_default } = req.body || {};
+  if (!user_id || !tenant_id) return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    if (is_default) {
+      await conn.query("UPDATE tenants_link SET is_default = 0 WHERE user_id = ?", [user_id]);
+    }
+    await conn.query(
+      "INSERT INTO tenants_link (id, user_id, tenant_id, label, is_default) VALUES (?, ?, ?, ?, ?)",
+      [crypto.randomUUID(), user_id, Number(tenant_id), label || null, is_default ? 1 : 0],
+    );
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.delete("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
+  const { user_id, tenant_id } = req.body || {};
+  if (!user_id || !tenant_id) return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });
+  try {
+    await pool.query("DELETE FROM tenants_link WHERE user_id = ? AND tenant_id = ?", [
+      user_id,
+      Number(tenant_id),
+    ]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---------- Clientes (empresas) ----------
+app.get("/clientes", requireJwt, async (req, res) => {
+  try {
+    if (req.role === "admin") {
+      const [rows] = await pool.query("SELECT * FROM clientes ORDER BY created_at DESC");
+      return res.json({ clientes: rows });
+    }
+    const [rows] = await pool.query(
+      `SELECT c.* FROM clientes c
+       JOIN tenants_link tl ON tl.tenant_id = c.tenant_id
+       WHERE tl.user_id = ?
+       ORDER BY c.created_at DESC`,
+      [req.userId],
+    );
+    res.json({ clientes: rows });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.post("/clientes", requireJwt, requireAdmin, async (req, res) => {
+  const { cnpj, razao_social, email, tenant_id, quantidade_ramais = 0 } = req.body || {};
+  if (!cnpj || !razao_social || !email || !tenant_id) {
+    return res.status(400).json({ error: "cnpj, razao_social, email e tenant_id obrigatórios" });
+  }
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const id = crypto.randomUUID();
+    await conn.query(
+      `INSERT INTO clientes (id, user_id, tenant_id, cnpj, razao_social, email, login, quantidade_ramais)
+       VALUES (?, NULL, ?, ?, ?, ?, NULL, ?)`,
+      [id, Number(tenant_id), cnpj, razao_social, email, Number(quantidade_ramais) || 0],
+    );
+    await conn.query(
+      `INSERT INTO tenants (id, nome) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE nome = VALUES(nome)`,
+      [Number(tenant_id), String(razao_social).slice(0, 50)],
+    );
+    await conn.commit();
+    res.json({ ok: true, cliente: { id, tenant_id: Number(tenant_id), cnpj, razao_social, email, quantidade_ramais } });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
+  const { cnpj, razao_social, email, quantidade_ramais } = req.body || {};
+  const sets = [];
+  const vals = [];
+  if (cnpj !== undefined) {
+    sets.push("cnpj = ?");
+    vals.push(cnpj);
+  }
+  if (razao_social !== undefined) {
+    sets.push("razao_social = ?");
+    vals.push(razao_social);
+  }
+  if (email !== undefined) {
+    sets.push("email = ?");
+    vals.push(email);
+  }
+  if (quantidade_ramais !== undefined) {
+    sets.push("quantidade_ramais = ?");
+    vals.push(Number(quantidade_ramais));
+  }
+  if (!sets.length) return res.json({ ok: true });
+  try {
+    await pool.query(`UPDATE clientes SET ${sets.join(", ")} WHERE id = ?`, [...vals, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.delete("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM clientes WHERE id = ?", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.get("/clientes/by-tenant/:tenantId", requireJwt, async (req, res) => {
+  const tenantId = Number(req.params.tenantId);
+  try {
+    if (req.role !== "admin") {
+      const [[linked]] = await pool.query(
+        "SELECT 1 AS ok FROM tenants_link WHERE user_id = ? AND tenant_id = ? LIMIT 1",
+        [req.userId, tenantId],
+      );
+      if (!linked) return res.status(403).json({ error: "Sem permissão para este tenant." });
+    }
+    const [rows] = await pool.query("SELECT * FROM clientes WHERE tenant_id = ? LIMIT 1", [tenantId]);
+    res.json({ cliente: rows[0] || null });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 // Slug helper — only replaces spaces with "-" so pre-hyphenated inputs pass through unchanged.
@@ -1845,3 +2305,4 @@ app.use((err, _req, res, _next) => {
 app.listen(Number(PORT), () => {
   console.log(`[pabx-agent] ouvindo em http://127.0.0.1:${PORT}`);
 });
+
