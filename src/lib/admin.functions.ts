@@ -1,58 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth/require-auth";
 
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("Forbidden: admin role required");
-}
+// A checagem de admin (assertAdmin) agora acontece no próprio pabx-agent
+// (middleware requireAdmin, que consulta user_roles no MariaDB). Se o
+// usuário não for admin, agentFetch lança erro com a mensagem 403 do agente.
 
 // ---------- LIST USERS ----------
 export const listUsers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 200,
-    });
-    if (authErr) throw new Error(authErr.message);
-
-    const ids = authData.users.map((u) => u.id);
-    const [{ data: roles }, { data: profiles }, { data: links }] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids),
-      supabaseAdmin.from("profiles").select("id, nome, email").in("id", ids),
-      supabaseAdmin
-        .from("tenants_link")
-        .select("user_id, tenant_id, label, is_default")
-        .in("user_id", ids),
-    ]);
-
-    return {
-      users: authData.users.map((u) => ({
-        id: u.id,
-        email: u.email,
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at,
-        nome: profiles?.find((p) => p.id === u.id)?.nome ?? null,
-        role: (roles?.find((r) => r.user_id === u.id)?.role ?? "cliente") as
-          | "admin"
-          | "cliente",
-        tenants: (links ?? [])
-          .filter((l) => l.user_id === u.id)
-          .map((l) => ({
-            tenant_id: l.tenant_id,
-            label: l.label,
-            is_default: l.is_default,
-          })),
-      })),
-    };
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{
+      users: {
+        id: string;
+        email: string;
+        created_at: string;
+        nome: string | null;
+        role: "admin" | "cliente";
+        tenants: { tenant_id: number; label: string | null; is_default: boolean }[];
+      }[];
+    }>("/admin/users", { bearerToken: context.token });
   });
 
 // ---------- CREATE USER ----------
@@ -66,57 +34,32 @@ const createSchema = z.object({
 });
 
 export const createUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => createSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true,
-      user_metadata: { nome: data.nome },
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{ ok: true; id: string }>("/admin/users", {
+      method: "POST",
+      bearerToken: context.token,
+      body: data,
     });
-    if (error) throw new Error(error.message);
-    const uid = created.user!.id;
-
-    // Override default role from trigger if admin requested
-    if (data.role === "admin") {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", uid);
-      await supabaseAdmin.from("user_roles").insert({ user_id: uid, role: "admin" });
-    }
-
-    if (data.tenant_id) {
-      await supabaseAdmin.from("tenants_link").insert({
-        user_id: uid,
-        tenant_id: data.tenant_id,
-        label: data.tenant_label ?? null,
-        is_default: true,
-      });
-    }
-
-    return { ok: true, id: uid };
   });
 
 // ---------- DELETE USER ----------
 export const deleteUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    if (data.user_id === context.userId) {
-      throw new Error("Você não pode remover sua própria conta.");
-    }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{ ok: true }>(`/admin/users/${data.user_id}/delete`, {
+      method: "POST",
+      bearerToken: context.token,
+    });
   });
 
 // ---------- SET ROLE ----------
 export const setRole = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
@@ -126,19 +69,17 @@ export const setRole = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: data.user_id, role: data.role });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{ ok: true }>(`/admin/users/${data.user_id}/role`, {
+      method: "POST",
+      bearerToken: context.token,
+      body: { role: data.role },
+    });
   });
 
 // ---------- TENANT LINKS ----------
 export const addTenantLink = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
@@ -150,39 +91,26 @@ export const addTenantLink = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    if (data.is_default) {
-      await supabaseAdmin
-        .from("tenants_link")
-        .update({ is_default: false })
-        .eq("user_id", data.user_id);
-    }
-    const { error } = await supabaseAdmin.from("tenants_link").insert({
-      user_id: data.user_id,
-      tenant_id: data.tenant_id,
-      label: data.label ?? null,
-      is_default: data.is_default,
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{ ok: true }>("/admin/tenant-links", {
+      method: "POST",
+      bearerToken: context.token,
+      body: data,
     });
-    if (error) throw new Error(error.message);
-    return { ok: true };
   });
 
 export const removeTenantLink = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ user_id: z.string().uuid(), tenant_id: z.number().int() }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("tenants_link")
-      .delete()
-      .eq("user_id", data.user_id)
-      .eq("tenant_id", data.tenant_id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{ ok: true }>("/admin/tenant-links", {
+      method: "DELETE",
+      bearerToken: context.token,
+      body: data,
+    });
   });
 
 // ---------- UPDATE USER (email / password / nome / role) ----------
@@ -195,42 +123,14 @@ const updateSchema = z.object({
 });
 
 export const updateUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => updateSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const authPatch: { email?: string; password?: string; user_metadata?: any } = {};
-    if (data.email) authPatch.email = data.email;
-    if (data.password) authPatch.password = data.password;
-    if (data.nome) authPatch.user_metadata = { nome: data.nome };
-
-    if (Object.keys(authPatch).length > 0) {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(
-        data.user_id,
-        authPatch,
-      );
-      if (error) throw new Error(error.message);
-    }
-
-    if (data.nome || data.email) {
-      const profilePatch: { nome?: string; email?: string } = {};
-      if (data.nome) profilePatch.nome = data.nome;
-      if (data.email) profilePatch.email = data.email;
-      await supabaseAdmin
-        .from("profiles")
-        .update(profilePatch)
-        .eq("id", data.user_id);
-    }
-
-    if (data.role) {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: data.user_id, role: data.role });
-      if (error) throw new Error(error.message);
-    }
-
-    return { ok: true };
+    const { agentFetch } = await import("./agent.server");
+    const { user_id, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/admin/users/${user_id}`, {
+      method: "PUT",
+      bearerToken: context.token,
+      body,
+    });
   });

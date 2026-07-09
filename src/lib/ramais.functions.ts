@@ -1,7 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth/require-auth";
+import { resolveTenantId } from "./tenant.server";
+
+async function writeAuditLog(
+  token: string,
+  entry: { tenant_id: number; action: string; payload: unknown },
+) {
+  try {
+    const { agentFetch } = await import("./agent.server");
+    await agentFetch("/audit-log", { method: "POST", bearerToken: token, body: entry });
+  } catch (e) {
+    console.warn(`[audit-log] falha ao registrar ${entry.action}:`, e);
+  }
+}
 
 export interface Ramal {
   id: number;
@@ -67,64 +79,32 @@ const TenantOnly = z
   .optional()
   .transform((v) => v ?? {});
 
-async function resolveScopedTenant(
-  supabase: SupabaseClient,
-  userId: string,
-  override?: number,
-): Promise<number> {
-  if (override == null) {
-    const { resolveTenantId } = await import("./tenant.server");
-    return resolveTenantId(supabase, userId);
-  }
-  const { data: isAdmin } = await supabase.rpc("has_role", {
-    _user_id: userId,
-    _role: "admin",
-  });
-  if (isAdmin) return override;
-  const { data } = await supabase
-    .from("tenants_link")
-    .select("tenant_id")
-    .eq("user_id", userId)
-    .eq("tenant_id", override)
-    .maybeSingle();
-  if (!data) {
-    // Tentar: o cliente está vinculado via tabela clientes (RLS permite ver)
-    const { data: c } = await supabase
-      .from("clientes")
-      .select("tenant_id")
-      .eq("tenant_id", override)
-      .maybeSingle();
-    if (!c) throw new Error("Sem permissão para este tenant.");
-  }
-  return override;
-}
-
 export const listRamais = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ ramais: Ramal[] }>(`/ramais?tenant=${tenantId}`, { tenantId });
     return { tenantId, ramais: res.ramais ?? [] };
   });
 
 export const listTroncos = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ troncos: Tronco[] }>(`/troncos?tenant=${tenantId}`, { tenantId });
     return { troncos: res.troncos ?? [] };
   });
 
 export const createRamal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) => RamalInput.parse(input))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _ignore, ...payload } = data;
 
     const created = await agentFetch<{ ramal: Ramal }>("/ramais", {
@@ -133,16 +113,11 @@ export const createRamal = createServerFn({ method: "POST" })
       body: payload,
     });
 
-    try {
-      await context.supabase.from("audit_log").insert({
-        user_id: context.userId,
-        tenant_id: tenantId,
-        action: "ramal.create",
-        payload: { ramal: data.ramal, nome: data.nome },
-      });
-    } catch (e) {
-      console.warn("[createRamal] audit_log insert falhou:", e);
-    }
+    await writeAuditLog(context.token, {
+      tenant_id: tenantId,
+      action: "ramal.create",
+      payload: { ramal: data.ramal, nome: data.nome },
+    });
 
     return created;
   });
@@ -166,55 +141,45 @@ const RamalUpdateInput = z.object({
 });
 
 export const updateRamal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) => RamalUpdateInput.parse(input))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _t, ...patch } = data;
     const res = await agentFetch<{ ramal: Ramal }>(`/ramais/${id}`, {
       method: "PUT",
       tenantId,
       body: patch,
     });
-    try {
-      await context.supabase.from("audit_log").insert({
-        user_id: context.userId,
-        tenant_id: tenantId,
-        action: "ramal.update",
-        payload: { id, patch },
-      });
-    } catch (e) {
-      console.warn("[updateRamal] audit_log insert falhou:", e);
-    }
+    await writeAuditLog(context.token, {
+      tenant_id: tenantId,
+      action: "ramal.update",
+      payload: { id, patch },
+    });
     return res;
   });
 
 export const deleteRamal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((input: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/ramais/${data.id}`, { method: "DELETE", tenantId });
-    try {
-      await context.supabase.from("audit_log").insert({
-        user_id: context.userId,
-        tenant_id: tenantId,
-        action: "ramal.delete",
-        payload: { id: data.id },
-      });
-    } catch (e) {
-      console.warn("[deleteRamal] audit_log insert falhou:", e);
-    }
+    await writeAuditLog(context.token, {
+      tenant_id: tenantId,
+      action: "ramal.delete",
+      payload: { id: data.id },
+    });
 
     return { ok: true };
   });
 
 export const pingAgent = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async () => {
     const { agentFetch, isAgentConfigured } = await import("./agent.server");
     if (!isAgentConfigured()) return { ok: false, configured: false, error: "Agente não configurado" };
@@ -227,20 +192,18 @@ export const pingAgent = createServerFn({ method: "GET" })
   });
 
 export const getMyTenant = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase
-      .from("tenants_link")
-      .select("tenant_id, label, is_default")
-      .eq("user_id", context.userId)
-      .order("is_default", { ascending: false })
-      .limit(10);
-    return { tenants: data ?? [] };
+    const { agentFetch } = await import("./agent.server");
+    const res = await agentFetch<{
+      tenants: { tenant_id: number; label: string | null; is_default: boolean }[];
+    }>("/my/tenants", { bearerToken: context.token });
+    return { tenants: res.tenants ?? [] };
   });
 
 // ---------- Tenant upsert (mariadb) ----------
 export const upsertTenantPabx = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), nome: z.string().min(1).max(50) }).parse(d),
   )
@@ -275,9 +238,9 @@ function buildQuery(filters: CdrFilterT): string {
   return s ? `?${s}` : "";
 }
 
-async function fetchCdr(path: string, ctxSupabase: SupabaseClient, userId: string, filters: CdrFilterT) {
+async function fetchCdr(path: string, token: string, filters: CdrFilterT) {
   const { agentFetch } = await import("./agent.server");
-  const tenantId = await resolveScopedTenant(ctxSupabase, userId, filters.tenant_id);
+  const tenantId = await resolveTenantId(token, filters.tenant_id);
   const qs = buildQuery(filters);
   const sep = qs ? "&" : "?";
   const res = await agentFetch<{ rows: any[] }>(`${path}${qs}${sep}tenant=${tenantId}`, { tenantId });
@@ -285,54 +248,54 @@ async function fetchCdr(path: string, ctxSupabase: SupabaseClient, userId: strin
 }
 
 export const listCdrEntrada = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/entrada", context.supabase, context.userId, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/entrada", context.token, data));
 
 export const listCdrRamal = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.supabase, context.userId, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.token, data));
 
 export const listCdrFila = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/fila", context.supabase, context.userId, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/fila", context.token, data));
 
 export const listCdrUra = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/ura", context.supabase, context.userId, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/ura", context.token, data));
 
 export const listCdrPesquisa = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/pesquisa", context.supabase, context.userId, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/pesquisa", context.token, data));
 
 export const listCdrCidadesEntrada = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/cidades/entrada", context.supabase, context.userId, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/cidades/entrada", context.token, data));
 
 export const listCdrCidadesSaida = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.supabase, context.userId, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.token, data));
 
 
 // ---------- Blacklist ----------
 export const listBlacklist = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ blacklist: BlacklistItem[] }>(`/blacklist?tenant=${tenantId}`, { tenantId });
     return { tenantId, blacklist: res.blacklist ?? [] };
   });
 
 export const createBlacklist = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
@@ -347,20 +310,20 @@ export const createBlacklist = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     await agentFetch("/blacklist", { method: "POST", tenantId, body });
     return { ok: true };
   });
 
 export const deleteBlacklist = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/blacklist/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
@@ -381,17 +344,17 @@ export interface Fila {
 }
 
 export const listFilas = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ filas: Fila[] }>(`/filas?tenant=${tenantId}`, { tenantId });
     return { tenantId, filas: res.filas ?? [] };
   });
 
 export const getFilaMembros = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({
       tenant_id: z.number().int().positive().optional(),
@@ -400,7 +363,7 @@ export const getFilaMembros = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{
       fila: any; agentes: any[]; queue: any; queue_members: any[];
     }>(`/filas/${encodeURIComponent(data.virtual_extension)}/membros`, { tenantId });
@@ -420,21 +383,21 @@ export interface Ura {
 }
 
 export const listUras = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ uras: Ura[] }>(`/uras?tenant=${tenantId}`, { tenantId });
     return { tenantId, uras: res.uras ?? [] };
   });
 
 export const listUraAudios = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ audios: string[]; dir: string; warn?: string }>(
       `/uras/audios`, { tenantId },
     );
@@ -442,11 +405,11 @@ export const listUraAudios = createServerFn({ method: "GET" })
   });
 
 export const listUraDestinos = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     return await agentFetch<{
       filas: { value: string; label: string }[];
       uras: { value: number; label: string }[];
@@ -468,11 +431,11 @@ const UraInput = z.object({
 });
 
 export const createUra = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => UraInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>("/uras", {
       method: "POST", tenantId, body,
@@ -491,11 +454,11 @@ const UraUpdateInput = z.object({
 });
 
 export const updateUra = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => UraUpdateInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...patch } = data;
     return await agentFetch<{ ok: true }>(`/uras/${id}`, {
       method: "PUT", tenantId, body: patch,
@@ -503,19 +466,19 @@ export const updateUra = createServerFn({ method: "POST" })
   });
 
 export const deleteUra = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/uras/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 
 export const addUraOpcao = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({
       ura_id: z.number().int().positive(),
@@ -527,7 +490,7 @@ export const addUraOpcao = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { ura_id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>(`/uras/${ura_id}/opcoes`, {
       method: "POST", tenantId, body,
@@ -535,7 +498,7 @@ export const addUraOpcao = createServerFn({ method: "POST" })
   });
 
 export const updateUraOpcao = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({
       id: z.number().int().positive(),
@@ -547,7 +510,7 @@ export const updateUraOpcao = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/uras/opcoes/${id}`, {
       method: "PUT", tenantId, body,
@@ -555,13 +518,13 @@ export const updateUraOpcao = createServerFn({ method: "POST" })
   });
 
 export const deleteUraOpcao = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/uras/opcoes/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
@@ -585,63 +548,63 @@ const TroncoUpdate = TroncoInput.partial().extend({
 });
 
 export const createTronco = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TroncoInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>("/troncos", { method: "POST", tenantId, body });
   });
 
 export const updateTronco = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TroncoUpdate.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/troncos/${id}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteTronco = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/troncos/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 
 export const getTroncoStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     return await agentFetch<{ endpoint: string; state?: string; status: string }>(`/troncos/${data.id}/status`, { tenantId });
   });
 
 // ---------- Status em lote (online/offline) ----------
 export const listRamaisStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ endpoints: Record<string, string> }>(`/ramais/status`, { tenantId });
     return { endpoints: res.endpoints ?? {} };
   });
 
 export const listTroncosStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ endpoints: Record<string, string> }>(`/troncos/status`, { tenantId });
     return { endpoints: res.endpoints ?? {} };
   });
@@ -667,32 +630,32 @@ const FilaUpdate = FilaInput.partial().extend({
 });
 
 export const createFila = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => FilaInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; name: string }>("/filas", { method: "POST", tenantId, body });
   });
 
 export const updateFila = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => FilaUpdate.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/filas/${id}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteFila = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/filas/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
@@ -701,11 +664,11 @@ export const deleteFila = createServerFn({ method: "POST" })
 export interface NumeroItem { id: number; numero: string; descricao: string | null }
 
 export const listNumeros = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ numeros: NumeroItem[] }>("/numeros", { tenantId });
     return { numeros: res.numeros ?? [] };
   });
@@ -717,32 +680,32 @@ const NumeroInput = z.object({
 });
 
 export const createNumero = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => NumeroInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>("/numeros", { method: "POST", tenantId, body });
   });
 
 export const updateNumero = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => NumeroInput.partial().extend({ id: z.number().int().positive() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/numeros/${id}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteNumero = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/numeros/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
@@ -754,11 +717,11 @@ export interface RoteamentoItem {
 }
 
 export const listRoteamento = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ roteamento: RoteamentoItem[] }>("/roteamento", { tenantId });
     return { roteamento: res.roteamento ?? [] };
   });
@@ -771,32 +734,32 @@ const RoteamentoInput = z.object({
 });
 
 export const createRoteamento = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => RoteamentoInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>("/roteamento", { method: "POST", tenantId, body });
   });
 
 export const updateRoteamento = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => RoteamentoInput.partial().extend({ id: z.number().int().positive() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/roteamento/${id}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteRoteamento = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/roteamento/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
@@ -829,42 +792,42 @@ const RegraHorarioInput = z.object({
 });
 
 export const listRegraHorario = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ regras: RegraHorario[] }>("/regra-horario", { tenantId });
     return { regras: res.regras ?? [] };
   });
 
 export const createRegraHorario = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => RegraHorarioInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>("/regra-horario", { method: "POST", tenantId, body });
   });
 
 export const updateRegraHorario = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => RegraHorarioInput.extend({ id: z.number().int().positive() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/regra-horario/${id}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteRegraHorario = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/regra-horario/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
@@ -890,53 +853,53 @@ const HorarioRamalInput = z.object({
 });
 
 export const listHorarioRamais = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ regras: HorarioRamal[] }>("/horario-ramais", { tenantId });
     return { regras: res.regras ?? [] };
   });
 
 export const getHorarioRamalMembros = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{ membros: HorarioRamalMembro[] }>(`/horario-ramais/${data.id}/membros`, { tenantId });
     return { membros: res.membros ?? [] };
   });
 
 export const createHorarioRamal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => HorarioRamalInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; id: number }>("/horario-ramais", { method: "POST", tenantId, body });
   });
 
 export const updateHorarioRamal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) => HorarioRamalInput.extend({ id: z.number().int().positive() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { id, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/horario-ramais/${id}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteHorarioRamal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveScopedTenant(context.supabase, context.userId, data.tenant_id);
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/horario-ramais/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
   });

@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { login } from "@/lib/auth/login.functions";
+import { getStoredToken, setStoredToken } from "@/lib/auth/attach-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +13,7 @@ import { PhoneCall } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   ssr: false,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: "/dashboard" });
+    if (getStoredToken()) throw redirect({ to: "/dashboard" });
   },
   head: () => ({
     meta: [{ title: "Entrar — Painel PABX" }],
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const loginFn = useServerFn(login);
   const [loading, setLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPass, setLoginPass] = useState("");
@@ -29,14 +31,16 @@ function AuthPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: loginPass,
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Bem-vindo!");
-    navigate({ to: "/dashboard" });
+    try {
+      const res = await loginFn({ data: { email: loginEmail, senha: loginPass } });
+      setStoredToken(res.token);
+      toast.success("Bem-vindo!");
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Credenciais inválidas");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

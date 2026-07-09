@@ -24,7 +24,7 @@ import {
   Clock,
 } from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
+import { setStoredToken } from "@/lib/auth/attach-auth";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   async function handleLogout() {
     await queryClient.cancelQueries();
     queryClient.clear();
-    await supabase.auth.signOut();
+    setStoredToken(null);
     router.navigate({ to: "/auth", replace: true });
   }
 

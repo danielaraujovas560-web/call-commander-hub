@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getStoredToken, decodeTokenPayload } from "@/lib/auth/attach-auth";
 
 export type AppRole = "admin" | "cliente";
 
@@ -7,18 +7,10 @@ export function useRole() {
   return useQuery({
     queryKey: ["my-role"],
     queryFn: async (): Promise<AppRole | null> => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
-      if (!uid) return null;
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", uid)
-        .order("role", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (error) return null;
-      return (data?.role ?? null) as AppRole | null;
+      const token = getStoredToken();
+      if (!token) return null;
+      const payload = decodeTokenPayload(token);
+      return (payload?.role as AppRole | undefined) ?? null;
     },
     staleTime: 60_000,
   });
