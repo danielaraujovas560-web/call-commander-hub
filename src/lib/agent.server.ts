@@ -31,6 +31,11 @@ export async function agentFetch<T = unknown>(
     body?: unknown;
     tenantId?: number;
     timeoutMs?: number;
+    // Repassa o JWT do usuário (verificado localmente por requireAuth) para
+    // rotas do pabx-agent que dependem de identidade: /tenant/resolve,
+    // /admin/*, /clientes, /my/*, /audit-log. Essas rotas pulam a checagem
+    // HMAC no pabx-agent e exigem Authorization: Bearer <token> em vez disso.
+    bearerToken?: string;
   } = {},
 ): Promise<T> {
   const { url, secret } = getConfig();
@@ -48,6 +53,7 @@ export async function agentFetch<T = unknown>(
     "Content-Type": "application/json",
   };
   if (options.tenantId != null) headers["X-Tenant-Id"] = String(options.tenantId);
+  if (options.bearerToken) headers["Authorization"] = `Bearer ${options.bearerToken}`;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 15_000);
