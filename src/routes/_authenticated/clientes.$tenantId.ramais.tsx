@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { OnlineBadge } from "@/components/online-badge";
 import {
   Eye,
   EyeOff,
@@ -12,14 +13,7 @@ import {
   Trash2,
   PhoneCall,
 } from "lucide-react";
-import {
-  listRamais,
-  listTroncos,
-  createRamal,
-  updateRamal,
-  deleteRamal,
-  type Ramal,
-} from "@/lib/ramais.functions";
+import { listRamais, listRamaisStatus, listTroncos, createRamal, updateRamal, deleteRamal, type Ramal, } from "@/lib/ramais.functions";
 
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
@@ -69,6 +63,8 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/ramais"
   component: RamaisPage,
 });
 
+export const listaDDDs = Array.from({ length: 89 }, (_, i) => String(i + 11));
+
 function RamaisPage() {
   const { tenantId: tenantParam } = Route.useParams();
   const tenantId = Number(tenantParam);
@@ -82,10 +78,19 @@ function RamaisPage() {
   const max = clienteData?.cliente?.quantidade_ramais ?? 0;
 
   const list = useServerFn(listRamais);
+  const statusFn = useServerFn(listRamaisStatus);
+
   const queryClient = useQueryClient();
+
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["ramais", tenantId],
     queryFn: () => list({ data: { tenant_id: tenantId } }),
+  });
+
+  const { data: statusData } = useQuery({
+    queryKey: ["ramais-status", tenantId],
+    queryFn: () => statusFn({ data: { tenant_id: tenantId } }),
+    refetchInterval: 5000, // opcional
   });
 
   const del = useServerFn(deleteRamal);
@@ -146,8 +151,9 @@ function RamaisPage() {
               <TableHead>Tronco</TableHead>
               <TableHead>DDD</TableHead>
               <TableHead>CallerID</TableHead>
-              <TableHead>Permissões</TableHead>
+              <TableHead>Sem Permissão Lig/</TableHead>
               <TableHead>Senha</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -189,6 +195,9 @@ function RamaisPage() {
                 </TableCell>
                 <TableCell>
                   <PasswordCell value={r.senha ?? ""} />
+                </TableCell>
+                <TableCell>
+                  <OnlineBadge state={statusData?.endpoints?.[String(r.ramal)]} showLabel />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -336,9 +345,23 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           </div>
           <div className="space-y-1">
             <Label>DDD *</Label>
-            <Input value={form.ddd} onChange={(e) => setForm({ ...form, ddd: e.target.value })} required maxLength={3} />
-          </div>
-
+              <Select 
+                value={form.ddd} 
+                onValueChange={(value) => setForm({ ...form, ddd: value })}
+            >
+             <SelectTrigger className="w-full">
+                 <SelectValue placeholder="Selecione o DDD" />
+               </SelectTrigger>
+               <SelectContent>
+                 {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
+                   <SelectItem key={ddd} value={ddd}>
+                     {ddd}
+                   </SelectItem>
+                 ))}
+               </SelectContent>
+              </Select>
+             </div>
+          
           <div className="col-span-2 space-y-1">
             <Label>Nome (opcional — usa nº do ramal se vazio)</Label>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
@@ -570,8 +593,22 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           </div>
           <div className="space-y-1">
             <Label>DDD</Label>
-            <Input value={form.ddd} onChange={(e) => setForm({ ...form, ddd: e.target.value })} maxLength={3} />
-          </div>
+            <Select 
+              value={form.ddd} 
+              onValueChange={(value) => setForm({ ...form, ddd: value })}
+           >
+           <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione o DDD" />
+           </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
+              <SelectItem key={ddd} value={ddd}>
+                {ddd}
+              </SelectItem>
+             ))}
+           </SelectContent>
+          </Select>
+         </div>
           <div className="space-y-1">
             <Label>CallerID</Label>
             <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />

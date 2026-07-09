@@ -33,6 +33,15 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/filas")
   component: FilasPage,
 });
 
+const STRATEGY_LABELS: Record<string, string> = {
+  ringall: "Tocar Todos",
+  linear: "Sequencial",
+  rrmemory: "Sequencial (Atendida)",
+  leastrecent: "Menos Recente",
+  fewestcalls: "Menos Chamadas",
+  random: "Aleatório",
+};
+
 function FilasPage() {
   const { tenantId: p } = Route.useParams();
   const tenantId = Number(p);
@@ -89,7 +98,7 @@ function FilasPage() {
                 <TableCell className="font-mono">{f.virtual_extension}</TableCell>
                 <TableCell className="font-medium">{f.display_name}</TableCell>
                 <TableCell>{f.description ?? "-"}</TableCell>
-                <TableCell>{f.strategy ?? "-"}</TableCell>
+                <TableCell>{f.strategy ? (STRATEGY_LABELS[f.strategy] || f.strategy) : "-"}</TableCell>
                 <TableCell>{f.timeout ?? "-"}</TableCell>
                 <TableCell>{f.membros}</TableCell>
                 <TableCell><Badge variant={f.active ? "default" : "secondary"}>{f.active ? "Sim" : "Não"}</Badge></TableCell>
@@ -274,12 +283,13 @@ function FilaFormDialog({
           <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1"><Label>Estratégia</Label>
               <Select value={form.strategy} onValueChange={(v: any) => setForm({ ...form, strategy: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione a estratégia" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ringall">ringall</SelectItem>
-                  <SelectItem value="linear">linear</SelectItem>
-                  <SelectItem value="random">random</SelectItem>
-                  <SelectItem value="rrordered">rrordered</SelectItem>
+                  {Object.entries(STRATEGY_LABELS).map(([value, label]) => ( 
+                    <SelectItem key={value} value={value}>
+                      {label}
+                   </SelectItem>
+                 ))}
                 </SelectContent>
               </Select>
             </div>

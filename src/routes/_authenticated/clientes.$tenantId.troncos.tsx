@@ -4,10 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Cable, RefreshCw, Plus, Pencil, Trash2, Lock } from "lucide-react";
-import {
-  listTroncos, listTroncosStatus, createTronco, updateTronco, deleteTronco,
-  type Tronco,
-} from "@/lib/ramais.functions";
+import {  listTroncos, listTroncosStatus, createTronco, updateTronco, deleteTronco, type Tronco,} from "@/lib/ramais.functions";
 import { OnlineBadge } from "@/components/online-badge";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
