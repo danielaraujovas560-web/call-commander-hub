@@ -45,11 +45,11 @@ interface NavItem {
 const mainNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/clientes", label: "Clientes", icon: Building2 },
-  { to: "/servidor", label: "Servidor", icon: Server, adminOnly: true },
 ];
 
 const adminNav: NavItem[] = [
   { to: "/admin/usuarios", label: "Usuários", icon: ShieldCheck },
+  { to: "/servidor", label: "Servidor", icon: Server, adminOnly: true },
 ];
 
 function matchClienteRoute(pathname: string): string | null {

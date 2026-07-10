@@ -72,30 +72,6 @@ function ServidorPage() {
           )}
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Tenants vinculados</CardTitle>
-          <CardDescription>Tenants do PABX associados ao seu usuário</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {t.isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-          {t.data && t.data.tenants.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhum tenant vinculado. Peça a um administrador para vincular seu acesso.
-            </p>
-          )}
-          <ul className="space-y-1 text-sm">
-            {t.data?.tenants.map((x) => (
-              <li key={x.tenant_id} className="flex items-center gap-2">
-                <Badge variant="outline">tenant {x.tenant_id}</Badge>
-                <span>{x.label ?? "—"}</span>
-                {x.is_default && <Badge variant="secondary">padrão</Badge>}
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
     </div>
   );
 }

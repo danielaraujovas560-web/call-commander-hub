@@ -26,6 +26,12 @@ function amiQueueReloadAll() {
   });
 }
 
+function amiQueueReloadParameters(queueName) {
+  return amiCommand(`queue reload parameters ${queueName}`).catch((e) => {
+    console.error(`[ami] queue reload parameters ${queueName} falhou:`, e.message || e);
+  });
+}
+
 const {
   DB_HOST = "127.0.0.1",
   DB_PORT = "3306",
@@ -133,7 +139,7 @@ app.post("/auth/login", async (req, res) => {
       [u.id],
     );
     const role = roleRow?.role || "cliente";
-    const token = jwt.sign({ sub: u.id, role }, JWT_SECRET, { expiresIn: "12h" });
+    const token = jwt.sign({ sub: u.id, role }, JWT_SECRET, { expiresIn: "8h" });
     res.json({ token, user: { id: u.id, nome: u.nome, email: u.email, role } });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -598,7 +604,7 @@ function asteriskRx(cmd) {
 app.get("/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "ok", version: "1.3.0", db: "ok" });
+    res.json({ status: "ok", version: "1.5.0", db: "ok" });
   } catch (e) {
     res.status(500).json({ status: "error", error: String(e.message || e) });
   }
@@ -1421,46 +1427,36 @@ app.post("/filas", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const {
-    virtual_extension,
     display_name,
     description,
     strategy = "ringall",
     timeout = 15,
     active = true,
-    ramais = [],
   } = req.body || {};
-  if (!virtual_extension || !display_name) {
-    return res.status(400).json({ error: "virtual_extension e display_name obrigatórios" });
+  if (!display_name) {
+    return res.status(400).json({ error: "display_name obrigatório" });
   }
   const slug = slugName(display_name);
   const name = `q${tenant}-${slug}`;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    // ramal virtual não pode colidir com ramais
-    const [dupR] = await conn.query(`SELECT 1 FROM ramais WHERE tenant_id = ? AND ramal = ? LIMIT 1`, [
-      tenant,
-      String(virtual_extension),
-    ]);
-    if (dupR.length) {
-      await conn.rollback();
-      return res.status(409).json({ error: "Já existe ramal com esse número neste tenant." });
-    }
-    // duplicidade de virtual_extension em filas
-    const [dupF] = await conn.query(`SELECT 1 FROM filas WHERE tenant_id = ? AND virtual_extension = ? LIMIT 1`, [
-      String(tenant),
-      String(virtual_extension),
-    ]);
+
+    const [dupF] = await conn.query(
+      `SELECT 1 FROM filas WHERE tenant_id = ? AND name = ? LIMIT 1`,
+      [String(tenant), name],
+    );
     if (dupF.length) {
       await conn.rollback();
-      return res.status(409).json({ error: "Ramal virtual já cadastrado como fila." });
+      return res.status(409).json({ error: "Já existe uma fila com esse nome neste tenant." });
     }
+
     await ensureMoh(conn, tenant);
 
     await conn.query(
-      `INSERT INTO filas (tenant_id, virtual_extension, name, display_name, description, active)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [String(tenant), String(virtual_extension), name, display_name, description || null, active ? 1 : 0],
+      `INSERT INTO filas (tenant_id, name, display_name, description, active)
+       VALUES (?, ?, ?, ?, ?)`,
+      [String(tenant), name, display_name, description || null, active ? 1 : 0],
     );
 
     await conn.query(
@@ -1469,23 +1465,9 @@ app.post("/filas", async (req, res) => {
       [String(tenant), name, strategy, Number(timeout) || 0],
     );
 
-    for (const r of ramais) {
-      if (!r || !r.nome_ramal) continue;
-      await conn.query(`INSERT INTO filas_ramais (tenant_id, nome_ramal, fila_ramal, prioridade) VALUES (?, ?, ?, ?)`, [
-        String(tenant),
-        r.nome_ramal,
-        String(virtual_extension),
-        Number(r.prioridade) || 1,
-      ]);
-      await conn.query(
-        `INSERT IGNORE INTO queue_members (tenant_id, queue_name, interface, penalty)
-         VALUES (?, ?, ?, 0)`,
-        [String(tenant), name, `Local/${virtual_extension}@VALIDAR-RAMAIS/n`],
-      );
-    }
-
     await conn.commit();
-    amiQueueReloadAll();
+    await amiQueueReloadParameters(name);
+    // Gestão de agentes (filas_agentes + QueueAdd) fica para a próxima etapa.
     res.json({ ok: true, name });
   } catch (e) {
     await conn.rollback();
@@ -1499,7 +1481,7 @@ app.put("/filas/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
-  const { display_name, description, strategy, timeout, active, ramais } = req.body || {};
+  const { display_name, description, strategy, timeout, active } = req.body || {};
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -1513,6 +1495,18 @@ app.put("/filas/:id", async (req, res) => {
     const newDisplay = display_name ?? f.display_name;
     const newSlug = slugName(newDisplay);
     const newName = `q${tenant}-${newSlug}`;
+    const nameChanged = newName !== oldName;
+
+    if (nameChanged) {
+      const [dupF] = await conn.query(
+        `SELECT 1 FROM filas WHERE tenant_id = ? AND name = ? AND id <> ? LIMIT 1`,
+        [String(tenant), newName, id],
+      );
+      if (dupF.length) {
+        await conn.rollback();
+        return res.status(409).json({ error: "Já existe uma fila com esse nome neste tenant." });
+      }
+    }
 
     await conn.query(
       `UPDATE filas SET display_name = ?, description = ?, active = ?, name = ?
@@ -1527,58 +1521,36 @@ app.put("/filas/:id", async (req, res) => {
       ],
     );
 
-    if (newName !== oldName) {
+    if (nameChanged) {
       await conn.query(`UPDATE queues SET name = ? WHERE tenant_id = ? AND name = ?`, [
-        newName,
-        String(tenant),
-        oldName,
+        newName, String(tenant), oldName,
       ]);
-      await conn.query(`UPDATE queue_members SET queue_name = ? WHERE tenant_id = ? AND queue_name = ?`, [
-        newName,
-        String(tenant),
-        oldName,
+      await conn.query(`UPDATE filas_agentes SET queue = ? WHERE tenant_id = ? AND queue = ?`, [
+        newName, tenant, oldName,
       ]);
     }
+
     if (strategy !== undefined || timeout !== undefined) {
       const sets = [];
       const vals = [];
-      if (strategy !== undefined) {
-        sets.push("strategy = ?");
-        vals.push(strategy);
-      }
-      if (timeout !== undefined) {
-        sets.push("timeout = ?");
-        vals.push(Number(timeout) || 0);
-      }
+      if (strategy !== undefined) { sets.push("strategy = ?"); vals.push(strategy); }
+      if (timeout !== undefined) { sets.push("timeout = ?"); vals.push(Number(timeout) || 0); }
       await conn.query(`UPDATE queues SET ${sets.join(", ")} WHERE tenant_id = ? AND name = ?`, [
-        ...vals,
-        String(tenant),
-        newName,
+        ...vals, String(tenant), newName,
       ]);
-    }
-
-    if (Array.isArray(ramais)) {
-      await conn.query(`DELETE FROM filas_ramais WHERE tenant_id = ? AND fila_ramal = ?`, [
-        String(tenant),
-        f.virtual_extension,
-      ]);
-      await conn.query(`DELETE FROM queue_members WHERE tenant_id = ? AND queue_name = ?`, [String(tenant), newName]);
-      for (const r of ramais) {
-        if (!r || !r.nome_ramal) continue;
-        await conn.query(
-          `INSERT INTO filas_ramais (tenant_id, nome_ramal, fila_ramal, prioridade) VALUES (?, ?, ?, ?)`,
-          [String(tenant), r.nome_ramal, f.virtual_extension, Number(r.prioridade) || 1],
-        );
-      }
-      await conn.query(
-        `INSERT IGNORE INTO queue_members (tenant_id, queue_name, interface, penalty)
-         VALUES (?, ?, ?, 0)`,
-        [String(tenant), newName, `Local/${f.virtual_extension}@VALIDAR-RAMAIS/n`],
-      );
     }
 
     await conn.commit();
-    amiQueueReloadAll();
+
+    if (nameChanged) {
+      // descarrega a fila com o nome antigo (não existe mais na realtime source)...
+      await amiQueueReloadParameters(oldName);
+      // ...e carrega com o nome novo.
+      await amiQueueReloadParameters(newName);
+    } else {
+      await amiQueueReloadParameters(newName);
+    }
+
     res.json({ ok: true, name: newName });
   } catch (e) {
     await conn.rollback();
@@ -1601,15 +1573,27 @@ app.delete("/filas/:id", async (req, res) => {
       return res.status(404).json({ error: "Fila não encontrada" });
     }
     const f = rows[0];
-    await conn.query(`DELETE FROM queue_members WHERE tenant_id = ? AND queue_name = ?`, [String(tenant), f.name]);
+
+    // Remove os agentes da fila ainda ativa no Asterisk (antes de apagar do
+    // banco), para não deixar membros "fantasma" na memória.
+    const [agentes] = await conn.query(
+      `SELECT interface FROM filas_agentes WHERE tenant_id = ? AND queue = ?`,
+      [tenant, f.name],
+    );
+    for (const a of agentes) {
+      try {
+        await amiCommand(`queue remove member ${a.interface} from ${f.name}`);
+      } catch (e) {
+        console.error(`[ami] remover agente ${a.interface} da fila ${f.name} falhou:`, e.message || e);
+      }
+    }
+
+    await conn.query(`DELETE FROM filas_agentes WHERE tenant_id = ? AND queue = ?`, [tenant, f.name]);
     await conn.query(`DELETE FROM queues WHERE tenant_id = ? AND name = ?`, [String(tenant), f.name]);
-    await conn.query(`DELETE FROM filas_ramais WHERE tenant_id = ? AND fila_ramal = ?`, [
-      String(tenant),
-      f.virtual_extension,
-    ]);
     await conn.query(`DELETE FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
+
     await conn.commit();
-    amiQueueReloadAll();
+    await amiQueueReloadParameters(f.name);
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
