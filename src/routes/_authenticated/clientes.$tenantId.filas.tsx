@@ -80,7 +80,6 @@ function FilasPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Ramal virtual</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Estratégia</TableHead>
@@ -95,7 +94,6 @@ function FilasPage() {
             {!isLoading && filas.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Nenhuma fila.</TableCell></TableRow>}
             {filas.map((f) => (
               <TableRow key={f.id}>
-                <TableCell className="font-mono">{f.virtual_extension}</TableCell>
                 <TableCell className="font-medium">{f.display_name}</TableCell>
                 <TableCell>{f.description ?? "-"}</TableCell>
                 <TableCell>{f.strategy ? (STRATEGY_LABELS[f.strategy] || f.strategy) : "-"}</TableCell>
@@ -267,15 +265,8 @@ function FilaFormDialog({
           <DialogDescription>Configuração de fila e membros.</DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label>Ramal virtual *</Label>
-              <Input value={form.virtual_extension}
-                     onChange={(e) => setForm({ ...form, virtual_extension: e.target.value.replace(/\D/g, "") })}
-                     required disabled={editing} maxLength={10} />
-            </div>
             <div className="space-y-1"><Label>Nome *</Label>
               <Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} required maxLength={120} />
-            </div>
           </div>
           <div className="space-y-1"><Label>Descrição</Label>
             <Input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={255} />
