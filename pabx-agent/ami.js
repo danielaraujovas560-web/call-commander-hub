@@ -106,4 +106,45 @@ function getEndpointsDeviceState(timeoutMs = 4000) {
   });
 }
 
-module.exports = { getEndpointsDeviceState, amiCommand, amiReady };
+// Helper genérico para actions AMI simples (request/response único).
+function amiAction(action, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout aguardando resposta do AMI (${action.action})`));
+    }, timeoutMs);
+    ami.action(action, (err, res) => {
+      clearTimeout(timer);
+      if (err) return reject(err);
+      resolve(res);
+    });
+  });
+}
+
+// Adiciona um agente numa fila em tempo real (efeito imediato, sem reload).
+function queueAdd({ queue, interface: iface, penalty, memberName }) {
+  const action = { action: "QueueAdd", queue, interface: iface };
+  if (penalty != null) action.penalty = String(penalty);
+  if (memberName) action.membername = memberName;
+  return amiAction(action);
+}
+
+// Remove um agente de uma fila em tempo real.
+function queueRemove({ queue, interface: iface }) {
+  return amiAction({ action: "QueueRemove", queue, interface: iface });
+}
+
+// Atualiza a prioridade (penalty) de um agente já na fila, sem remover/readicionar.
+function queuePenalty({ queue, interface: iface, penalty }) {
+  const action = { action: "QueuePenalty", interface: iface, penalty: String(penalty) };
+  if (queue) action.queue = queue;
+  return amiAction(action);
+}
+
+module.exports = {
+  getEndpointsDeviceState,
+  amiCommand,
+  amiReady,
+  queueAdd,
+  queueRemove,
+  queuePenalty,
+};

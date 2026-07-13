@@ -331,7 +331,6 @@ export const deleteBlacklist = createServerFn({ method: "POST" })
 // ---------- Filas (gestão) ----------
 export interface Fila {
   id: number;
-  virtual_extension: string;
   name: string;
   display_name: string;
   description: string | null;
@@ -341,6 +340,23 @@ export interface Fila {
   maxlen: number | null;
   musiconhold: string | null;
   membros: number;
+}
+
+export interface FilaAgente {
+  id: string;
+  interface: string;
+  penalty: number | null;
+  membername: string | null;
+  ramal: string | null;
+}
+
+export interface FilaQueueConfig {
+  tenant_id: number;
+  name: string;
+  musiconhold: string | null;
+  strategy: string | null;
+  timeout: number | null;
+  maxlen: number | null;
 }
 
 export const listFilas = createServerFn({ method: "GET" })
@@ -353,21 +369,76 @@ export const listFilas = createServerFn({ method: "GET" })
     return { tenantId, filas: res.filas ?? [] };
   });
 
-export const getFilaMembros = createServerFn({ method: "GET" })
+export const getFilaAgentes = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({
       tenant_id: z.number().int().positive().optional(),
-      virtual_extension: z.string().min(1),
+      fila_id: z.number().int().positive(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{
-      fila: any; agentes: any[]; queue: any; queue_members: any[];
-    }>(`/filas/${encodeURIComponent(data.virtual_extension)}/membros`, { tenantId });
+      fila: Fila; agentes: FilaAgente[]; queue: FilaQueueConfig | null;
+    }>(`/filas/${data.fila_id}/agentes`, { tenantId });
     return res;
+  });
+
+export const addFilaAgente = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      tenant_id: z.number().int().positive().optional(),
+      fila_id: z.number().int().positive(),
+      ramal: z.string().min(1),
+      penalty: z.coerce.number().int().min(0).max(100).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    return await agentFetch<{ ok: true; id: string }>(`/filas/${data.fila_id}/agentes`, {
+      method: "POST",
+      tenantId,
+      body: { ramal: data.ramal, penalty: data.penalty },
+    });
+  });
+
+export const removeFilaAgente = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      tenant_id: z.number().int().positive().optional(),
+      agente_id: z.string().min(1),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    await agentFetch(`/filas/agentes/${data.agente_id}`, { method: "DELETE", tenantId });
+    return { ok: true };
+  });
+
+export const setFilaAgentePenalty = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      tenant_id: z.number().int().positive().optional(),
+      agente_id: z.string().min(1),
+      penalty: z.coerce.number().int().min(0).max(100),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    await agentFetch(`/filas/agentes/${data.agente_id}`, {
+      method: "PUT",
+      tenantId,
+      body: { penalty: data.penalty },
+    });
+    return { ok: true };
   });
 
 // ---------- URAs (gestão) ----------
@@ -613,16 +684,11 @@ export const listTroncosStatus = createServerFn({ method: "GET" })
 // ---------- Filas CRUD ----------
 const FilaInput = z.object({
   tenant_id: z.number().int().positive().optional(),
-  virtual_extension: z.coerce.string().trim().regex(/^\d{2,10}$/, "Ramal virtual deve ser numérico"),
   display_name: z.coerce.string().trim().min(1).max(120),
   description: z.coerce.string().trim().max(255).optional().or(z.literal("")),
-  strategy: z.enum(["ringall", "linear", "random", "rrordered"]).default("ringall"),
+  strategy: z.enum(["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"]).default("ringall"),
   timeout: z.coerce.number().int().min(0).max(3600).default(15),
   active: z.boolean().default(true),
-  ramais: z.array(z.object({
-    nome_ramal: z.string().min(1),
-    prioridade: z.coerce.number().int().min(1).max(100).default(1),
-  })).default([]),
 });
 const FilaUpdate = FilaInput.partial().extend({
   id: z.number().int().positive(),

@@ -11,7 +11,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const { exec } = require("child_process");
 const rateLimit = require("express-rate-limit");
-const { getEndpointsDeviceState, amiCommand, amiReady } = require("./ami");
+const { getEndpointsDeviceState, amiCommand, amiReady, queueAdd, queueRemove, queuePenalty } = require("./ami");
 
 // Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
 // travar se o AMI cair; mas logamos para investigação.
@@ -532,11 +532,101 @@ app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
 });
 
 app.delete("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
+  const clienteId = req.params.id;
+  const conn = await pool.getConnection();
   try {
-    await pool.query("DELETE FROM clientes WHERE id = ?", [req.params.id]);
+    const [[cliente]] = await conn.query("SELECT tenant_id FROM clientes WHERE id = ? LIMIT 1", [clienteId]);
+    if (!cliente) return res.status(404).json({ error: "Cliente não encontrado" });
+    const tenant = cliente.tenant_id;
+
+    await conn.beginTransaction();
+
+    // --- Fase 1: coletar tudo que precisa de limpeza no Asterisk ANTES de apagar ---
+    const [ramaisRows] = await conn.query(
+      "SELECT endpoint_id FROM ramais WHERE tenant_id = ?", [tenant],
+    );
+    const [troncosRows] = await conn.query(
+      "SELECT tronco_pjsip, registrar FROM troncos WHERE tenant_id = ?", [tenant],
+    );
+    const [filasRows] = await conn.query(
+      "SELECT name FROM filas WHERE tenant_id = ?", [tenant],
+    );
+    const [agentesRows] = await conn.query(
+      "SELECT queue, interface FROM filas_agentes WHERE tenant_id = ?", [tenant],
+    );
+
+    // --- Fase 2: apagar do banco (ordem respeita dependências) ---
+    await conn.query("DELETE FROM ura_opcoes WHERE ura_id IN (SELECT id FROM uras WHERE tenant_id = ?)",[tenant],);
+    await conn.query("DELETE FROM uras WHERE tenant_id = ?", [tenant]);
+
+    await conn.query("DELETE FROM filas_agentes WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM filas_agentes WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM queues WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM filas WHERE tenant_id = ?", [tenant]);
+
+    await conn.query("DELETE FROM ramais_grupo_horario WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM regra_horario_ramais WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM regra_horario WHERE tenant_id = ?", [tenant]);
+
+    await conn.query("DELETE FROM roteamento WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM numeros WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM blacklist WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM musiconhold WHERE tenant_id = ?", [tenant]);
+
+    for (const r of ramaisRows) {
+      await conn.query("DELETE FROM ps_endpoints WHERE id = ?", [r.endpoint_id]);
+      await conn.query("DELETE FROM ps_auths WHERE id = ?", [`auth-${r.endpoint_id}`]);
+      await conn.query("DELETE FROM ps_aors WHERE id = ?", [r.endpoint_id]);
+    }
+    await conn.query("DELETE FROM ramais WHERE tenant_id = ?", [tenant]);
+
+    for (const t of troncosRows) {
+      const pj = t.tronco_pjsip;
+      await conn.query("DELETE FROM ps_registrations WHERE id = ?", [`${pj}-reg`]);
+      await conn.query("DELETE FROM ps_endpoint_id_ips WHERE id = ?", [`${pj}-identify`]);
+      await conn.query("DELETE FROM ps_endpoints WHERE id = ?", [pj]);
+      await conn.query("DELETE FROM ps_auths WHERE id = ?", [`auth-${pj}`]);
+      await conn.query("DELETE FROM ps_aors WHERE id = ?", [`${pj}-aor`]);
+    }
+    await conn.query("DELETE FROM troncos WHERE tenant_id = ?", [tenant]);
+
+    // CDR: cdr_pesquisa depende de pesquisa_satisfacao.id, o resto tem tenant_id direto.
+    await conn.query(
+      "DELETE FROM cdr_pesquisa WHERE pesquisa_id IN (SELECT id FROM pesquisa_satisfacao WHERE tenant_id = ?)",
+      [tenant],
+    );
+    await conn.query("DELETE FROM pesquisa_satisfacao WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM cdr_entrada WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM cdr_ramal WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM cdr_fila WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM cdr_ura WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM cdr_cidades_entrada WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM cdr_cidades_saida WHERE tenant_id = ?", [tenant]);
+
+    // Identidade: desvincula usuários e apaga o registro do tenant.
+    await conn.query("DELETE FROM tenants_link WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM tenants WHERE id = ?", [tenant]);
+
+    await conn.query("DELETE FROM clientes WHERE id = ?", [clienteId]);
+
+    await conn.commit();
+
+    // --- Fase 3: limpeza no Asterisk via AMI (best-effort, já com o banco consistente) ---
+    for (const a of agentesRows) {
+      try { await queueRemove({ queue: a.queue, interface: a.interface }); }
+      catch (e) { console.error(`[ami] remover agente ${a.interface} da fila ${a.queue} falhou:`, e.message || e); }
+    }
+    for (const f of filasRows) {
+      await amiQueueReloadParameters(f.name);
+    }
+    await amiPjsipReload();
+
     res.json({ ok: true });
   } catch (e) {
+    await conn.rollback();
     res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
   }
 });
 
@@ -1350,12 +1440,12 @@ app.get("/filas", async (req, res) => {
     const [rows] = await pool.query(
       `SELECT f.id, f.name, f.display_name, f.description, f.active,
               q.strategy, q.timeout, q.maxlen, q.musiconhold,
-              (SELECT COUNT(*) FROM filas_ramais fr
-                 WHERE fr.tenant_id = f.tenant_id) AS membros
+              (SELECT COUNT(*) FROM filas_agentes fa
+                 WHERE fa.tenant_id = f.tenant_id AND fa.queue = f.name) AS membros
          FROM filas f
          LEFT JOIN queues q ON q.tenant_id = f.tenant_id AND q.name = f.name
         WHERE f.tenant_id = ?
-        ORDER BY f.id`,
+        ORDER BY f.display_name`,
       [String(tenant)],
     );
     res.json({ filas: rows.map((r) => ({ ...r, active: !!r.active })) });
@@ -1364,26 +1454,25 @@ app.get("/filas", async (req, res) => {
   }
 });
 
-app.get("/filas/:virtualExt/membros", async (req, res) => {
+app.get("/filas/:id/agentes", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
+  const filaId = Number(req.params.id);
   try {
     const [filaRows] = await pool.query(
       `SELECT id, name, display_name, description, active
-         FROM filas WHERE tenant_id = ? LIMIT 1`,
-      [String(tenant)],
+         FROM filas WHERE tenant_id = ? AND id = ? LIMIT 1`,
+      [tenant, filaId],
     );
     if (filaRows.length === 0) return res.status(404).json({ error: "Fila não encontrada" });
     const fila = filaRows[0];
 
     const [agentes] = await pool.query(
-      `SELECT fa.id, fa.membername, fa.queue, fa.penalty,
-              r.ramal, r.nome AS ramal_display, r.callerid
-         FROM filas_agentes fa
-         LEFT JOIN ramais r ON r.tenant_id = ? AND r.nome = fa.membername
-        WHERE fa.tenant_id = ?
-        ORDER BY fa.penalty, fa.id`,
-      [Number(tenant), String(tenant)],
+      `SELECT id, interface, penalty, membername, ramal
+         FROM filas_agentes
+        WHERE tenant_id = ? AND queue = ?
+        ORDER BY penalty, id`,
+      [tenant, fila.name],
     );
 
     const [queueRows] = await pool.query(`SELECT * FROM queues WHERE tenant_id = ? AND name = ? LIMIT 1`, [
@@ -1391,19 +1480,95 @@ app.get("/filas/:virtualExt/membros", async (req, res) => {
       fila.name,
     ]);
 
-    const [members] = await pool.query(
-      `SELECT interface, membername, penalty, paused, reason_paused
-         FROM queue_members WHERE tenant_id = ? AND queue_name = ?
-        ORDER BY interface`,
-      [String(tenant), fila.name],
-    );
-
     res.json({
       fila: { ...fila, active: !!fila.active },
       agentes,
       queue: queueRows[0] ?? null,
-      queue_members: members,
     });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.post("/filas/:id/agentes", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const filaId = Number(req.params.id);
+  const { ramal, penalty } = req.body || {};
+  if (!ramal) return res.status(400).json({ error: "ramal obrigatório" });
+  try {
+    const [[fila]] = await pool.query(
+      `SELECT name FROM filas WHERE id = ? AND tenant_id = ? LIMIT 1`,
+      [filaId, tenant],
+    );
+    if (!fila) return res.status(404).json({ error: "Fila não encontrada" });
+
+    const [[r]] = await pool.query(
+      `SELECT ramal, nome, endpoint_id FROM ramais WHERE tenant_id = ? AND ramal = ? LIMIT 1`,
+      [tenant, String(ramal)],
+    );
+    if (!r) return res.status(404).json({ error: "Ramal não encontrado" });
+
+    const iface = `PJSIP/${r.endpoint_id}`;
+
+    const [dup] = await pool.query(
+      `SELECT 1 FROM filas_agentes WHERE tenant_id = ? AND queue = ? AND interface = ? LIMIT 1`,
+      [tenant, fila.name, iface],
+    );
+    if (dup.length) return res.status(409).json({ error: "Este ramal já está nesta fila." });
+
+    await queueAdd({ queue: fila.name, interface: iface, penalty, memberName: r.nome });
+
+    const id = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO filas_agentes (id, tenant_id, queue, interface, penalty, membername, ramal)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, tenant, fila.name, iface, penalty ?? null, r.nome, r.ramal],
+    );
+
+    res.json({ ok: true, id });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.delete("/filas/agentes/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const id = req.params.id;
+  try {
+    const [[a]] = await pool.query(
+      `SELECT queue, interface FROM filas_agentes WHERE id = ? AND tenant_id = ?`,
+      [id, tenant],
+    );
+    if (!a) return res.status(404).json({ error: "Agente não encontrado nesta fila" });
+
+    await queueRemove({ queue: a.queue, interface: a.interface });
+    await pool.query(`DELETE FROM filas_agentes WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.put("/filas/agentes/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const id = req.params.id;
+  const { penalty } = req.body || {};
+  if (penalty === undefined) return res.status(400).json({ error: "penalty obrigatório" });
+  try {
+    const [[a]] = await pool.query(
+      `SELECT queue, interface FROM filas_agentes WHERE id = ? AND tenant_id = ?`,
+      [id, tenant],
+    );
+    if (!a) return res.status(404).json({ error: "Agente não encontrado nesta fila" });
+
+    await queuePenalty({ queue: a.queue, interface: a.interface, penalty });
+    await pool.query(`UPDATE filas_agentes SET penalty = ? WHERE id = ? AND tenant_id = ?`, [
+      penalty, id, tenant,
+    ]);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -1422,6 +1587,8 @@ async function ensureMoh(conn, tenant) {
   }
 }
 
+const QUEUE_STRATEGIES = ["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"];
+
 app.post("/filas", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
@@ -1434,6 +1601,9 @@ app.post("/filas", async (req, res) => {
   } = req.body || {};
   if (!display_name) {
     return res.status(400).json({ error: "display_name obrigatório" });
+  }
+  if (!QUEUE_STRATEGIES.includes(strategy)) {
+    return res.status(400).json({ error: "Estratégia inválida" });
   }
   const slug = slugName(display_name);
   const name = `q${tenant}-${slug}`;
@@ -1481,6 +1651,9 @@ app.put("/filas/:id", async (req, res) => {
   if (!tenant) return;
   const id = Number(req.params.id);
   const { display_name, description, strategy, timeout, active } = req.body || {};
+  if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
+    return res.status(400).json({ error: "Estratégia inválida" });
+  }
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();

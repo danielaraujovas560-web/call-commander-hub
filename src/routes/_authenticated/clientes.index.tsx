@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, LogIn, Pencil, Plus, Trash2 } from "lucide-react";
+import { ShapeConfirmDialog } from "@/components/shape-confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/clientes/")({
   head: () => ({ meta: [{ title: "Clientes — Painel PABX" }] }),
@@ -150,25 +151,32 @@ function DeleteButton({
   cliente: Cliente;
   onDone: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const fn = useServerFn(deleteCliente);
   const mut = useMutation({
     mutationFn: () => fn({ data: { id: cliente.id } }),
     onSuccess: () => {
       toast.success("Cliente removido");
+      setOpen(false);
       onDone();
     },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => {
-        if (confirm(`Remover cliente "${cliente.razao_social}"?`)) mut.mutate();
-      }}
-    >
-      <Trash2 className="h-4 w-4 text-destructive" />
-    </Button>
+    <>
+      <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
+        <Trash2 className="h-4 w-4 text-destructive" />
+      </Button>
+      <ShapeConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`Remover cliente "${cliente.razao_social}"?`}
+        description="Isso apaga ramais, troncos, filas, URAs, CDR e todo o histórico deste tenant."
+        confirmLabel="Apagar tudo"
+        confirming={mut.isPending}
+        onConfirm={() => mut.mutate()}
+      />
+    </>
   );
 }
 
