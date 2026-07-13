@@ -475,6 +475,61 @@ export const listUraAudios = createServerFn({ method: "GET" })
     return { audios: res.audios ?? [], dir: res.dir, warn: res.warn };
   });
 
+const AudioName = z.string().trim().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,119}$/, {
+  message: "Use letras, números, hífen ou sublinhado no nome",
+});
+
+export const uploadUraAudio = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      tenant_id: z.number().int().positive().optional(),
+      nome: AudioName,
+      extensao: z.enum(["wav", "mp3"]),
+      conteudo_base64: z.string().min(1),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    return await agentFetch<{ ok: true; nome: string }>("/uras/audios", {
+      method: "POST",
+      tenantId,
+      body: { nome: data.nome, extensao: data.extensao, conteudo_base64: data.conteudo_base64 },
+      timeoutMs: 120_000,
+    });
+  });
+
+export const renameUraAudio = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      tenant_id: z.number().int().positive().optional(),
+      nome: AudioName,
+      novo_nome: AudioName,
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    return await agentFetch<{ ok: true; nome: string }>(`/uras/audios/${encodeURIComponent(data.nome)}`, {
+      method: "PUT", tenantId, body: { novo_nome: data.novo_nome },
+    });
+  });
+
+export const deleteUraAudio = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ tenant_id: z.number().int().positive().optional(), nome: AudioName }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    return await agentFetch<{ ok: true }>(`/uras/audios/${encodeURIComponent(data.nome)}`, {
+      method: "DELETE", tenantId,
+    });
+  });
+
 export const listUraDestinos = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))

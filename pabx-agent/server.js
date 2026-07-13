@@ -9,9 +9,11 @@ const mysql = require("mysql2/promise");
 const crypto = require("crypto");
 const fs = require("fs/promises");
 const path = require("path");
-const { exec } = require("child_process");
+const { exec, execFile } = require("child_process");
+const { promisify } = require("util");
 const rateLimit = require("express-rate-limit");
 const { getEndpointsDeviceState, amiCommand, amiReady, queueAdd, queueRemove, queuePenalty } = require("./ami");
+const execFileAsync = promisify(execFile);
 
 // Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
 // travar se o AMI cair; mas logamos para investigação.
@@ -42,6 +44,8 @@ const {
   SIGNATURE_WINDOW = "300",
   PORT = "8787",
   URA_SOUNDS_BASE = "/var/lib/asterisk/sounds/ura",
+  SOX_BIN = "sox",
+  AUDIO_UPLOAD_LIMIT = "1gb",
   ASTERISK_BIN = "asterisk",
 } = process.env;
 
@@ -68,7 +72,7 @@ const pool = mysql.createPool({
 
 const app = express();
 app.set("trust proxy", 1);
-app.use(express.json({ limit: "256kb" }));
+app.use(express.json({ limit: AUDIO_UPLOAD_LIMIT }));
 app.use(
   rateLimit({
     windowMs: 60_000,
@@ -1809,6 +1813,121 @@ app.get("/uras/audios", async (req, res) => {
     res.json({ audios, dir });
   } catch (e) {
     if (e.code === "ENOENT") return res.json({ audios: [], dir, warn: "diretório inexistente" });
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+function validAudioName(value) {
+  return typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,119}$/.test(value);
+}
+
+function audioPath(tenant, name) {
+  return path.join(URA_SOUNDS_BASE, `t${tenant}`, `${name}.wav`);
+}
+
+app.post("/uras/audios", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const { nome, extensao, conteudo_base64 } = req.body || {};
+  const ext = String(extensao || "").toLowerCase().replace(/^\./, "");
+  if (!validAudioName(nome)) {
+    return res.status(400).json({ error: "Nome inválido. Use letras, números, hífen ou sublinhado." });
+  }
+  if (!['wav', 'mp3'].includes(ext)) return res.status(400).json({ error: "Envie um arquivo WAV ou MP3." });
+  if (typeof conteudo_base64 !== "string" || !conteudo_base64) {
+    return res.status(400).json({ error: "Arquivo obrigatório." });
+  }
+
+  const dir = path.join(URA_SOUNDS_BASE, `t${tenant}`);
+  const finalPath = audioPath(tenant, nome);
+  const token = crypto.randomBytes(12).toString("hex");
+  const inputPath = path.join(dir, `.upload-${token}.${ext}`);
+  const outputPath = path.join(dir, `.upload-${token}.wav`);
+  try {
+    await fs.mkdir(dir, { recursive: true });
+    try {
+      await fs.access(finalPath);
+      return res.status(409).json({ error: "Já existe um áudio com esse nome neste tenant." });
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+
+    const content = Buffer.from(conteudo_base64, "base64");
+    if (!content.length) return res.status(400).json({ error: "Arquivo vazio ou inválido." });
+    await fs.writeFile(inputPath, content, { flag: "wx" });
+    await execFileAsync(SOX_BIN, [inputPath, "-r", "8000", "-c", "1", "-b", "16", "-e", "signed-integer", outputPath]);
+    // link falha com EEXIST e evita sobrescrever um upload concorrente.
+    await fs.link(outputPath, finalPath);
+    res.status(201).json({ ok: true, nome });
+  } catch (e) {
+    if (e.code === "EEXIST") return res.status(409).json({ error: "Já existe um áudio com esse nome neste tenant." });
+    res.status(500).json({ error: `Não foi possível processar o áudio: ${String(e.message || e)}` });
+  } finally {
+    await Promise.all([
+      fs.rm(inputPath, { force: true }).catch(() => {}),
+      fs.rm(outputPath, { force: true }).catch(() => {}),
+    ]);
+  }
+});
+
+app.put("/uras/audios/:nome", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const nomeAtual = req.params.nome;
+  const novoNome = req.body?.novo_nome;
+  if (!validAudioName(nomeAtual) || !validAudioName(novoNome)) {
+    return res.status(400).json({ error: "Nome inválido. Use letras, números, hífen ou sublinhado." });
+  }
+  if (nomeAtual === novoNome) return res.json({ ok: true });
+
+  const atualPath = audioPath(tenant, nomeAtual);
+  const novoPath = audioPath(tenant, novoNome);
+  const conn = await pool.getConnection();
+  let renamed = false;
+  try {
+    await fs.access(atualPath);
+    try {
+      await fs.access(novoPath);
+      return res.status(409).json({ error: "Já existe um áudio com esse nome neste tenant." });
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+
+    await conn.beginTransaction();
+    await fs.rename(atualPath, novoPath);
+    renamed = true;
+    await conn.query("UPDATE uras SET audio = ? WHERE tenant_id = ? AND audio = ?", [novoNome, tenant, nomeAtual]);
+    await conn.commit();
+    res.json({ ok: true, nome: novoNome });
+  } catch (e) {
+    await conn.rollback();
+    if (renamed) await fs.rename(novoPath, atualPath).catch(() => {});
+    if (e.code === "ENOENT") return res.status(404).json({ error: "Áudio não encontrado." });
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.delete("/uras/audios/:nome", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const nome = req.params.nome;
+  if (!validAudioName(nome)) return res.status(400).json({ error: "Nome de áudio inválido." });
+  try {
+    const [usos] = await pool.query(
+      "SELECT id, nome FROM uras WHERE tenant_id = ? AND audio = ? ORDER BY nome",
+      [tenant, nome],
+    );
+    if (usos.length) {
+      return res.status(409).json({
+        error: `Áudio em uso por ${usos.length} URA(s): ${usos.map((u) => u.nome).join(", ")}`,
+      });
+    }
+    await fs.unlink(audioPath(tenant, nome));
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.code === "ENOENT") return res.status(404).json({ error: "Áudio não encontrado." });
     res.status(500).json({ error: String(e.message || e) });
   }
 });

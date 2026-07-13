@@ -217,7 +217,7 @@ function UraFormDialog({
     audio: ura?.audio ?? "",
     max_digits: ura?.max_digits ?? 1,
     tentativas: ura?.tentativas ?? 3,
-    timeout: ura?.timeout ?? 10,
+    timeout: String(ura?.timeout ?? 10),
     ativo: ura?.ativo ?? true,
   });
 
@@ -229,7 +229,7 @@ function UraFormDialog({
         audio: ura?.audio ?? "",
         max_digits: ura?.max_digits ?? 1,
         tentativas: ura?.tentativas ?? 3,
-        timeout: ura?.timeout ?? 10,
+        timeout: String(ura?.timeout ?? 10),
         ativo: ura?.ativo ?? true,
       });
     }
@@ -241,8 +241,10 @@ function UraFormDialog({
   const mut = useMutation({
     mutationFn: () =>
       editing
-        ? updateFn({ data: { id: ura!.id, tenant_id: tenantId, ...form } })
-        : createFn({ data: { tenant_id: tenantId, ...form } }),
+        ? updateFn({
+            data: { id: ura!.id, tenant_id: tenantId, ...form, timeout: Number(form.timeout) },
+          })
+        : createFn({ data: { tenant_id: tenantId, ...form, timeout: Number(form.timeout) } }),
     onSuccess: () => {
       toast.success(editing ? "URA atualizada" : "URA criada");
       qc.invalidateQueries({ queryKey: ["uras", tenantId] });
@@ -333,7 +335,8 @@ function UraFormDialog({
                 min={1}
                 max={120}
                 value={form.timeout}
-                onChange={(e) => setForm({ ...form, timeout: Number(e.target.value) })}
+                onChange={(e) => setForm({ ...form, timeout: e.target.value })}
+                required
               />
             </div>
           </div>
