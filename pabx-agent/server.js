@@ -1352,6 +1352,7 @@ app.delete("/blacklist/:id", async (req, res) => {
 // ---------- CDR queries with filters ----------
 // cfg: { select, table, order, filters: { key -> column }, dateCol? }
 function cdrFilteredEndpoint(p, cfg) {
+  const exactFilters = new Set(cfg.exactFilters || []);
   app.get(p, async (req, res) => {
     const tenant = getTenant(req, res);
     if (!tenant) return;
