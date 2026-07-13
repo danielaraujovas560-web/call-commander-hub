@@ -770,7 +770,7 @@ app.post("/ramais", async (req, res) => {
   }
   ramal = String(ramal);
   if (!nome || String(nome).trim() === "") nome = ramal;
-  nome = slugName(nome);
+  nome = String(nome).trim();
   if (!senha) senha = genPassword();
   const endpointId = `${tenant}${ramal}`;
   const authId = `auth-${endpointId}`;
@@ -867,7 +867,7 @@ app.put("/ramais/:id", async (req, res) => {
         vals.push(val);
       }
     };
-    pushIf("nome", nome !== undefined ? slugName(nome) : undefined);
+    pushIf("nome", nome !== undefined ? String(nome).trim() : undefined);
     pushIf("tronco", tronco);
     if (ddd !== undefined) {
       sets.push("ddd = ?");
@@ -1361,7 +1361,7 @@ function cdrFilteredEndpoint(p, cfg) {
     for (const [key, col] of Object.entries(cfg.filters || {})) {
       const v = req.query[key];
       if (v !== undefined && v !== null && String(v).trim() !== "") {
-          if (col === "evento") {
+          if (exactFilters.has(key)) {
           where.push(`${col} = ?`);
           vals.push(`%${String(v).trim()}%`);
         } else {
@@ -1400,13 +1400,16 @@ cdrFilteredEndpoint("/cdr/entrada", {
   from: "cdr_entrada",
   order: "date_time",
   dateCol: "date_time",
+  exactFilters: ["status"],
   filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/ramal", {
   select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, c.destino, COALESCE(r.nome, c.origem) AS agente, c.tronco, c.status, c.duracao, c.date_time",
-  from: "cdr_ramal c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.agente",
+  from: "cdr_ramal c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.origem",
   order: "c.date_time",
   dateCol: "c.date_time",
+  tenantCol: "c.tenant_id",
+  exactFilters: ["status"],
   filters: { linkedid: "c.linkedid", origem: "c.origem", destino: "c.destino", status: "c.status" },
 });
 cdrFilteredEndpoint("/cdr/fila", {
@@ -1414,6 +1417,7 @@ cdrFilteredEndpoint("/cdr/fila", {
   from: "cdr_fila",
   order: "time_data",
   dateCol: "time_data",
+  exactFilters: ["status"],
   filters: { linkedid: "linkedid", origem: "agente", destino: "ramal", status: "evento" },
 });
 cdrFilteredEndpoint("/cdr/ura", {
@@ -1427,6 +1431,7 @@ cdrFilteredEndpoint("/cdr/cidades/entrada", {
   from: "cdr_cidades_entrada",
   order: "data_hora",
   dateCol: "data_hora",
+  exactFilters: ["status"],
   filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
 });
 cdrFilteredEndpoint("/cdr/cidades/saida", {
@@ -1434,6 +1439,7 @@ cdrFilteredEndpoint("/cdr/cidades/saida", {
   from: "cdr_cidades_saida",
   order: "data_hora",
   dateCol: "data_hora",
+  exactFilters: ["status"],
   filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
 });
 

@@ -56,7 +56,7 @@ function Page() {
                 <TableRow key={r.id}>
                   <TableCell className="text-xs">{r.date_time}</TableCell>
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
-                  <TableCell className="font-mono">{r.origem}</TableCell>
+                  <TableCell className="font-mono">{r.agente}</TableCell>
                   <TableCell className="font-mono">{r.destino}</TableCell>
                   <TableCell>{r.tronco || "-"}</TableCell>
                   <TableCell>{r.context}</TableCell>

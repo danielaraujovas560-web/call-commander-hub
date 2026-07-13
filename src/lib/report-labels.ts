@@ -1,6 +1,6 @@
 export const statusOptions = [
   { value: "ANSWER", label: "Atendida" },
-  { value: "NO ANSWER", label: "Não Atendida" },
+  { value: "NOANSWER", label: "Não Atendida" },
   { value: "BUSY", label: "Ocupado" },
   { value: "CANCEL", label: "Cancelada" },
   { value: "CHANUNAVAIL", label: "Canal Indisponível" },
