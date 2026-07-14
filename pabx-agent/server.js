@@ -740,12 +740,12 @@ app.get("/ramais", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT ramal, nome, tronco, ddd, callerid, senha,
-              fixo, movel, ddi, especial, cng, endpoint_id,
-              transbordo, transbordo_tronco
-         FROM ramais
-        WHERE tenant_id = ?
-        ORDER BY ramal`,
+      `SELECT r.ramal, r.nome AS ramal_nome, r.tronco, t.nome AS tronco_nome, r.ddd, r.callerid, r.senha,
+              r.fixo, r.movel, r.ddi, r.especial, r.cng, r.endpoint_id,
+              r.transbordo, r.transbordo_tronco
+         FROM ramais r LEFT JOIN troncos t
+        ON r.tronco = t.id AND r.tenant_id = t.tenant_id
+        WHERE r.tenant_id = ?  ORDER BY ramal`,
       [tenant],
     );
     res.json({

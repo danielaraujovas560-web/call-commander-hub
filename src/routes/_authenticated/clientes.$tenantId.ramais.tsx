@@ -180,8 +180,8 @@ function RamaisPage() {
             {data?.ramais.map((r) => (
               <TableRow key={r.endpoint_id}>
                 <TableCell className="font-mono">{r.ramal}</TableCell>
-                <TableCell>{r.nome ? r.nome.replace(/-/g, " ") : "-"}</TableCell>
-                <TableCell>{r.tronco ?? "-"}</TableCell>
+                <TableCell>{r.ramal_nome ? r.ramal_nome.replace(/-/g, " ") : "-"}</TableCell>
+                <TableCell>{r.tronco_nome ?? "-"}</TableCell>
                 <TableCell>{r.ddd ?? "-"}</TableCell>
                 <TableCell className="font-mono text-xs">{r.callerid ?? "-"}</TableCell>
                 <TableCell>
@@ -510,7 +510,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   });
 
   const initial = () => ({
-    nome: ramal.nome ?? "",
+    nome: ramal.ramal_nome ?? "",
     senha: ramal.senha ?? "",
     tronco: ramal.tronco ?? "",
     ddd: ramal.ddd ?? "",
@@ -562,7 +562,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
       }),
     onSuccess: () => {
       toast.success("Ramal atualizado");
-      queryClient.invalidateQueries({ queryKey: ["endpoint_id", tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
       setOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),

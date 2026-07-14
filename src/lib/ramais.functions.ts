@@ -145,9 +145,8 @@ export const updateRamal = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => RamalUpdateInput.parse(input))
   .handler(async ({ data: input, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const { endpoint_id, data } = input;
-    const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { tenant_id: _t, ...patch } = data;
+    const { endpoint_id, tenant_id, ...patch } = input;
+    const tenantId = await resolveTenantId(context.token, tenant_id);
     const res = await agentFetch<{ ramal: Ramal }>(`/ramais/${endpoint_id}`, {
       method: "PUT",
       tenantId,
@@ -175,7 +174,6 @@ export const deleteRamal = createServerFn({ method: "POST" })
       action: "ramal.delete",
       payload: { id: data.endpoint_id },
     });
-
     return { ok: true };
   });
 
