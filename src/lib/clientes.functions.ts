@@ -11,6 +11,7 @@ export type Cliente = {
   email: string;
   login: string | null;
   quantidade_ramais: number;
+  ativo: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -60,6 +61,7 @@ const updateSchema = z.object({
   razao_social: z.string().trim().min(1).max(180).optional(),
   email: z.string().trim().email().max(255).optional(),
   quantidade_ramais: z.number().int().min(0).max(10000).optional(),
+  ativo: z.boolean().optional(),
 });
 
 export const updateCliente = createServerFn({ method: "POST" })

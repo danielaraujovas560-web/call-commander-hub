@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { pingAgent, getMyTenant } from "@/lib/ramais.functions";
@@ -6,8 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Server } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/servidor")({
+export const Route = createFileRoute("/_authenticated/admin/servidor")({
   head: () => ({ meta: [{ title: "Servidor — Painel PABX" }] }),
+  beforeLoad: ({ context }) => {
+    if (context.user?.role !== "admin") {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   component: ServidorPage,
 });
 

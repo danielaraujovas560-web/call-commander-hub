@@ -12,11 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedServidorRouteImport } from './routes/_authenticated/servidor'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes.index'
 import { Route as AuthenticatedClientesTenantIdRouteImport } from './routes/_authenticated/clientes.$tenantId'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
+import { Route as AuthenticatedAdminServidorRouteImport } from './routes/_authenticated/admin.servidor'
 import { Route as AuthenticatedClientesTenantIdIndexRouteImport } from './routes/_authenticated/clientes.$tenantId.index'
 import { Route as AuthenticatedClientesTenantIdUrasRouteImport } from './routes/_authenticated/clientes.$tenantId.uras'
 import { Route as AuthenticatedClientesTenantIdTroncosRouteImport } from './routes/_authenticated/clientes.$tenantId.troncos'
@@ -49,11 +49,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedServidorRoute = AuthenticatedServidorRouteImport.update({
-  id: '/servidor',
-  path: '/servidor',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -75,6 +70,12 @@ const AuthenticatedAdminUsuariosRoute =
   AuthenticatedAdminUsuariosRouteImport.update({
     id: '/admin/usuarios',
     path: '/admin/usuarios',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminServidorRoute =
+  AuthenticatedAdminServidorRouteImport.update({
+    id: '/admin/servidor',
+    path: '/admin/servidor',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedClientesTenantIdIndexRoute =
@@ -184,7 +185,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/servidor': typeof AuthenticatedServidorRoute
+  '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
   '/clientes/': typeof AuthenticatedClientesIndexRoute
@@ -210,7 +211,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/servidor': typeof AuthenticatedServidorRoute
+  '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
   '/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
@@ -237,7 +238,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/servidor': typeof AuthenticatedServidorRoute
+  '/_authenticated/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
@@ -265,7 +266,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
-    | '/servidor'
+    | '/admin/servidor'
     | '/admin/usuarios'
     | '/clientes/$tenantId'
     | '/clientes/'
@@ -291,7 +292,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
-    | '/servidor'
+    | '/admin/servidor'
     | '/admin/usuarios'
     | '/clientes'
     | '/clientes/$tenantId/audios'
@@ -317,7 +318,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
-    | '/_authenticated/servidor'
+    | '/_authenticated/admin/servidor'
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/clientes/$tenantId'
     | '/_authenticated/clientes/'
@@ -369,13 +370,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/servidor': {
-      id: '/_authenticated/servidor'
-      path: '/servidor'
-      fullPath: '/servidor'
-      preLoaderRoute: typeof AuthenticatedServidorRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -402,6 +396,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/usuarios'
       fullPath: '/admin/usuarios'
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/servidor': {
+      id: '/_authenticated/admin/servidor'
+      path: '/admin/servidor'
+      fullPath: '/admin/servidor'
+      preLoaderRoute: typeof AuthenticatedAdminServidorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clientes/$tenantId/': {
@@ -591,7 +592,7 @@ const AuthenticatedClientesTenantIdRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedServidorRoute: typeof AuthenticatedServidorRoute
+  AuthenticatedAdminServidorRoute: typeof AuthenticatedAdminServidorRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedClientesTenantIdRoute: typeof AuthenticatedClientesTenantIdRouteWithChildren
   AuthenticatedClientesIndexRoute: typeof AuthenticatedClientesIndexRoute
@@ -599,7 +600,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedServidorRoute: AuthenticatedServidorRoute,
+  AuthenticatedAdminServidorRoute: AuthenticatedAdminServidorRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedClientesTenantIdRoute:
     AuthenticatedClientesTenantIdRouteWithChildren,

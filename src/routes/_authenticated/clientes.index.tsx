@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Building2, LogIn, Pencil, Plus, Trash2 } from "lucide-react";
 import { ShapeConfirmDialog } from "@/components/shape-confirm-dialog";
 
@@ -83,6 +84,7 @@ function ClientesPage() {
               <TableHead>Tenant</TableHead>
               <TableHead>Email</TableHead>
               <TableHead className="text-right">Ramais</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -90,7 +92,7 @@ function ClientesPage() {
             {isLoading &&
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((_, j) => (
+                  {Array.from({ length: 7 }).map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -101,7 +103,7 @@ function ClientesPage() {
             {!isLoading && clientes.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-center text-muted-foreground py-10"
                 >
                   Nenhum cliente cadastrado ainda.
@@ -110,12 +112,21 @@ function ClientesPage() {
             )}
 
             {clientes.map((c) => (
-              <TableRow key={c.id}>
+              <TableRow key={c.id} className={c.ativo ? "" : "opacity-60"}>
                 <TableCell className="font-medium">{c.razao_social}</TableCell>
                 <TableCell className="font-mono text-xs">{c.cnpj}</TableCell>
                 <TableCell>#{c.tenant_id}</TableCell>
                 <TableCell className="font-mono text-xs">{c.email}</TableCell>
                 <TableCell className="text-right">{c.quantidade_ramais}</TableCell>
+                <TableCell>
+                  {isAdmin ? (
+                    <ToggleAtivoBadge cliente={c} onDone={invalidate} />
+                  ) : (
+                    <Badge variant={c.ativo ? "default" : "secondary"}>
+                      {c.ativo ? "Ativo" : "Inativo"}
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
                     <Button asChild size="sm" variant="outline">
@@ -141,6 +152,36 @@ function ClientesPage() {
         </Table>
       </div>
     </div>
+  );
+}
+
+function ToggleAtivoBadge({
+  cliente,
+  onDone,
+}: {
+  cliente: Cliente;
+  onDone: () => void;
+}) {
+  const fn = useServerFn(updateCliente);
+  const mut = useMutation({
+    mutationFn: () => fn({ data: { id: cliente.id, ativo: !cliente.ativo } }),
+    onSuccess: () => {
+      toast.success(cliente.ativo ? "Cliente inativado" : "Cliente ativado");
+      onDone();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <button
+      type="button"
+      onClick={() => mut.mutate()}
+      disabled={mut.isPending}
+      className="cursor-pointer disabled:opacity-50"
+    >
+      <Badge variant={cliente.ativo ? "default" : "secondary"}>
+        {mut.isPending ? "..." : cliente.ativo ? "Ativo" : "Inativo"}
+      </Badge>
+    </button>
   );
 }
 

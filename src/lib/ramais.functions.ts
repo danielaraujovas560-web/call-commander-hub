@@ -124,7 +124,7 @@ export const createRamal = createServerFn({ method: "POST" })
 
 
 const RamalUpdateInput = z.object({
-  id: z.number().int().positive(),
+  endpoint_id: z.string(),
   tenant_id: z.number().int().positive().optional(),
   nome: z.coerce.string().trim().max(80).optional(),
   senha: z.coerce.string().max(64).optional(),
@@ -143,11 +143,12 @@ const RamalUpdateInput = z.object({
 export const updateRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) => RamalUpdateInput.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: input, context }) => {
     const { agentFetch } = await import("./agent.server");
+    const { endpoint_id, data } = input;
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _t, ...patch } = data;
-    const res = await agentFetch<{ ramal: Ramal }>(`/ramais/${id}`, {
+    const { tenant_id: _t, ...patch } = data;
+    const res = await agentFetch<{ ramal: Ramal }>(`/ramais/${endpoint_id}`, {
       method: "PUT",
       tenantId,
       body: patch,
@@ -155,7 +156,7 @@ export const updateRamal = createServerFn({ method: "POST" })
     await writeAuditLog(context.token, {
       tenant_id: tenantId,
       action: "ramal.update",
-      payload: { id, patch },
+      payload: { endpoint_id, patch },
     });
     return res;
   });
@@ -163,16 +164,16 @@ export const updateRamal = createServerFn({ method: "POST" })
 export const deleteRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(input),
+    z.object({ endpoint_id: z.string(), tenant_id: z.number().int().positive().optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/ramais/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/ramais/${data.endpoint_id}`, { method: "DELETE", tenantId });
     await writeAuditLog(context.token, {
       tenant_id: tenantId,
       action: "ramal.delete",
-      payload: { id: data.id },
+      payload: { id: data.endpoint_id },
     });
 
     return { ok: true };

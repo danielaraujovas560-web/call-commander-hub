@@ -30,7 +30,7 @@ function Dashboard() {
           </Card>
         </Link>
         {isAdmin && (
-          <Link to="/servidor">
+          <Link to="/admin/servidor">
             <Card className="transition-shadow hover:shadow-md">
               <CardHeader>
                 <Server className="h-8 w-8 text-primary" />

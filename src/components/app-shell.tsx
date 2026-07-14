@@ -49,7 +49,7 @@ const mainNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { to: "/admin/usuarios", label: "Usuários", icon: ShieldCheck },
-  { to: "/servidor", label: "Servidor", icon: Server, adminOnly: true },
+  { to: "/admin/servidor", label: "Servidor", icon: Server, adminOnly: true },
 ];
 
 function matchClienteRoute(pathname: string): string | null {

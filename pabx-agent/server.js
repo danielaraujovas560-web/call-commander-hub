@@ -462,7 +462,7 @@ app.get("/clientes", requireJwt, async (req, res) => {
   try {
     if (req.role === "admin") {
       const [rows] = await pool.query("SELECT * FROM clientes ORDER BY created_at DESC");
-      return res.json({ clientes: rows });
+      return res.json({ clientes: rows.map((c) => ({ ...c, ativo: !!c.ativo })) });
     }
     const [rows] = await pool.query(
       `SELECT c.* FROM clientes c
@@ -471,7 +471,7 @@ app.get("/clientes", requireJwt, async (req, res) => {
        ORDER BY c.created_at DESC`,
       [req.userId],
     );
-    res.json({ clientes: rows });
+    res.json({ clientes: rows.map((c) => ({ ...c, ativo: !!c.ativo })) });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -507,7 +507,7 @@ app.post("/clientes", requireJwt, requireAdmin, async (req, res) => {
 });
 
 app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
-  const { cnpj, razao_social, email, quantidade_ramais } = req.body || {};
+  const { cnpj, razao_social, email, quantidade_ramais, ativo } = req.body || {};
   const sets = [];
   const vals = [];
   if (cnpj !== undefined) {
@@ -525,6 +525,10 @@ app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
   if (quantidade_ramais !== undefined) {
     sets.push("quantidade_ramais = ?");
     vals.push(Number(quantidade_ramais));
+  }
+  if (ativo !== undefined) {
+    sets.push("ativo = ?");
+    vals.push(ativo ? 1 : 0);
   }
   if (!sets.length) return res.json({ ok: true });
   try {
@@ -645,7 +649,8 @@ app.get("/clientes/by-tenant/:tenantId", requireJwt, async (req, res) => {
       if (!linked) return res.status(403).json({ error: "Sem permissão para este tenant." });
     }
     const [rows] = await pool.query("SELECT * FROM clientes WHERE tenant_id = ? LIMIT 1", [tenantId]);
-    res.json({ cliente: rows[0] || null });
+    const cliente = rows[0] ? { ...rows[0], ativo: !!rows[0].ativo } : null;
+    res.json({ cliente });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -735,7 +740,7 @@ app.get("/ramais", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT id, ramal, nome, tronco, ddd, callerid, senha,
+      `SELECT ramal, nome, tronco, ddd, callerid, senha,
               fixo, movel, ddi, especial, cng, endpoint_id,
               transbordo, transbordo_tronco
          FROM ramais
@@ -791,14 +796,14 @@ app.post("/ramais", async (req, res) => {
       [endpointId, endpointId, authId, String(tenant), String(tenant)],
     );
     await conn.query(
-      `INSERT INTO ramais (tenant_id, nome, ramal, endpoint_id, senha, tronco, ddd, callerid,
+      `INSERT INTO ramais (endpoint_id, tenant_id, nome, ramal, senha, tronco, ddd, callerid,
                            fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        endpointId,
         tenant,
         nome,
         ramal,
-        endpointId,
         senha,
         tronco,
         String(ddd),
@@ -841,22 +846,18 @@ app.post("/ramais", async (req, res) => {
   }
 });
 
-app.put("/ramais/:id", async (req, res) => {
+app.put("/ramais/:endpoint_id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
-  if (!id) return res.status(400).json({ error: "id inválido" });
+  const endpointId = req.params.endpoint_id;
+  if (!endpointId) {
+    return res.status(400).json({ error: "endpoint inválido" });
+  }
   const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco } =
     req.body || {};
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT endpoint_id FROM ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
-    if (rows.length === 0) {
-      await conn.rollback();
-      return res.status(404).json({ error: "Ramal não encontrado" });
-    }
-    const endpointId = rows[0].endpoint_id;
     const authId = `auth-${endpointId}`;
 
     const sets = [];
@@ -909,7 +910,7 @@ app.put("/ramais/:id", async (req, res) => {
     }
 
     if (sets.length > 0) {
-      await conn.query(`UPDATE ramais SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [...vals, id, tenant]);
+      await conn.query(`UPDATE ramais SET ${sets.join(", ")} WHERE endpoint_id = ? AND tenant_id = ?`, [...vals, endpointId, tenant]);
     }
     if (senha !== undefined) {
       await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, authId]);
@@ -925,25 +926,21 @@ app.put("/ramais/:id", async (req, res) => {
   }
 });
 
-app.delete("/ramais/:id", async (req, res) => {
+app.delete("/ramais/:endpoint_id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
-  if (!id) return res.status(400).json({ error: "id inválido" });
+  const endpointId = req.params.endpoint_id;
+  if (!endpointId) {
+    return res.status(400).json({ error: "endpoint inválido"});
+  }
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT endpoint_id FROM ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
-    if (rows.length === 0) {
-      await conn.rollback();
-      return res.status(404).json({ error: "Ramal não encontrado" });
-    }
-    const endpointId = rows[0].endpoint_id;
     const authId = `auth-${endpointId}`;
     await conn.query(`DELETE FROM ps_endpoints WHERE id = ?`, [endpointId]);
     await conn.query(`DELETE FROM ps_auths     WHERE id = ?`, [authId]);
     await conn.query(`DELETE FROM ps_aors      WHERE id = ?`, [endpointId]);
-    await conn.query(`DELETE FROM ramais       WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    await conn.query(`DELETE FROM ramais       WHERE endpoint_id = ? AND tenant_id = ?`, [endpointId, tenant]);
     await conn.commit();
     amiPjsipReload();
     res.json({ ok: true });
@@ -1259,6 +1256,16 @@ app.put("/troncos/:id", async (req, res) => {
       ],
     );
 
+    if (newNome !== t.nome) {
+      await conn.query(
+        `UPDATE ramais
+         SET tronco = ?
+         WHERE tenant_id = ?
+         AND tronco = ?`,
+        [newNome, tenant, t.nome],
+  );
+}
+
     await conn.commit();
     amiPjsipReload();
     res.json({ ok: true, tronco_pjsip: newPjsip });
@@ -1364,7 +1371,7 @@ function cdrFilteredEndpoint(p, cfg) {
       if (v !== undefined && v !== null && String(v).trim() !== "") {
           if (exactFilters.has(key)) {
           where.push(`${col} = ?`);
-          vals.push(`%${String(v).trim()}%`);
+          vals.push(`${String(v).trim()}`);
         } else {
            where.push(`${col} LIKE ?`);
            vals.push(`%${String(v).trim()}%`);
@@ -1405,8 +1412,8 @@ cdrFilteredEndpoint("/cdr/entrada", {
   filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/ramal", {
-  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, c.destino, COALESCE(r.nome, c.origem) AS agente, c.tronco, c.status, c.duracao, c.date_time",
-  from: "cdr_ramal c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.origem",
+  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, c.destino, COALESCE(r.nome, c.origem) AS agente, t.nome, c.status, c.duracao, c.date_time",
+  from: "cdr_ramal c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.origem LEFT JOIN troncos t ON t.id = c.tronco",
   order: "c.date_time",
   dateCol: "c.date_time",
   tenantCol: "c.tenant_id",

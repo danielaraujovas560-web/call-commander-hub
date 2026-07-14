@@ -95,7 +95,7 @@ function RamaisPage() {
 
   const del = useServerFn(deleteRamal);
   const delMut = useMutation({
-    mutationFn: (id: number) => del({ data: { id, tenant_id: tenantId } }),
+    mutationFn: (endpoint_id: string) => del({ data: { endpoint_id, tenant_id: tenantId } }),
     onSuccess: () => {
       toast.success("Ramal removido");
       queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
@@ -178,7 +178,7 @@ function RamaisPage() {
             )}
 
             {data?.ramais.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.endpoint_id}>
                 <TableCell className="font-mono">{r.ramal}</TableCell>
                 <TableCell>{r.nome ? r.nome.replace(/-/g, " ") : "-"}</TableCell>
                 <TableCell>{r.tronco ?? "-"}</TableCell>
@@ -201,7 +201,7 @@ function RamaisPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <EditRamalDialog key={`${r.id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`} tenantId={tenantId} ramal={r} />
+                    <EditRamalDialog key={`${r.endpoint_id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`} tenantId={tenantId} ramal={r} />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -217,7 +217,7 @@ function RamaisPage() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => delMut.mutate(r.id)}>
+                          <AlertDialogAction onClick={() => delMut.mutate(r.endpoint_id)}>
                             Remover
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -542,7 +542,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     mutationFn: () =>
       update({
         data: {
-          id: ramal.id,
+          endpoint_id: ramal.endpoint_id,
           tenant_id: tenantId,
           nome: form.nome,
           senha: form.senha,
@@ -562,7 +562,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
       }),
     onSuccess: () => {
       toast.success("Ramal atualizado");
-      queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["endpoint_id", tenantId] });
       setOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
