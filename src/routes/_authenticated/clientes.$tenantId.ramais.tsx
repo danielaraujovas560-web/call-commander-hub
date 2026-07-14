@@ -627,7 +627,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
               </SelectTrigger>
               <SelectContent>
                 {troncos.map((t) => (
-                  <SelectItem key={t.id} value={t.nome}>
+                  <SelectItem key={t.id} value={t.tronco}>
                     {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}
