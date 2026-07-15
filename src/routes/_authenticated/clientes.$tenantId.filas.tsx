@@ -83,7 +83,8 @@ function FilasPage() {
               <TableHead>Nome</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Estratégia</TableHead>
-              <TableHead>Timeout</TableHead>
+              <TableHead>Timeout Agente</TableHead>
+              <TableHead>Timeout Fila</TableHead>
               <TableHead>Agentes</TableHead>
               <TableHead>Ativa</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -98,6 +99,7 @@ function FilasPage() {
                 <TableCell>{f.description ?? "-"}</TableCell>
                 <TableCell>{f.strategy ? (STRATEGY_LABELS[f.strategy] || f.strategy) : "-"}</TableCell>
                 <TableCell>{f.timeout ?? "-"}</TableCell>
+                <TableCell>{f.fila_timeout ?? "-"}</TableCell>
                 <TableCell>{f.membros}</TableCell>
                 <TableCell><Badge variant={f.active ? "default" : "secondary"}>{f.active ? "Sim" : "Não"}</Badge></TableCell>
                 <TableCell className="text-right">
@@ -272,6 +274,8 @@ function FilaFormDialog({
     description: fila?.description ?? "",
     strategy: (fila?.strategy as string) ?? "ringall",
     timeout: fila?.timeout ?? 15,
+    retry: fila?.retry ?? 5,
+    fila_timeout: fila?.fila_timeout ?? 30,
     active: fila?.active ?? true,
   });
 
@@ -282,6 +286,8 @@ function FilaFormDialog({
         description: fila?.description ?? "",
         strategy: (fila?.strategy as string) ?? "ringall",
         timeout: fila?.timeout ?? 15,
+        retry: fila?.retry ?? 5,
+        fila_timeout: fila?.fila_timeout ?? 30,
         active: fila?.active ?? true,
       });
     }
@@ -298,6 +304,8 @@ function FilaFormDialog({
         description: form.description,
         strategy: form.strategy as "ringall" | "rrmemory" | "leastrecent" | "fewestcalls" | "random",
         timeout: Number(form.timeout) || 0,
+        fila_timeout: Number(form.fila_timeout) || 0,
+        retry: Number(form.retry) || 0,
         active: form.active,
       };
       return editing ? updateFn({ data: { id: fila!.id, ...body } }) : createFn({ data: body });
@@ -327,8 +335,8 @@ function FilaFormDialog({
           <div className="space-y-1"><Label>Descrição</Label>
             <Input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={255} />
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1"><Label>Estratégia</Label>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2 space-y-1"><Label>Estratégia</Label>
               <Select value={form.strategy} onValueChange={(v) => setForm({ ...form, strategy: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione a estratégia" /></SelectTrigger>
                 <SelectContent>
@@ -338,14 +346,24 @@ function FilaFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1"><Label>Timeout (s)</Label>
+            <label className="flex items-end gap-2 text-sm pb-2 justify-end cursor-pointer">
+                <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+                <span>Ativa</span>
+              </label>
+            </div>
+            <div className="grid grid-cols-3 gap-3 border-t pt-3">
+            <div className="space-y-1"><Label title="Tempo de toque máximo no agente">Timeout Agente</Label>
               <Input type="number" min={0} max={3600} value={form.timeout ?? 0}
                      onChange={(e) => setForm({ ...form, timeout: Number(e.target.value) })} />
             </div>
-            <label className="flex items-end gap-2 text-sm pb-2">
-              <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
-              Ativa
-            </label>
+            <div className="space-y-1"><Label title="Tempo de espera para rediscar no Agente">Intervalo (s)</Label>
+            <Input type="number" min={0} max={3600} value={form.retry ?? 0}
+                   onChange={(e) => setForm({ ...form, retry: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-1"><Label title="Tempo máximo da fila">Timeout fila</Label>
+            <Input type="number" min={0} max={86400} value={form.fila_timeout ?? 0}
+                   onChange={(e) => setForm({ ...form, fila_timeout: Number(e.target.value) })} />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

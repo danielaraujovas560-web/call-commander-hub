@@ -43,7 +43,7 @@ const {
   AGENT_SECRET,
   SIGNATURE_WINDOW = "300",
   PORT = "8787",
-  URA_SOUNDS_BASE = "/var/lib/asterisk/sounds/ura",
+  URA_SOUNDS_BASE = "/var/lib/asterisk/sounds/",
   SOX_BIN = "sox",
   AUDIO_UPLOAD_LIMIT = "1gb",
   ASTERISK_BIN = "asterisk",
@@ -703,7 +703,7 @@ function asteriskRx(cmd) {
 app.get("/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "ok", version: "1.5.0", db: "ok" });
+    res.json({ status: "ok", version: "1.7.0", db: "ok" });
   } catch (e) {
     res.status(500).json({ status: "error", error: String(e.message || e) });
   }
@@ -1462,8 +1462,8 @@ app.get("/filas", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT f.id, f.name, f.display_name, f.description, f.active,
-              q.strategy, q.timeout, q.maxlen, q.musiconhold,
+      `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.active,
+              q.strategy, q.timeout, q.retry, q.maxlen, q.musiconhold,
               (SELECT COUNT(*) FROM filas_agentes fa
                  WHERE fa.tenant_id = f.tenant_id AND fa.queue = f.name) AS membros
          FROM filas f
@@ -1621,6 +1621,8 @@ app.post("/filas", async (req, res) => {
     description,
     strategy = "ringall",
     timeout = 15,
+    retry = 5,
+    fila_timeout,
     active = true,
   } = req.body || {};
   if (!display_name) {
@@ -1647,15 +1649,15 @@ app.post("/filas", async (req, res) => {
     await ensureMoh(conn, tenant);
 
     await conn.query(
-      `INSERT INTO filas (tenant_id, name, display_name, description, active)
-       VALUES (?, ?, ?, ?, ?)`,
-      [String(tenant), name, display_name, description || null, active ? 1 : 0],
+      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, active)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [String(tenant), name, display_name, fila_timeout || null, description || null, active ? 1 : 0],
     );
 
     await conn.query(
-      `INSERT INTO queues (tenant_id, name, musiconhold, strategy, timeout)
-       VALUES (?, ?, 'musiconhold-default', ?, ?)`,
-      [String(tenant), name, strategy, Number(timeout) || 0],
+      `INSERT INTO queues (tenant_id, name, musiconhold, strategy, timeout, retry)
+       VALUES (?, ?, 'musiconhold-default', ?, ?, ?)`,
+      [String(tenant), name, strategy, Number(timeout) || 0, Number(retry)],
     );
 
     await conn.commit();
@@ -1674,7 +1676,7 @@ app.put("/filas/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
-  const { display_name, description, strategy, timeout, active } = req.body || {};
+  const { display_name, description, strategy, timeout, fila_timeout, retry, active } = req.body || {};
   if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
     return res.status(400).json({ error: "Estratégia inválida" });
   }
@@ -1705,10 +1707,11 @@ app.put("/filas/:id", async (req, res) => {
     }
 
     await conn.query(
-      `UPDATE filas SET display_name = ?, description = ?, active = ?, name = ?
+      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, active = ?, name = ?
         WHERE id = ? AND tenant_id = ?`,
       [
         newDisplay,
+        fila_timeout !== undefined ? Number(fila_timeout) : f.fila_timeout,
         description ?? f.description,
         active === undefined ? f.active : active ? 1 : 0,
         newName,
@@ -1731,6 +1734,7 @@ app.put("/filas/:id", async (req, res) => {
       const vals = [];
       if (strategy !== undefined) { sets.push("strategy = ?"); vals.push(strategy); }
       if (timeout !== undefined) { sets.push("timeout = ?"); vals.push(Number(timeout) || 0); }
+      if (retry !== undefined) { sets.push("retry = ?"); vals.push(Number(retry) || 0); }
       await conn.query(`UPDATE queues SET ${sets.join(", ")} WHERE tenant_id = ? AND name = ?`, [
         ...vals, String(tenant), newName,
       ]);

@@ -15,6 +15,8 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relator
   component: Page,
 });
 
+// clientes.$tenantId.relatorios.filas.tsx
+
 function Page() {
   const { tenantId: p } = Route.useParams();
   const tenantId = Number(p);
@@ -25,6 +27,16 @@ function Page() {
     queryFn: () => fn({ data: { tenant_id: tenantId, ...f } }),
   });
   const rows = data?.rows ?? [];
+
+  const filaOptions = [
+    ...new Map(
+     rows.map((r) => [
+        r.display_name,
+        { value: r.display_name, label: r.display_name },
+      ])
+    ).values(),
+  ];
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -35,6 +47,7 @@ function Page() {
         fields={[
           { key: "linkedid", label: "Linked ID" },
           { key: "origem", label: "Agente" },
+          { key: "fila", label: "Fila", options: filaOptions },
           { key: "status", label: "Evento", options: eventOptions },
           { key: "from", label: "De", type: "datetime-local" },
           { key: "to", label: "Até", type: "datetime-local" },

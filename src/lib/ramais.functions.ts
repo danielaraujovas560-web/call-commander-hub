@@ -742,6 +742,8 @@ const FilaInput = z.object({
   description: z.coerce.string().trim().max(255).optional().or(z.literal("")),
   strategy: z.enum(["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"]).default("ringall"),
   timeout: z.coerce.number().int().min(0).max(3600).default(15),
+  fila_timeout: z.coerce.number().int().min(0).max(3600).default(0),
+  retry: z.coerce.number().int().min(0).max(3600).default(5),
   active: z.boolean().default(true),
 });
 const FilaUpdate = FilaInput.partial().extend({

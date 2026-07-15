@@ -9,6 +9,7 @@ export interface ReportFilterValues {
   origem?: string;
   destino?: string;
   status?: string;
+  fila?: string;
   from?: string;
   to?: string;
 }
