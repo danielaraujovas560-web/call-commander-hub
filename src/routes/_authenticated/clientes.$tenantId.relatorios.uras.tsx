@@ -50,10 +50,10 @@ function Page() {
               {rows.map((r: any) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
-                  <TableCell>{r.nome_ura}</TableCell>
+                  <TableCell>{r.nome}</TableCell>
                   <TableCell className="font-mono">{r.num_did}</TableCell>
                   <TableCell className="font-mono">{r.opcao}</TableCell>
-                  <TableCell>{r.dest_op} → {r.dest_nome}</TableCell>
+                  <TableCell>{r.dest_op} → {r.destino_nome}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

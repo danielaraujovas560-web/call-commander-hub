@@ -1412,7 +1412,7 @@ cdrFilteredEndpoint("/cdr/entrada", {
   filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/ramal", {
-  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, c.destino, COALESCE(r.nome, c.origem) AS agente, t.nome, c.status, c.duracao, c.date_time",
+  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, c.destino, COALESCE(r.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.duracao, c.date_time",
   from: "cdr_ramal c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.origem LEFT JOIN troncos t ON t.id = c.tronco",
   order: "c.date_time",
   dateCol: "c.date_time",
@@ -1421,18 +1421,23 @@ cdrFilteredEndpoint("/cdr/ramal", {
   filters: { linkedid: "c.linkedid", origem: "c.origem", destino: "c.destino", status: "c.status" },
 });
 cdrFilteredEndpoint("/cdr/fila", {
-  select: "id, linkedid, nome_fila, agente, ramal, evento, motivo, time_data",
-  from: "cdr_fila",
-  order: "time_data",
-  dateCol: "time_data",
+  select: "c.id, c.linkedid, f.display_name, c.agente, c.evento, c.motivo, c.time_data",
+  from: "cdr_fila c LEFT JOIN filas f ON c.tenant_id = f.tenant_id AND c.nome_fila = f.id",
+  order: "c.time_data",
+  dateCol: "c.time_data",
+  tenantCol: "c.tenant_id",
   exactFilters: ["status"],
   filters: { linkedid: "linkedid", origem: "agente", destino: "ramal", status: "evento" },
 });
 cdrFilteredEndpoint("/cdr/ura", {
-  select: "id, linkedid, num_did, nome_ura, opcao, dest_op, dest_nome",
-  from: "cdr_ura",
-  order: "id",
-  filters: { linkedid: "linkedid", origem: "num_did", destino: "dest_op", status: "nome_ura" },
+  select: "c.id, c.linkedid, c.num_did, u.nome, c.opcao, c.dest_op, COALESCE(r.nome, f.display_name, u2.nome, c.dest_nome) AS destino_nome",
+  from: `cdr_ura c LEFT JOIN uras u ON c.tenant_id = u.tenant_id AND u.id = c.nome_ura
+  LEFT JOIN ramais r ON c.dest_op = 'RAMAL' AND r.tenant_id = c.tenant_id AND r.ramal = c.dest_nome
+  LEFT JOIN filas f ON c.dest_op = 'FILA' AND f.tenant_id = c.tenant_id AND f.id = c.dest_nome
+  LEFT JOIN uras u2 ON c.dest_op = 'URA' AND u2.tenant_id = c.tenant_id AND u2.id = c.dest_nome`,
+  order: "c.id",
+  tenantCol: "c.tenant_id",
+  filters: { linkedid: "c.linkedid", origem: "c.num_did", destino: "c.dest_op", status: "u.nome" },
 });
 cdrFilteredEndpoint("/cdr/cidades/entrada", {
   select: "id, ddd, numero, sigla_estado, estado, data_hora",

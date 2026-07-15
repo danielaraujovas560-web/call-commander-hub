@@ -375,7 +375,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
               </SelectTrigger>
               <SelectContent>
                 {troncos.map((t) => (
-                  <SelectItem key={t.id} value={t.nome}>
+                  <SelectItem key={t.id} value={String(t.id)}>
                     {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}
@@ -512,7 +512,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   const initial = () => ({
     nome: ramal.ramal_nome ?? "",
     senha: ramal.senha ?? "",
-    tronco: ramal.tronco ?? "",
+    tronco: ramal.tronco != null ? String(ramal.tronco) : "",
     ddd: ramal.ddd ?? "",
     callerid: ramal.callerid ?? "",
     fixo: ramal.fixo,
@@ -627,7 +627,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
               </SelectTrigger>
               <SelectContent>
                 {troncos.map((t) => (
-                  <SelectItem key={t.id} value={t.tronco}>
+                  <SelectItem key={t.id} value={String(t.id)}>
                     {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}

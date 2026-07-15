@@ -10,15 +10,18 @@ export const statusOptions = [
 ] as const;
 
 export const eventOptions = [
-  { value: "ATENDEU", label: "Atendida" },
-  { value: "NAO_ATENDEU", label: "Não Atendida" },
+  { value: "AGENTE_ATENDEU", label: "Atendida" },
+  { value: "AGENTE_NAO_ATENDEU", label: "Não atendida" },
+  { value: "AGENTE_TIMEOUT", label: "Timeout" },
+  { value: "AGENTE_RECUSOU", label: "Recusada" },
+  { value: "AGENTE_OCUPADO", label: "Ocupado" },
 ] as const;
 
 export const reasonOptions = [
-  { value: "OUTRO_AGENTE_ATENDEU", label: "Atendido por outro agente" },
-  { value: "RAMAL_DESLIGADO", label: "Agente desligado" },
-  { value: "CLIENTE_DESLIGOU", label: "Desligado pelo cliente" },
-  { value: "AGENTE_DESLIGOU", label: "Desligado pelo agente" },
+  { value: "OUTRO_ATENDEU", label: "Atendido por outro agente" },
+  { value: "ATENDIDA_AGENTE", label: "Atendida pelo agente" },
+  { value: "CHAMOU_MAX", label: "Agente não atendeu no tempo da fila" },
+  { value: "RECUSOU_CHAMADA", label: "Agente recusou a chamada na fila" },
   { value: "OCUPADO", label: "Agente Ocupado" },
 ] as const;
 

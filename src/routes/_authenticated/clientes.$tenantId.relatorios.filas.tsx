@@ -35,7 +35,6 @@ function Page() {
         fields={[
           { key: "linkedid", label: "Linked ID" },
           { key: "origem", label: "Agente" },
-          { key: "destino", label: "Ramal" },
           { key: "status", label: "Evento", options: eventOptions },
           { key: "from", label: "De", type: "datetime-local" },
           { key: "to", label: "Até", type: "datetime-local" },
@@ -47,7 +46,7 @@ function Page() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead><TableHead>Linked ID</TableHead><TableHead>Fila</TableHead><TableHead>Agente</TableHead>
-                <TableHead>Ramal</TableHead><TableHead>Evento</TableHead><TableHead>Motivo</TableHead>
+                <TableHead>Evento</TableHead><TableHead>Motivo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -55,11 +54,10 @@ function Page() {
                 <TableRow key={r.id}>
                   <TableCell className="text-xs">{r.time_data}</TableCell>
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
-                  <TableCell>{r.nome_fila}</TableCell>
+                  <TableCell>{r.display_name}</TableCell>
                   <TableCell>{r.agente}</TableCell>
-                  <TableCell className="font-mono">{r.ramal}</TableCell>
                   <TableCell>
-                    <Badge variant={r.evento === "ATENDEU" ? "default" : "secondary"}>{getEventLabel(r.evento)}</Badge>
+                    <Badge variant={r.evento === "AGENTE_ATENDEU" ? "default" : "secondary"}>{getEventLabel(r.evento)}</Badge>
                   </TableCell>
                   <TableCell className="text-xs">{getReasonLabel(r.motivo)}</TableCell>
                 </TableRow>

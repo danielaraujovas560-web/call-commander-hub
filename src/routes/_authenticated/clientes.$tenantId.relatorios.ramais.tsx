@@ -58,7 +58,7 @@ function Page() {
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
                   <TableCell className="font-mono">{r.agente}</TableCell>
                   <TableCell className="font-mono">{r.destino}</TableCell>
-                  <TableCell>{r.nome || "-"}</TableCell>
+                  <TableCell>{r.tronco || "-"}</TableCell>
                   <TableCell>{r.context}</TableCell>
                   <TableCell>{r.tipo_chamada}</TableCell>
                   <TableCell className="font-mono">{r.duracao}</TableCell>
