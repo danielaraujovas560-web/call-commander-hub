@@ -34,7 +34,7 @@ function Page() {
         fields={[
           { key: "linkedid", label: "Unique ID" },
           { key: "origem", label: "Número origem" },
-          { key: "destino", label: "Ramal" },
+          { key: "destino", label: "Agente" },
           { key: "status", label: "Fila" },
           { key: "from", label: "De", type: "datetime-local" },
           { key: "to", label: "Até", type: "datetime-local" },
@@ -46,7 +46,7 @@ function Page() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead><TableHead>Unique ID</TableHead><TableHead>Origem</TableHead><TableHead>Fila</TableHead>
-                <TableHead>Agente</TableHead><TableHead>Ramal</TableHead>
+                <TableHead>Agente</TableHead>
                 <TableHead>Pergunta</TableHead><TableHead>Nota</TableHead>
               </TableRow>
             </TableHeader>
@@ -56,9 +56,8 @@ function Page() {
                   <TableCell className="text-xs">{r.data}</TableCell>
                   <TableCell className="font-mono text-xs">{r.unique_id}</TableCell>
                   <TableCell className="font-mono">{r.numero_origem}</TableCell>
-                  <TableCell>{r.nome_fila}</TableCell>
+                  <TableCell>{r.fila}</TableCell>
                   <TableCell>{r.agente}</TableCell>
-                  <TableCell className="font-mono">{r.ramal}</TableCell>
                   <TableCell>#{r.pergunta_id}</TableCell>
                   <TableCell><Badge>{r.nota}</Badge></TableCell>
                 </TableRow>

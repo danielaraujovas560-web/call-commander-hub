@@ -136,6 +136,7 @@ const RamalUpdateInput = z.object({
   ddi: z.boolean().optional(),
   especial: z.boolean().optional(),
   cng: z.boolean().optional(),
+  gravacao: z.boolean().optional(),
   transbordo: z.boolean().optional(),
   transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")).or(z.null()),
 });

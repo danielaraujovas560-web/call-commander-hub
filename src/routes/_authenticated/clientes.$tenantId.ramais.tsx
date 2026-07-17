@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { OnlineBadge } from "@/components/online-badge";
+import { RecordingBadge } from "@/components/recording-badge";
 import {
   Eye,
   EyeOff,
@@ -154,6 +155,7 @@ function RamaisPage() {
               <TableHead>Sem Permissão Lig/</TableHead>
               <TableHead>Senha</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Gravação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -198,6 +200,9 @@ function RamaisPage() {
                 </TableCell>
                 <TableCell>
                   <OnlineBadge state={statusData?.endpoints?.[String(r.ramal)]} showLabel />
+                </TableCell>
+                <TableCell>
+                  <RecordingBadge state={r.gravacao} showLabel />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -275,6 +280,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
     ddi: false,
     especial: false,
     cng: false,
+    gravacao: false,
     transbordo: false,
     transbordo_troncos: [] as string[],
   };
@@ -390,6 +396,16 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
             <Label>CallerID (opcional — qualquer texto)</Label>
             <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />
           </div>
+
+	  <div className="rounded-md border p-3">
+	    <label className="flex items-center gap-2 text-sm">
+	      <Switch
+	        checked={form.gravacao}
+	        onCheckedChange={(v) => setForm({...form, gravacao: v, })}
+	      />
+	      Gravação de chamadas
+	    </label>
+	  </div>
 
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <label className="flex items-center gap-2 text-sm">
@@ -520,6 +536,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     ddi: ramal.ddi,
     especial: ramal.especial,
     cng: ramal.cng,
+    gravacao: ramal.gravacao,
     transbordo: ramal.transbordo,
     transbordo_troncos: ramal.transbordo_tronco
       ? ramal.transbordo_tronco.split("&").filter(Boolean)
@@ -554,6 +571,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           ddi: form.ddi,
           especial: form.especial,
           cng: form.cng,
+          gravacao: form.gravacao,
           transbordo: form.transbordo,
           transbordo_tronco: form.transbordo
             ? form.transbordo_troncos.join("&")
@@ -646,6 +664,19 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
               </Button>
             </div>
           </div>
+
+          <div className="col-span-2 w-full flex items-center gap-2 rounded-md border p-3">
+           <Switch
+             checked={form.gravacao}
+             onCheckedChange={(v) =>setForm({ ...form, gravacao: v })}
+           />
+          <div>
+            <p className="font-medium">Gravação de chamadas</p>
+            <p className="text-xs text-muted-foreground">
+               Grava automaticamente as chamadas deste ramal.
+            </p>
+          </div>
+         </div>
 
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <label className="flex items-center gap-2 text-sm">

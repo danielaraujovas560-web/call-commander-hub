@@ -43,7 +43,7 @@ const {
   AGENT_SECRET,
   SIGNATURE_WINDOW = "300",
   PORT = "8787",
-  URA_SOUNDS_BASE = "/var/lib/asterisk/sounds/",
+  SOUNDS_BASE = "/var/lib/asterisk/sounds/",
   SOX_BIN = "sox",
   AUDIO_UPLOAD_LIMIT = "1gb",
   ASTERISK_BIN = "asterisk",
@@ -742,7 +742,7 @@ app.get("/ramais", async (req, res) => {
     const [rows] = await pool.query(
       `SELECT r.ramal, r.nome AS ramal_nome, r.tronco, t.nome AS tronco_nome, r.ddd, r.callerid, r.senha,
               r.fixo, r.movel, r.ddi, r.especial, r.cng, r.endpoint_id,
-              r.transbordo, r.transbordo_tronco
+              r.gravacao, r.transbordo, r.transbordo_tronco
          FROM ramais r LEFT JOIN troncos t
         ON r.tronco = t.id AND r.tenant_id = t.tenant_id
         WHERE r.tenant_id = ?  ORDER BY ramal`,
@@ -757,6 +757,7 @@ app.get("/ramais", async (req, res) => {
         ddi: !!r.ddi,
         especial: !!r.especial,
         cng: !!r.cng,
+        gravacao: !!r.gravacao,
         transbordo: !!r.transbordo,
       })),
     });
@@ -768,7 +769,7 @@ app.get("/ramais", async (req, res) => {
 app.post("/ramais", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  let { nome, ramal, senha, tronco, ddd, callerid, fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco } =
+  let { nome, ramal, senha, tronco, ddd, callerid, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco } =
     req.body || {};
   if (!ramal || !tronco || !ddd) {
     return res.status(400).json({ error: "Campos obrigatórios: ramal, tronco, ddd" });
@@ -797,8 +798,8 @@ app.post("/ramais", async (req, res) => {
     );
     await conn.query(
       `INSERT INTO ramais (endpoint_id, tenant_id, nome, ramal, senha, tronco, ddd, callerid,
-                           fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         endpointId,
         tenant,
@@ -813,6 +814,7 @@ app.post("/ramais", async (req, res) => {
         ddi ? 1 : 0,
         especial ? 1 : 0,
         cng ? 1 : 0,
+        gravacao ? 1: 0,
         transbordoInt,
         transbordoTroncoVal,
       ],
@@ -833,6 +835,7 @@ app.post("/ramais", async (req, res) => {
         ddi: !!ddi,
         especial: !!especial,
         cng: !!cng,
+        gravacao: !!gravacao,
         transbordo: !!transbordoInt,
         transbordo_tronco: transbordoTroncoVal,
         endpoint_id: endpointId,
@@ -853,7 +856,7 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
   if (!endpointId) {
     return res.status(400).json({ error: "endpoint inválido" });
   }
-  const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng, transbordo, transbordo_tronco } =
+  const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco } =
     req.body || {};
   const conn = await pool.getConnection();
   try {
@@ -895,6 +898,10 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
     if (cng !== undefined) {
       sets.push("cng = ?");
       vals.push(cng ? 1 : 0);
+    }
+    if (gravacao !== undefined) {
+      sets.push("gravacao = ?");
+      vals.push(gravacao ? 1 : 0);
     }
     if (transbordo !== undefined) {
       sets.push("transbordo = ?");
@@ -1421,8 +1428,9 @@ cdrFilteredEndpoint("/cdr/ramal", {
   filters: { linkedid: "c.linkedid", origem: "c.origem", destino: "c.destino", status: "c.status" },
 });
 cdrFilteredEndpoint("/cdr/fila", {
-  select: "c.id, c.linkedid, f.display_name, c.agente, c.evento, c.motivo, c.time_data",
-  from: "cdr_fila c LEFT JOIN filas f ON c.tenant_id = f.tenant_id AND c.nome_fila = f.id",
+  select: "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.time_data",
+  from: `cdr_fila c LEFT JOIN filas f ON c.tenant_id = f.tenant_id AND c.nome_fila = f.id
+  LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.ramal`,
   order: "c.time_data",
   dateCol: "c.time_data",
   tenantCol: "c.tenant_id",
@@ -1830,7 +1838,7 @@ app.get("/uras", async (req, res) => {
 app.get("/uras/audios", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const dir = path.join(URA_SOUNDS_BASE, `t${tenant}`);
+  const dir = path.join(SOUNDS_BASE, `t${tenant}`);
   try {
     const files = await fs.readdir(dir);
     const audios = files.filter((f) => f.toLowerCase().endsWith(".wav")).map((f) => f.replace(/\.wav$/i, ""));
@@ -1846,7 +1854,7 @@ function validAudioName(value) {
 }
 
 function audioPath(tenant, name) {
-  return path.join(URA_SOUNDS_BASE, `t${tenant}`, `${name}.wav`);
+  return path.join(SOUNDS_BASE, `t${tenant}`, `${name}.wav`);
 }
 
 app.post("/uras/audios", async (req, res) => {
@@ -1862,11 +1870,11 @@ app.post("/uras/audios", async (req, res) => {
     return res.status(400).json({ error: "Arquivo obrigatório." });
   }
 
-  const dir = path.join(URA_SOUNDS_BASE, `t${tenant}`);
+  const dir = path.join(SOUNDS_BASE, `t${tenant}`);
   const finalPath = audioPath(tenant, nome);
   const token = crypto.randomBytes(12).toString("hex");
-  const inputPath = path.join(dir, `.upload-${token}.${ext}`);
-  const outputPath = path.join(dir, `.upload-${token}.wav`);
+  const inputPath = path.join(dir, `.upload-${token}-in.${ext}`);
+  const outputPath = path.join(dir, `.upload-${token}-out.wav`);
   try {
     await fs.mkdir(dir, { recursive: true });
     try {
@@ -1981,7 +1989,7 @@ app.get("/uras/destinos", async (req, res) => {
     );
     let audios = [];
     try {
-      const dir = path.join(URA_SOUNDS_BASE, `t${tenant}`);
+      const dir = path.join(SOUNDS_BASE, `t${tenant}`);
       const files = await fs.readdir(dir);
       audios = files.filter((f) => f.toLowerCase().endsWith(".wav")).map((f) => f.replace(/\.wav$/i, ""));
     } catch (_) {}
@@ -2322,7 +2330,7 @@ app.get("/cdr/pesquisa", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 500, 5000);
   const where = ["(ps.tenant_id = ? OR ps.tenant_id IS NULL)"];
   const vals = [tenant];
-  const map = { linkedid: "p.unique_id", origem: "p.numero_origem", destino: "p.ramal", status: "p.nome_fila" };
+  const map = { linkedid: "p.unique_id", origem: "p.numero_origem", destino: "agente", status: "fila" };
   for (const [k, col] of Object.entries(map)) {
     const v = req.query[k];
     if (v !== undefined && String(v).trim() !== "") {
@@ -2341,10 +2349,12 @@ app.get("/cdr/pesquisa", async (req, res) => {
   vals.push(limit);
   try {
     const [rows] = await pool.query(
-      `SELECT p.id, p.unique_id, p.numero_origem, p.ramal, p.agente, p.fila, p.nome_fila,
+      `SELECT p.id, p.unique_id, p.numero_origem, COALESCE(r.nome, p.agente) AS agente, COALESCE(f.display_name, p.fila) AS fila,
               p.pergunta_id, p.nota, p.data
          FROM cdr_pesquisa p
          LEFT JOIN pesquisa_satisfacao ps ON ps.id = p.pesquisa_id
+         LEFT JOIN ramais r ON r.endpoint_id = p.agente
+         LEFT JOIN filas f ON f.id = p.fila
         WHERE ${where.join(" AND ")}
         ORDER BY p.data DESC
         LIMIT ?`,
@@ -2591,6 +2601,142 @@ app.delete("/horario-ramais/:id", async (req, res) => {
     const id = Number(req.params.id);
     await pool.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`, [tenant, id]);
     await pool.query(`DELETE FROM regra_horario_ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.get("/pesquisas", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, tenant_id, nome_pesquisa, quantidade_op, ativo
+         FROM pesquisa_satisfacao WHERE tenant_id = ? ORDER BY nome_pesquisa`,
+      [tenant],
+    );
+    const pesquisas = rows.map((r) => ({ ...r, ativo: !!r.ativo }));
+    for (const p of pesquisas) {
+      const [perguntas] = await pool.query(
+        `SELECT id, ordem, audio, max_digit FROM pesquisa_perguntas
+          WHERE id_pesquisa = ? ORDER BY ordem`,
+        [p.id],
+      );
+      p.perguntas = perguntas;
+    }
+    res.json({ pesquisas });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+function validatePesquisaBody(body) {
+  const { nome_pesquisa, quantidade_op, perguntas } = body || {};
+  if (!nome_pesquisa || String(nome_pesquisa).trim() === "") return "nome_pesquisa obrigatório";
+  const qtd = Number(quantidade_op);
+  if (!Number.isInteger(qtd) || qtd < 1) return "quantidade_op deve ser um número inteiro maior que zero";
+  if (!Array.isArray(perguntas) || perguntas.length === 0) return "perguntas obrigatórias";
+  if (perguntas.length !== qtd) {
+    return `quantidade_op (${qtd}) não bate com o número de perguntas enviadas (${perguntas.length})`;
+  }
+  const ordens = new Set();
+  for (const p of perguntas) {
+    if (!p.audio || String(p.audio).trim() === "") return "toda pergunta precisa de um áudio";
+    const md = Number(p.max_digit);
+    if (!Number.isInteger(md) || md < 1) return "max_digit deve ser um número inteiro maior que zero";
+    const ord = Number(p.ordem);
+    if (!Number.isInteger(ord) || ord < 1) return "ordem deve ser um número inteiro maior que zero";
+    if (ordens.has(ord)) return `ordem ${ord} está repetida entre as perguntas`;
+    ordens.add(ord);
+  }
+  return null;
+}
+
+app.post("/pesquisas", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const err = validatePesquisaBody(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const { nome_pesquisa, quantidade_op, perguntas, ativo = true } = req.body;
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [r] = await conn.query(
+      `INSERT INTO pesquisa_satisfacao (tenant_id, nome_pesquisa, quantidade_op, ativo)
+       VALUES (?, ?, ?, ?)`,
+      [tenant, String(nome_pesquisa).trim(), Number(quantidade_op), ativo ? 1 : 0],
+    );
+    const pesquisaId = r.insertId;
+    for (const p of perguntas) {
+      await conn.query(
+        `INSERT INTO pesquisa_perguntas (id_pesquisa, ordem, audio, max_digit)
+         VALUES (?, ?, ?, ?)`,
+        [pesquisaId, Number(p.ordem), String(p.audio).trim(), Number(p.max_digit)],
+      );
+    }
+    await conn.commit();
+    res.json({ ok: true, id: pesquisaId });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/pesquisas/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const id = Number(req.params.id);
+  const err = validatePesquisaBody(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const { nome_pesquisa, quantidade_op, perguntas, ativo = true } = req.body;
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      `SELECT id FROM pesquisa_satisfacao WHERE id = ? AND tenant_id = ?`,
+      [id, tenant],
+    );
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Pesquisa não encontrada" });
+    }
+
+    await conn.query(
+      `UPDATE pesquisa_satisfacao SET nome_pesquisa = ?, quantidade_op = ?, ativo = ?
+        WHERE id = ? AND tenant_id = ?`,
+      [String(nome_pesquisa).trim(), Number(quantidade_op), ativo ? 1 : 0, id, tenant],
+    );
+
+    await conn.query(`DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ?`, [id]);
+    for (const p of perguntas) {
+      await conn.query(
+        `INSERT INTO pesquisa_perguntas (id_pesquisa, ordem, audio, max_digit)
+         VALUES (?, ?, ?, ?)`,
+        [id, Number(p.ordem), String(p.audio).trim(), Number(p.max_digit)],
+      );
+    }
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.delete("/pesquisas/:id", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const id = Number(req.params.id);
+  try {
+    await pool.query(`DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ?`, [id]);
+    await pool.query(`DELETE FROM pesquisa_satisfacao WHERE id = ? AND tenant_id = ?`, [id, tenant]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
