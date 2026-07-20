@@ -8,6 +8,7 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const crypto = require("crypto");
 const fs = require("fs/promises");
+const fsSync = require("fs");
 const path = require("path");
 const { exec, execFile } = require("child_process");
 const { promisify } = require("util");
@@ -44,6 +45,7 @@ const {
   SIGNATURE_WINDOW = "300",
   PORT = "8787",
   SOUNDS_BASE = "/var/lib/asterisk/sounds/",
+  GRAVACAO_BASE = "/var/spool/asterisk/monitor/",
   SOX_BIN = "sox",
   AUDIO_UPLOAD_LIMIT = "1gb",
   ASTERISK_BIN = "asterisk",
@@ -84,7 +86,9 @@ app.use(
 
 // ---------- HMAC verification ----------
 app.use((req, res, next) => {
- if (req.path.startsWith("/auth/") || req.path.startsWith("/tenant/") || req.path.startsWith("/admin/") || req.path.startsWith("/clientes") || req.path.startsWith("/my/") || req.path.startsWith("/audit-log/")) return next();
+ if (req.path.startsWith("/auth/") || req.path.startsWith("/tenant/") || req.path.startsWith("/admin/") || req.path.startsWith("/clientes") ||
+     req.path.startsWith("/my/") || req.path.startsWith("/audit-log/") || req.path.startsWith("/gravacoes/"))
+  return next();
   const ts = req.header("X-Timestamp");
   const sig = req.header("X-Signature");
   if (!ts || !sig) return res.status(401).json({ error: "Missing signature headers" });
@@ -1419,8 +1423,11 @@ cdrFilteredEndpoint("/cdr/entrada", {
   filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/ramal", {
-  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, c.destino, COALESCE(r.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.duracao, c.date_time",
-  from: "cdr_ramal c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.origem LEFT JOIN troncos t ON t.id = c.tronco",
+  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, COALESCE(rd.nome, c.destino) AS destino, COALESCE(ro.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.nome_gravacao, c.duracao, c.date_time",
+  from: `cdr_ramal c
+         LEFT JOIN ramais ro ON ro.tenant_id = c.tenant_id AND ro.endpoint_id = c.origem
+         LEFT JOIN ramais rd ON rd.tenant_id = c.tenant_id AND rd.endpoint_id = c.destino
+         LEFT JOIN troncos t ON t.id = c.tronco`,
   order: "c.date_time",
   dateCol: "c.date_time",
   tenantCol: "c.tenant_id",
@@ -1428,7 +1435,7 @@ cdrFilteredEndpoint("/cdr/ramal", {
   filters: { linkedid: "c.linkedid", origem: "c.origem", destino: "c.destino", status: "c.status" },
 });
 cdrFilteredEndpoint("/cdr/fila", {
-  select: "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.time_data",
+  select: "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.nome_gravacao, c.time_data",
   from: `cdr_fila c LEFT JOIN filas f ON c.tenant_id = f.tenant_id AND c.nome_fila = f.id
   LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.ramal`,
   order: "c.time_data",
@@ -1470,7 +1477,7 @@ app.get("/filas", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.active,
+      `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.gravacao, f.active,
               q.strategy, q.timeout, q.retry, q.maxlen, q.musiconhold,
               (SELECT COUNT(*) FROM filas_agentes fa
                  WHERE fa.tenant_id = f.tenant_id AND fa.queue = f.name) AS membros
@@ -1480,7 +1487,7 @@ app.get("/filas", async (req, res) => {
         ORDER BY f.display_name`,
       [String(tenant)],
     );
-    res.json({ filas: rows.map((r) => ({ ...r, active: !!r.active })) });
+    res.json({ filas: rows.map((r) => ({ ...r, gravacao: !!r.gravacao, active: !!r.active })) });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -1492,7 +1499,7 @@ app.get("/filas/:id/agentes", async (req, res) => {
   const filaId = Number(req.params.id);
   try {
     const [filaRows] = await pool.query(
-      `SELECT id, name, display_name, description, active
+      `SELECT id, name, display_name, description, gravacao, active
          FROM filas WHERE tenant_id = ? AND id = ? LIMIT 1`,
       [tenant, filaId],
     );
@@ -1631,6 +1638,7 @@ app.post("/filas", async (req, res) => {
     timeout = 15,
     retry = 5,
     fila_timeout,
+    gravacao = false,
     active = true,
   } = req.body || {};
   if (!display_name) {
@@ -1657,9 +1665,9 @@ app.post("/filas", async (req, res) => {
     await ensureMoh(conn, tenant);
 
     await conn.query(
-      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, active)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [String(tenant), name, display_name, fila_timeout || null, description || null, active ? 1 : 0],
+      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, gravacao, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [String(tenant), name, display_name, fila_timeout || null, description || null, gravacao ? 1 : 0 , active ? 1 : 0],
     );
 
     await conn.query(
@@ -1684,7 +1692,7 @@ app.put("/filas/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
-  const { display_name, description, strategy, timeout, fila_timeout, retry, active } = req.body || {};
+  const { display_name, description, strategy, timeout, fila_timeout, retry, gravacao, active } = req.body || {};
   if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
     return res.status(400).json({ error: "Estratégia inválida" });
   }
@@ -1715,12 +1723,13 @@ app.put("/filas/:id", async (req, res) => {
     }
 
     await conn.query(
-      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, active = ?, name = ?
+      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, gravacao = ?, active = ?, name = ?
         WHERE id = ? AND tenant_id = ?`,
       [
         newDisplay,
         fila_timeout !== undefined ? Number(fila_timeout) : f.fila_timeout,
         description ?? f.description,
+        gravacao === undefined ? f.gravacao : gravacao ? 1 : 0,
         active === undefined ? f.active : active ? 1 : 0,
         newName,
         id,
@@ -2741,6 +2750,68 @@ app.delete("/pesquisas/:id", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
+});
+
+const authMiddleware = (req, res, next) => {
+    // Tenta pegar o tenant_id do header (ou da query string se preferir)
+    const tenantId = req.headers['x-tenant-id'] || req.query.tenant_id;
+    if (!tenantId) {
+        return res.status(401).json({ error: "Faltando identificação do Tenant (x-tenant-id)" });
+    }
+    // Salva no objeto req para a rota usar
+    req.tenantId = tenantId;
+    next();
+};
+
+app.get("/gravacoes/:tipo/:id", authMiddleware, async (req, res) => {
+    try {
+        // Pega o tenant_id injetado pelo authMiddleware
+        const tenant = req.tenantId;
+        const chamadaId = req.params.id;
+        const tipo = req.params.tipo;
+
+        if (!tenant) {
+            return res.status(401).json({ error: "Tenant não identificado" });
+        }
+
+       // Valida o tipo para evitar manipulação de caminhos injetados (Directory Traversal)
+        if (tipo !== "ramal" && tipo !== "fila") {
+            return res.status(400).json({ error: "Tipo de gravação inválido" });
+        }
+
+        const tabela = tipo === "fila" ? "cdr_fila" : "cdr_ramal";
+
+        //Faz a consulta usando o pool.query no padrão exato do seu arquivo
+        const sql = `SELECT nome_gravacao FROM ${tabela} WHERE id = ? AND tenant_id = ? LIMIT 1`;
+        const [rows] = await pool.query(sql, [chamadaId, tenant]);
+
+        const chamada = rows[0];
+
+        if (!chamada || !chamada.nome_gravacao) {
+            return res.status(404).json({ erro: "Registro de gravação não encontrado no banco" });
+        }
+
+        // Extrai apenas o arquivo final de forma segura (ex: arquivo.wav)
+        const arquivo = path.basename(chamada.nome_gravacao);
+        // Monta o caminho completo no disco do Asterisk
+        const caminho = path.join(
+            GRAVACAO_BASE,
+            tipo,
+            `t${tenant}`,
+            arquivo
+        );
+
+        // 4. Verifica se o arquivo existe e faz o stream dele
+        await fs.access(caminho);
+        res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+        res.setHeader("Content-Disposition", `attachment; filename="${arquivo}"`);
+        res.setHeader("Content-Type", "audio/wav");
+        fsSync.createReadStream(caminho).pipe(res);
+
+    } catch (err) {
+        console.error("[Erro Gravacao]:", err);
+        res.status(404).json({ erro: "Gravação não encontrada no sistema" });
+    }
 });
 
 app.use((err, _req, res, _next) => {

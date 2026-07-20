@@ -745,6 +745,7 @@ const FilaInput = z.object({
   timeout: z.coerce.number().int().min(0).max(3600).default(15),
   fila_timeout: z.coerce.number().int().min(0).max(3600).default(0),
   retry: z.coerce.number().int().min(0).max(3600).default(5),
+  gravacao: z.boolean().default(false),
   active: z.boolean().default(true),
 });
 const FilaUpdate = FilaInput.partial().extend({
@@ -1025,4 +1026,38 @@ export const deleteHorarioRamal = createServerFn({ method: "POST" })
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/horario-ramais/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
+  });
+
+export const downloadGravacao = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.number().int().positive(),
+      tipo: z.enum(["ramal", "fila"]),
+      tenant_id: z.number().int().positive().optional(),
+    }).parse(d)
+  )
+  .handler(async ({ data, context }) => {
+    const { agentDownload } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+
+    // 1. Faz a requisição para o agente Asterisk
+    const res = await agentDownload(`/gravacoes/${data.tipo}/${data.id}`, {
+      tenantId,
+    });
+
+    // 2. Em vez de retornar o 'res' puro (que causa o erro "immutable"),
+    // pegamos o ArrayBuffer (binário) do áudio diretamente no servidor.
+    const audioBuffer = await res.arrayBuffer();
+    
+    // Captura o cabeçalho de disposição que veio do Asterisk (contendo o nome real do arquivo)
+    const contentDisposition = res.headers.get("content-disposition") || `attachment; filename="call-${data.id}.wav"`;
+
+    // 3. Retornamos um novo Response customizado com o buffer e o cabeçalho correto
+    return new Response(audioBuffer, {
+      headers: {
+        "Content-Type": "audio/wav",
+        "Content-Disposition": contentDisposition,
+      },
+    });
   });

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ListOrdered, RefreshCw, Plus, Pencil, Trash2, Users } from "lucide-react";
+import { RecordingBadge } from "@/components/recording-badge";
 import {
   listFilas, createFila, updateFila, deleteFila,
   getFilaAgentes, addFilaAgente, removeFilaAgente, setFilaAgentePenalty,
@@ -86,6 +87,7 @@ function FilasPage() {
               <TableHead>Timeout Agente</TableHead>
               <TableHead>Timeout Fila</TableHead>
               <TableHead>Agentes</TableHead>
+              <TableHead>Gravação</TableHead>
               <TableHead>Ativa</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -101,6 +103,7 @@ function FilasPage() {
                 <TableCell>{f.timeout ?? "-"}</TableCell>
                 <TableCell>{f.fila_timeout ?? "-"}</TableCell>
                 <TableCell>{f.membros}</TableCell>
+                <TableCell><RecordingBadge state={f.gravacao} showLabel /></TableCell>
                 <TableCell><Badge variant={f.active ? "default" : "secondary"}>{f.active ? "Sim" : "Não"}</Badge></TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -276,6 +279,7 @@ function FilaFormDialog({
     timeout: fila?.timeout ?? 15,
     retry: fila?.retry ?? 5,
     fila_timeout: fila?.fila_timeout ?? 30,
+    gravacao: fila?.gravacao ?? false,
     active: fila?.active ?? true,
   });
 
@@ -288,6 +292,7 @@ function FilaFormDialog({
         timeout: fila?.timeout ?? 15,
         retry: fila?.retry ?? 5,
         fila_timeout: fila?.fila_timeout ?? 30,
+        gravacao: fila?.gravacao ?? false,
         active: fila?.active ?? true,
       });
     }
@@ -306,6 +311,7 @@ function FilaFormDialog({
         timeout: Number(form.timeout) || 0,
         fila_timeout: Number(form.fila_timeout) || 0,
         retry: Number(form.retry) || 0,
+        gravacao: form.gravacao,
         active: form.active,
       };
       return editing ? updateFn({ data: { id: fila!.id, ...body } }) : createFn({ data: body });
@@ -335,8 +341,8 @@ function FilaFormDialog({
           <div className="space-y-1"><Label>Descrição</Label>
             <Input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={255} />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1"><Label>Estratégia</Label>
+          <div className="space-y-1">
+            <Label>Estratégia</Label>
               <Select value={form.strategy} onValueChange={(v) => setForm({ ...form, strategy: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione a estratégia" /></SelectTrigger>
                 <SelectContent>
@@ -346,23 +352,36 @@ function FilaFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <label className="flex items-end gap-2 text-sm pb-2 justify-end cursor-pointer">
-                <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
-                <span>Ativa</span>
-              </label>
+            <div className="w-full flex items-center gap-2 rounded-md border p-3">
+              <Switch checked={form.gravacao} onCheckedChange={(v) => setForm({ ...form, gravacao: v })} />
+            <div>
+              <p className="font-medium text-sm">Gravar chamadas</p>
+              <p className="text-xs text-muted-foreground">
+                Grava automaticamente as conversas que passarem por esta fila.
+               </p>
+              </div>
+             </div>
+             <div className="w-full flex items-center gap-2 rounded-md border p-3">
+               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+             <div>
+              <p className="font-medium text-sm">Fila Ativa</p>
+              <p className="text-xs text-muted-foreground">
+                Define se a fila está habilitada para receber ligações no momento.
+               </p>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3 border-t pt-3">
             <div className="space-y-1"><Label title="Tempo de toque máximo no agente">Timeout Agente</Label>
-              <Input type="number" min={0} max={3600} value={form.timeout ?? 0}
-                     onChange={(e) => setForm({ ...form, timeout: Number(e.target.value) })} />
+              <Input type="number" min={0} max={3600} placeholder="15" value={form.timeout === null || form.timeout === undefined ? "" : form.timeout}
+                     onChange={(e) => setForm({ ...form, timeout: e.target.value == "" ? null : Number(e.target.value) })} />
             </div>
             <div className="space-y-1"><Label title="Tempo de espera para rediscar no Agente">Intervalo (s)</Label>
-            <Input type="number" min={0} max={3600} value={form.retry ?? 0}
-                   onChange={(e) => setForm({ ...form, retry: Number(e.target.value) })} />
+            <Input type="number" min={0} max={3600} placeholder="5" value={form.retry === null || form.retry === undefined ? "" : form.retry}
+                   onChange={(e) => setForm({ ...form, retry: e.target.value == "" ? null : Number(e.target.value) })} />
             </div>
             <div className="space-y-1"><Label title="Tempo máximo da fila">Timeout fila</Label>
-            <Input type="number" min={0} max={86400} value={form.fila_timeout ?? 0}
-                   onChange={(e) => setForm({ ...form, fila_timeout: Number(e.target.value) })} />
+            <Input type="number" min={0} max={86400} placeholder="30" value={form.fila_timeout === null || form.fila_timeout === undefined ? "" : form.fila_timeout}
+                   onChange={(e) => setForm({ ...form, fila_timeout: e.target.value == "" ? null :Number(e.target.value) })} />
             </div>
           </div>
           <DialogFooter>
