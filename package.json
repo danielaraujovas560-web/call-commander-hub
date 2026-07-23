@@ -7,6 +7,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -71,7 +72,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "2.7.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
