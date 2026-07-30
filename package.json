@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 8082",
+    "start": "vite dev --port 8082",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
