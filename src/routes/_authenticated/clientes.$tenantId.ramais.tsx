@@ -397,24 +397,30 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
             <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />
           </div>
 
-	  <div className="rounded-md border p-3">
-	    <label className="flex items-center gap-2 text-sm">
-	      <Switch
-	        checked={form.gravacao}
-	        onCheckedChange={(v) => setForm({...form, gravacao: v, })}
-	      />
-	      Gravação de chamadas
-	    </label>
-	  </div>
+          <div className="col-span-2 w-full flex items-center gap-2 rounded-md border p-3">
+           <Switch
+             checked={form.gravacao}
+             onCheckedChange={(v) =>setForm({ ...form, gravacao: v })}
+           />
+          <div>
+            <p className="font-medium">Gravação de chamadas</p>
+            <p className="text-xs text-muted-foreground">
+               Grava automaticamente as chamadas deste ramal.
+            </p>
+          </div>
+         </div>
 
           <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <label className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={form.transbordo}
                 onCheckedChange={(v) => setForm({ ...form, transbordo: v, transbordo_troncos: v ? form.transbordo_troncos : [] })}
               />
-              Transbordo
-            </label>
+             <div>
+               <p className="font-medium text-sm">Transbordo</p>
+               <p className="text-xs text-muted-foreground">Encaminha chamadas para troncos de transbordo caso o primeiro falhe</p>
+             </div>
+            </div>
             {form.transbordo && (
               <TransbordoTroncosSelector
                 available={troncosDisponiveisTransbordo}
@@ -679,13 +685,16 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
          </div>
 
           <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <label className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={form.transbordo}
                 onCheckedChange={(v) => setForm({ ...form, transbordo: v, transbordo_troncos: v ? form.transbordo_troncos : [] })}
               />
-              Transbordo
-            </label>
+             <div>
+               <p className="font-medium text-sm">Transbordo</p>
+               <p className="text-xs text-muted-foreground">Encaminha chamadas para troncos de transbordo caso o primeiro falhe</p>
+             </div>
+            </div>
             {form.transbordo && (
               <TransbordoTroncosSelector
                 available={troncosDisponiveisTransbordo}

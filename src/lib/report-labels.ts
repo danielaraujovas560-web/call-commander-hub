@@ -11,6 +11,22 @@ export const statusOptions = [
   { value: "FORBIDDEN(BLACK)", label: "Proibido (Blacklist)" },
 ] as const;
 
+export const tipoOptions = [
+  { value: "ENTRADA", label: "Entrada" },
+  { value: "SAIDA", label: "Saida" },
+  { value: "INTERNO", label: "Interno" },
+]
+
+export const contextOptions =[
+  { value: "INTERNO", label: "Interno" },
+  { value: "EXTERNO", label: "Externo" },
+]
+
+export const tipoOptionsMapaDDD = [
+  { value: "ENTRADA", label: "Entrada" },
+  { value: "SAIDA", label: "Saida" },
+]
+
 export const eventOptions = [
   { value: "AGENTE_ATENDEU", label: "Atendida" },
   { value: "AGENTE_NAO_ATENDEU", label: "Não Atendida" },

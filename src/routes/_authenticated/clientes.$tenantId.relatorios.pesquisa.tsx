@@ -9,6 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
 
+function getTodayFilters(): ReportFilterValues {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const todayStr = `${year}-${month}-${day}`;
+
+  return {
+    from: `${todayStr}T00:00`,
+    to: `${todayStr}T${hours}:${minutes}`
+  };
+}
+
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/pesquisa")({
   head: () => ({ meta: [{ title: "Pesquisa de satisfação — Painel PABX" }] }),
   component: Page,

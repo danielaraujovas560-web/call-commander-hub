@@ -35,7 +35,7 @@ function AuthPage() {
       const res = await loginFn({ data: { email: loginEmail, senha: loginPass } });
       setStoredToken(res.token);
       toast.success("Bem-vindo!");
-      navigate({ to: "/dashboard" });
+      window.location.href = "/dashboard";
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Credenciais inválidas");
     } finally {

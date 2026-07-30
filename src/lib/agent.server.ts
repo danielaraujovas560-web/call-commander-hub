@@ -80,3 +80,55 @@ export async function agentFetch<T = unknown>(
 export function isAgentConfigured() {
   return Boolean(process.env.PABX_AGENT_URL && process.env.PABX_AGENT_SECRET);
 }
+
+export async function agentDownload(
+  path: string,
+  options: {
+    tenantId?: number;
+    timeoutMs?: number;
+    bearerToken?: string;
+  } = {},
+): Promise<Response> {
+  const { url, secret } = getConfig();
+
+  const method = "GET";
+  const bodyStr = "";
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+
+  const fullPath = path.startsWith("/") ? path : `/${path}`;
+  const signature = sign(secret, timestamp, method, fullPath, bodyStr);
+
+  const headers: Record<string, string> = {
+    "X-Timestamp": timestamp,
+    "X-Signature": signature,
+    "Content-Type": "application/json",
+  };
+
+  if (options.tenantId != null)
+    headers["X-Tenant-Id"] = String(options.tenantId);
+
+  if (options.bearerToken)
+    headers["Authorization"] = `Bearer ${options.bearerToken}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? 15000,
+  );
+
+  try {
+    const res = await fetch(`${url}${fullPath}`, {
+      method,
+      headers,
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Agente PABX retornou ${res.status}`);
+    }
+
+    return res;
+  } finally {
+    clearTimeout(timeout);
+  }
+}

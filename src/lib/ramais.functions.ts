@@ -221,19 +221,33 @@ const CdrFilter = z
     origem: z.string().max(80).optional(),
     destino: z.string().max(80).optional(),
     status: z.string().max(80).optional(),
+    tipo: z.string().max(80).optional(),
+    contexto: z.string().max(64).optional(),
     from: z.string().max(40).optional(),
     to: z.string().max(40).optional(),
+    limit: z.number().int().optional(),
+    page: z.number().int().positive().optional(),
+    rank: z.boolean().optional(),
+    sigla_estado: z.string().optional(),
   })
   .optional()
   .transform((v) => v ?? {});
 type CdrFilterT = z.infer<typeof CdrFilter>;
 
-function buildQuery(filters: CdrFilterT): string {
+function buildQuery(filters: CdrFilterT, tenantId?: number): string {
   const q = new URLSearchParams();
-  for (const k of ["linkedid", "origem", "destino", "status", "from", "to"] as const) {
-    const v = filters[k];
-    if (v && v.trim() !== "") q.set(k, v.trim());
+  
+  // Varre TODAS as chaves que o Zod validou dinamicamente
+  for (const [k, v] of Object.entries(filters)) {
+    // Ignoramos tenant_id pq ele é injetado separadamente no final
+    if (k === 'tenant_id' || k === 'rank') continue;     
+    if (v !== undefined && v !== null && String(v).trim() !== "") {
+      q.set(k, String(v).trim());
+    }
   }
+  if (filters.rank) q.set("rank", "true");
+  if (tenantId) q.set("tenant", String(tenantId));
+
   const s = q.toString();
   return s ? `?${s}` : "";
 }
@@ -241,10 +255,9 @@ function buildQuery(filters: CdrFilterT): string {
 async function fetchCdr(path: string, token: string, filters: CdrFilterT) {
   const { agentFetch } = await import("./agent.server");
   const tenantId = await resolveTenantId(token, filters.tenant_id);
-  const qs = buildQuery(filters);
-  const sep = qs ? "&" : "?";
-  const res = await agentFetch<{ rows: any[] }>(`${path}${qs}${sep}tenant=${tenantId}`, { tenantId });
-  return { tenantId, rows: res.rows ?? [] };
+  const qs = buildQuery(filters, tenantId);
+  const res = await agentFetch<{ rows: any[]; total: number; page: number; limit: number; totalPages: number; }>(`${path}${qs}`, { tenantId });
+  return { tenantId, rows: res.rows ?? [], total: res.total, page: res.page, limit: res.limit, totalPages: res.totalPages, };
 }
 
 export const listCdrEntrada = createServerFn({ method: "GET" })
@@ -745,6 +758,7 @@ const FilaInput = z.object({
   timeout: z.coerce.number().int().min(0).max(3600).default(15),
   fila_timeout: z.coerce.number().int().min(0).max(3600).default(0),
   retry: z.coerce.number().int().min(0).max(3600).default(5),
+  gravacao: z.boolean().default(false),
   active: z.boolean().default(true),
 });
 const FilaUpdate = FilaInput.partial().extend({
@@ -1025,4 +1039,127 @@ export const deleteHorarioRamal = createServerFn({ method: "POST" })
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await agentFetch(`/horario-ramais/${data.id}`, { method: "DELETE", tenantId });
     return { ok: true };
+  });
+
+// ---------- Pesquisa de satisfação (pesquisa de satisfação + perguntas) ----------
+
+export const PesquisaPerguntaInput = z.object({
+  id: z.number().int().positive().optional(),
+  ordem: z.coerce.number().int().positive("A ordem deve ser maior que zero"),
+  audio: z.coerce.string().trim().min(1, "Áudio obrigatório"),
+  max_digit: z.coerce.number().int().positive(),
+});
+
+export const PesquisaSatisfacaoInput = z.object({
+  nome_pesquisa: z.coerce.string().trim().min(1, "nome_pesquisa obrigatório").max(100),
+  quantidade_op: z.coerce.number().int().positive("quantidade_op deve ser maior que zero"),
+  ativo: z.boolean().default(true),
+  perguntas: z.array(PesquisaPerguntaInput).min(1, "perguntas obrigatórias"),
+});
+
+export interface PesquisaSatisfacao {
+  id: number;
+  tenant_id: number;
+  nome_pesquisa: string;
+  quantidade_op: number;
+  ativo: boolean;
+  perguntas: Array<{
+    id?: number;
+    ordem: number;
+    audio: string;
+    max_digit: number;
+  }>;
+}
+
+export const listPesquisaSatisfacao = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    // Bate no app.get("/pesquisa-satisfacao") do seu back
+    const res = await agentFetch<{ pesquisas: PesquisaSatisfacao[] }>("/pesquisa-satisfacao", { tenantId });
+    return { pesquisas: res.pesquisas ?? [] };
+  });
+
+export const createPesquisaSatisfacao = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => PesquisaSatisfacaoInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    const { tenant_id: _i, ...body } = data;
+    // Bate no app.post("/pesquisa-satisfacao") do seu back
+    return await agentFetch<{ ok: true; id: number }>("/pesquisa-satisfacao", {
+      method: "POST",
+      tenantId,
+      body,
+    });
+  });
+
+export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => 
+    PesquisaSatisfacaoInput.extend({ id: z.number().int().positive() }).parse(d)
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    const { id, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/pesquisa-satisfacao/${id}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
+  });
+
+export const deletePesquisaSatisfacao = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d)
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    // Bate no app.delete("/pesquisa-satisfacao/:id") do seu back
+    return await agentFetch<{ ok: true }>(`/pesquisa-satisfacao/${data.id}`, {
+      method: "DELETE",
+      tenantId,
+    });
+  });
+
+// ---------- Download das gravações ----------
+
+export const downloadGravacao = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.number().int().positive(),
+      tipo: z.enum(["ramal", "fila"]),
+      tenant_id: z.number().int().positive().optional(),
+    }).parse(d)
+  )
+  .handler(async ({ data, context }) => {
+    const { agentDownload } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+
+    // 1. Faz a requisição para o agente Asterisk
+    const res = await agentDownload(`/gravacoes/${data.tipo}/${data.id}`, {
+      tenantId,
+    });
+
+    // 2. Em vez de retornar o 'res' puro (que causa o erro "immutable"),
+    // pegamos o ArrayBuffer (binário) do áudio diretamente no servidor.
+    const audioBuffer = await res.arrayBuffer();
+    
+    // Captura o cabeçalho de disposição que veio do Asterisk (contendo o nome real do arquivo)
+    const contentDisposition = res.headers.get("content-disposition") || `attachment; filename="call-${data.id}.wav"`;
+
+    // 3. Retornamos um novo Response customizado com o buffer e o cabeçalho correto
+    return new Response(audioBuffer, {
+      headers: {
+        "Content-Type": "audio/wav",
+        "Content-Disposition": contentDisposition,
+      },
+    });
   });

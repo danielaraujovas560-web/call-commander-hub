@@ -22,6 +22,7 @@ import {
   Star,
   MapPin,
   Clock,
+  ClipboardCheck,
 } from "lucide-react";
 
 import { setStoredToken } from "@/lib/auth/attach-auth";
@@ -69,12 +70,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     await queryClient.cancelQueries();
     queryClient.clear();
     setStoredToken(null);
+    Object.keys(localStorage).forEach((key) => {
+      if (/_[0-9]+$/.test(key)) {
+        localStorage.removeItem(key);
+      }
+    });
     router.navigate({ to: "/auth", replace: true });
   }
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="flex min-h-screen bg-muted/20">
+      <div className="flex h-screen overflow-hidden bg-muted/20">
         {clienteTenant ? (
           <ClienteSidebar tenantId={Number(clienteTenant)} pathname={pathname} onLogout={handleLogout} />
         ) : (
@@ -85,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         )}
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 h-full overflow-auto">
           <div className="mx-auto max-w-6xl p-6">{children}</div>
         </main>
       </div>
@@ -106,7 +112,7 @@ function MainSidebar({
   const visibleNav = mainNav.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r bg-card">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-card">
       <div className="flex items-center gap-2 px-4 py-4 border-b">
         <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground">
           <PhoneCall className="h-4 w-4" />
@@ -114,7 +120,7 @@ function MainSidebar({
         <span className="font-semibold">Painel PABX</span>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
         {visibleNav.map((item) => (
           <NavLink key={item.to} item={item} pathname={pathname} />
         ))}
@@ -171,6 +177,7 @@ function ClienteSidebar({
     { to: "/clientes/$tenantId/troncos", label: "Troncos", icon: Cable, exact: false },
     { to: "/clientes/$tenantId/regra-horario", label: "Horário Atendimento", icon: Clock, exact: false },
     { to: "/clientes/$tenantId/horario-ramais", label: "Horário Ramais", icon: Users, exact: false },
+    { to: "/clientes/$tenantId/pesquisa-satisfacao", label: "Pesquisa Satisfação", icon: ClipboardCheck, exact: false },
   ] as const;
 
 
@@ -210,7 +217,7 @@ function ClienteSidebar({
   };
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r bg-card">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-card">
       <div className="flex flex-col gap-1 px-4 py-4 border-b">
         <Link
           to="/clientes"

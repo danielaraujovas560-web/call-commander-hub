@@ -23,6 +23,7 @@ import { Route as AuthenticatedClientesTenantIdTroncosRouteImport } from './rout
 import { Route as AuthenticatedClientesTenantIdRoteamentoRouteImport } from './routes/_authenticated/clientes.$tenantId.roteamento'
 import { Route as AuthenticatedClientesTenantIdRegraHorarioRouteImport } from './routes/_authenticated/clientes.$tenantId.regra-horario'
 import { Route as AuthenticatedClientesTenantIdRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.ramais'
+import { Route as AuthenticatedClientesTenantIdPesquisaSatisfacaoRouteImport } from './routes/_authenticated/clientes.$tenantId.pesquisa-satisfacao'
 import { Route as AuthenticatedClientesTenantIdNumerosRouteImport } from './routes/_authenticated/clientes.$tenantId.numeros'
 import { Route as AuthenticatedClientesTenantIdHorarioRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.horario-ramais'
 import { Route as AuthenticatedClientesTenantIdFilasRouteImport } from './routes/_authenticated/clientes.$tenantId.filas'
@@ -114,6 +115,12 @@ const AuthenticatedClientesTenantIdRamaisRoute =
     path: '/ramais',
     getParentRoute: () => AuthenticatedClientesTenantIdRoute,
   } as any)
+const AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute =
+  AuthenticatedClientesTenantIdPesquisaSatisfacaoRouteImport.update({
+    id: '/pesquisa-satisfacao',
+    path: '/pesquisa-satisfacao',
+    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+  } as any)
 const AuthenticatedClientesTenantIdNumerosRoute =
   AuthenticatedClientesTenantIdNumerosRouteImport.update({
     id: '/numeros',
@@ -194,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   '/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
+  '/clientes/$tenantId/pesquisa-satisfacao': typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   '/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
@@ -219,6 +227,7 @@ export interface FileRoutesByTo {
   '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   '/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
+  '/clientes/$tenantId/pesquisa-satisfacao': typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
   '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   '/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
@@ -247,6 +256,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
   '/_authenticated/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   '/_authenticated/clientes/$tenantId/numeros': typeof AuthenticatedClientesTenantIdNumerosRoute
+  '/_authenticated/clientes/$tenantId/pesquisa-satisfacao': typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
   '/_authenticated/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
   '/_authenticated/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   '/_authenticated/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/filas'
     | '/clientes/$tenantId/horario-ramais'
     | '/clientes/$tenantId/numeros'
+    | '/clientes/$tenantId/pesquisa-satisfacao'
     | '/clientes/$tenantId/ramais'
     | '/clientes/$tenantId/regra-horario'
     | '/clientes/$tenantId/roteamento'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/filas'
     | '/clientes/$tenantId/horario-ramais'
     | '/clientes/$tenantId/numeros'
+    | '/clientes/$tenantId/pesquisa-satisfacao'
     | '/clientes/$tenantId/ramais'
     | '/clientes/$tenantId/regra-horario'
     | '/clientes/$tenantId/roteamento'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes/$tenantId/filas'
     | '/_authenticated/clientes/$tenantId/horario-ramais'
     | '/_authenticated/clientes/$tenantId/numeros'
+    | '/_authenticated/clientes/$tenantId/pesquisa-satisfacao'
     | '/_authenticated/clientes/$tenantId/ramais'
     | '/_authenticated/clientes/$tenantId/regra-horario'
     | '/_authenticated/clientes/$tenantId/roteamento'
@@ -447,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesTenantIdRamaisRouteImport
       parentRoute: typeof AuthenticatedClientesTenantIdRoute
     }
+    '/_authenticated/clientes/$tenantId/pesquisa-satisfacao': {
+      id: '/_authenticated/clientes/$tenantId/pesquisa-satisfacao'
+      path: '/pesquisa-satisfacao'
+      fullPath: '/clientes/$tenantId/pesquisa-satisfacao'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRouteImport
+      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+    }
     '/_authenticated/clientes/$tenantId/numeros': {
       id: '/_authenticated/clientes/$tenantId/numeros'
       path: '/numeros'
@@ -533,6 +553,7 @@ interface AuthenticatedClientesTenantIdRouteChildren {
   AuthenticatedClientesTenantIdFilasRoute: typeof AuthenticatedClientesTenantIdFilasRoute
   AuthenticatedClientesTenantIdHorarioRamaisRoute: typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
   AuthenticatedClientesTenantIdNumerosRoute: typeof AuthenticatedClientesTenantIdNumerosRoute
+  AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute: typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
   AuthenticatedClientesTenantIdRamaisRoute: typeof AuthenticatedClientesTenantIdRamaisRoute
   AuthenticatedClientesTenantIdRegraHorarioRoute: typeof AuthenticatedClientesTenantIdRegraHorarioRoute
   AuthenticatedClientesTenantIdRoteamentoRoute: typeof AuthenticatedClientesTenantIdRoteamentoRoute
@@ -559,6 +580,8 @@ const AuthenticatedClientesTenantIdRouteChildren: AuthenticatedClientesTenantIdR
       AuthenticatedClientesTenantIdHorarioRamaisRoute,
     AuthenticatedClientesTenantIdNumerosRoute:
       AuthenticatedClientesTenantIdNumerosRoute,
+    AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute:
+      AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute,
     AuthenticatedClientesTenantIdRamaisRoute:
       AuthenticatedClientesTenantIdRamaisRoute,
     AuthenticatedClientesTenantIdRegraHorarioRoute:
