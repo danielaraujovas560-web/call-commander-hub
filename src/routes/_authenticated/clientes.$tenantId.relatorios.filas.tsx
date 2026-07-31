@@ -41,16 +41,11 @@ function Page() {
     queryKey: ["cdr_fila", tenantId, page, fFila],
     queryFn: () => fn({ data: { tenant_id: tenantId, page, ...fFila } }),
   });
-  const rows = useMemo(() => {
-    if (Array.isArray(data?.rows)) return data.rows;
-    if (Array.isArray(data?.data)) return data.data;
-    if (Array.isArray(data)) return data;
-    return [];
-  }, [data]);
+  const rows = useMemo<any[]>(() => data?.rows ?? [], [data]);
 
   const filaOptions = [
     ...new Map(
-     rows.map((r) => [
+     rows.map((r: any) => [
         r.display_name,
         { value: r.display_name, label: r.display_name },
       ])

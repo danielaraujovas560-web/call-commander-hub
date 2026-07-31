@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RamalRouteImport } from './routes/ramal'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,6 +37,11 @@ import { Route as AuthenticatedClientesTenantIdRelatoriosFilasRouteImport } from
 import { Route as AuthenticatedClientesTenantIdRelatoriosEntradaRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.entrada'
 import { Route as AuthenticatedClientesTenantIdRelatoriosDddRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.ddd'
 
+const RamalRoute = RamalRouteImport.update({
+  id: '/ramal',
+  path: '/ramal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -191,6 +197,7 @@ const AuthenticatedClientesTenantIdRelatoriosDddRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/ramal': typeof RamalRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/ramal': typeof RamalRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -246,6 +254,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/ramal': typeof RamalRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -275,6 +284,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/ramal'
     | '/dashboard'
     | '/admin/servidor'
     | '/admin/usuarios'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/ramal'
     | '/dashboard'
     | '/admin/servidor'
     | '/admin/usuarios'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/ramal'
     | '/_authenticated/dashboard'
     | '/_authenticated/admin/servidor'
     | '/_authenticated/admin/usuarios'
@@ -358,10 +370,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  RamalRoute: typeof RamalRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/ramal': {
+      id: '/ramal'
+      path: '/ramal'
+      fullPath: '/ramal'
+      preLoaderRoute: typeof RamalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -637,6 +657,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  RamalRoute: RamalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
