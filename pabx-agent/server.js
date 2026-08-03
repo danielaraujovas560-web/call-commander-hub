@@ -8,6 +8,7 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const crypto = require("crypto");
 const fs = require("fs/promises");
+const fsSync = require("fs");
 const path = require("path");
 const { exec, execFile } = require("child_process");
 const { promisify } = require("util");
@@ -40,10 +41,12 @@ const {
   DB_USER = "asterisk",
   DB_PASSWORD = "",
   DB_NAME = "asterisk",
+  WSS_URL = "",
   AGENT_SECRET,
   SIGNATURE_WINDOW = "300",
   PORT = "8787",
   SOUNDS_BASE = "/var/lib/asterisk/sounds/",
+  GRAVACAO_BASE = "/var/spool/asterisk/monitor/",
   SOX_BIN = "sox",
   AUDIO_UPLOAD_LIMIT = "1gb",
   ASTERISK_BIN = "asterisk",
@@ -68,6 +71,7 @@ const pool = mysql.createPool({
   database: DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
+  dateStrings: true,
 });
 
 const app = express();
@@ -84,7 +88,9 @@ app.use(
 
 // ---------- HMAC verification ----------
 app.use((req, res, next) => {
- if (req.path.startsWith("/auth/") || req.path.startsWith("/tenant/") || req.path.startsWith("/admin/") || req.path.startsWith("/clientes") || req.path.startsWith("/my/") || req.path.startsWith("/audit-log/")) return next();
+ if (req.path.startsWith("/auth/") || req.path.startsWith("/tenant/") || req.path.startsWith("/admin/") || req.path.startsWith("/clientes") ||
+     req.path.startsWith("/my/") || req.path.startsWith("/audit-log/") || req.path.startsWith("/gravacoes/") || req.path.startsWith("/ramal-auth/"))
+  return next();
   const ts = req.header("X-Timestamp");
   const sig = req.header("X-Signature");
   if (!ts || !sig) return res.status(401).json({ error: "Missing signature headers" });
@@ -154,7 +160,7 @@ app.get("/auth/me", requireJwt, async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT id, nome, email FROM profiles WHERE id = ?", [req.userId]);
     if (!rows.length) return res.status(404).json({ error: "usuário não encontrado" });
-    res.json({ user: rows[0], role: req.role });
+    res.json({ user: { ...rows[0], role: req.role }, role: req.role });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -703,9 +709,37 @@ function asteriskRx(cmd) {
 app.get("/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "ok", version: "1.7.0", db: "ok" });
+    res.json({ status: "ok", version: "2.0", db: "ok" });
   } catch (e) {
     res.status(500).json({ status: "error", error: String(e.message || e) });
+  }
+});
+
+// ---------- Login do ramal (painel WebRTC) ----------
+app.post("/ramal-auth/login", async (req, res) => {
+  const { endpoint_id, senha } = req.body || {};
+  if (!endpoint_id || !senha) return res.status(400).json({ error: "endpoint_id e senha obrigatórios" });
+  try {
+    const [rows] = await pool.query(
+      `SELECT tenant_id, ramal, nome, endpoint_id, senha FROM ramais WHERE endpoint_id = ? LIMIT 1`,
+      [String(endpoint_id).trim()],
+    );
+    if (!rows.length || rows[0].senha !== senha) {
+      return res.status(401).json({ error: "Ramal ou senha inválidos" });
+    }
+    const r = rows[0];
+    res.json({
+      ok: true,
+      ramal: r.ramal,
+      nome: r.nome,
+      sip_username: `${r.endpoint_id}-web`,
+      sip_password: r.senha,
+      tenant_id: r.tenant_id,
+      wss_url: WSS_URL,
+      sip_domain: String(WSS_URL).replace(/^wss?:\/\//, "").split(":")[0].split("/")[0],
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
   }
 });
 
@@ -820,6 +854,32 @@ app.post("/ramais", async (req, res) => {
       ],
     );
 
+    const webEndpointId = `${endpointId}-web`;
+    const webAuthId = `auth-${webEndpointId}`;
+
+    await conn.query(
+      `INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`,
+      [webAuthId, webEndpointId, senha]
+    );
+
+    await conn.query(
+      `INSERT INTO ps_aors (id) VALUES (?)`,
+      [webEndpointId]
+    );
+
+    await conn.query(
+      `INSERT INTO ps_endpoints (
+          id, transport, aors, auth, context, call_group, pickup_group, webrtc, media_encryption, dtls_auto_generate_cert, ice_support, use_avpf, rtcp_mux
+      ) VALUES (?, 'transport-wss', ?, ?, 'Internal-default', ?, ?, 'yes', 'dtls', 'yes', 'yes', 'yes', 'yes')`,
+      [
+        webEndpointId,
+        webEndpointId,
+        webAuthId,
+        String(tenant),
+        String(tenant),
+      ]
+    );
+
     await conn.commit();
     amiPjsipReload();
     res.json({
@@ -921,6 +981,7 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
     }
     if (senha !== undefined) {
       await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, authId]);
+      await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, `auth-${endpointId}-web`]);
     }
     await conn.commit();
     if (senha !== undefined) amiPjsipReload();
@@ -947,6 +1008,9 @@ app.delete("/ramais/:endpoint_id", async (req, res) => {
     await conn.query(`DELETE FROM ps_endpoints WHERE id = ?`, [endpointId]);
     await conn.query(`DELETE FROM ps_auths     WHERE id = ?`, [authId]);
     await conn.query(`DELETE FROM ps_aors      WHERE id = ?`, [endpointId]);
+    await conn.query(`DELETE FROM ps_endpoints WHERE id = ?`, [webEndpointId]);
+    await conn.query(`DELETE FROM ps_auths     WHERE id = ?`, [`auth-${webEndpointId}`]);
+    await conn.query(`DELETE FROM ps_aors      WHERE id = ?`, [webEndpointId]);
     await conn.query(`DELETE FROM ramais       WHERE endpoint_id = ? AND tenant_id = ?`, [endpointId, tenant]);
     await conn.commit();
     amiPjsipReload();
@@ -1371,6 +1435,8 @@ function cdrFilteredEndpoint(p, cfg) {
     const tenant = getTenant(req, res);
     if (!tenant) return;
     const limit = Math.min(Number(req.query.limit) || 500, 5000);
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const offset = (page - 1) * limit;
     const where = [`${cfg.tenantCol || "tenant_id"} = ?`];
     const vals = [tenant];
     for (const [key, col] of Object.entries(cfg.filters || {})) {
@@ -1397,13 +1463,36 @@ function cdrFilteredEndpoint(p, cfg) {
         vals.push(String(to).replace("T", " "));
       }
     }
+    if (req.query.rank === "true") {
+
+        const sql = `
+            SELECT
+                ${cfg.rankCol} AS nome,
+                COUNT(*) AS total
+            FROM ${cfg.from ?? cfg.table}
+            WHERE ${where.join(" AND ")}
+            GROUP BY ${cfg.rankCol}
+            ORDER BY total DESC
+            LIMIT 5
+        `;
+
+        try {
+            const [rows] = await pool.query(sql, vals);
+            return res.json({ rows });
+        } catch (e) {
+            return res.status(500).json({ error: String(e.message || e) });
+        }
+    }
+
     const orderCol = cfg.order || "id";
     const from = cfg.from ?? cfg.table;
-    const sql = `SELECT ${cfg.select} FROM ${from} WHERE ${where.join(" AND ")} ORDER BY ${orderCol} DESC LIMIT ?`;
-    vals.push(limit);
+    const countSql = `SELECT COUNT(*) AS total FROM ${from} WHERE ${where.join(" AND ")}`
+    const sql = `SELECT ${cfg.select} FROM ${from} WHERE ${where.join(" AND ")} ORDER BY ${orderCol} DESC LIMIT ? OFFSET ?`;
+    const dataVals = [...vals, limit, offset];
     try {
-      const [rows] = await pool.query(sql, vals);
-      res.json({ rows });
+      const [[count]] = await pool.query(countSql, vals);
+      const [rows] = await pool.query(sql, dataVals);
+      res.json({ rows, total: count.total, page, limit, totalPages: Math.ceil(count.total / limit), });
     } catch (e) {
       res.status(500).json({ error: String(e.message || e) });
     }
@@ -1419,50 +1508,59 @@ cdrFilteredEndpoint("/cdr/entrada", {
   filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/ramal", {
-  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, c.destino, COALESCE(r.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.duracao, c.date_time",
-  from: "cdr_ramal c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.origem LEFT JOIN troncos t ON t.id = c.tronco",
+  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, COALESCE(rd.nome, c.destino) AS destino, COALESCE(ro.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.nome_gravacao, c.duracao, c.date_time",
+  from: `cdr_ramal c
+         LEFT JOIN ramais ro ON ro.tenant_id = c.tenant_id AND ro.endpoint_id = c.origem
+         LEFT JOIN ramais rd ON rd.tenant_id = c.tenant_id AND rd.endpoint_id = c.destino
+         LEFT JOIN troncos t ON t.id = c.tronco`,
   order: "c.date_time",
   dateCol: "c.date_time",
   tenantCol: "c.tenant_id",
   exactFilters: ["status"],
-  filters: { linkedid: "c.linkedid", origem: "c.origem", destino: "c.destino", status: "c.status" },
+  filters: { linkedid: "c.linkedid", origem: "CONCAT(COALESCE(ro.nome, ''), ' ', c.origem)", destino: "CONCAT(COALESCE(rd.nome, ''), ' ', c.destino)", status: "c.status", tipo: "c.tipo_chamada" },
 });
 cdrFilteredEndpoint("/cdr/fila", {
-  select: "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.time_data",
+  select: "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.nome_gravacao, c.time_data",
   from: `cdr_fila c LEFT JOIN filas f ON c.tenant_id = f.tenant_id AND c.nome_fila = f.id
   LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.ramal`,
   order: "c.time_data",
   dateCol: "c.time_data",
   tenantCol: "c.tenant_id",
   exactFilters: ["status"],
-  filters: { linkedid: "linkedid", origem: "agente", destino: "ramal", status: "evento" },
+  filters: { linkedid: "linkedid", origem: "CONCAT(COALESCE(r.nome, ''), ' ', c.ramal)", destino: "ramal", status: "evento" },
 });
 cdrFilteredEndpoint("/cdr/ura", {
-  select: "c.id, c.linkedid, c.num_did, u.nome, c.opcao, c.dest_op, COALESCE(r.nome, f.display_name, u2.nome, c.dest_nome) AS destino_nome",
+  select: "c.id, c.linkedid, c.num_did, u.nome, c.opcao, c.dest_op, COALESCE(r.nome, f.display_name, u2.nome, c.dest_nome) AS destino_nome, c.date_time",
   from: `cdr_ura c LEFT JOIN uras u ON c.tenant_id = u.tenant_id AND u.id = c.nome_ura
   LEFT JOIN ramais r ON c.dest_op = 'RAMAL' AND r.tenant_id = c.tenant_id AND r.ramal = c.dest_nome
   LEFT JOIN filas f ON c.dest_op = 'FILA' AND f.tenant_id = c.tenant_id AND f.id = c.dest_nome
   LEFT JOIN uras u2 ON c.dest_op = 'URA' AND u2.tenant_id = c.tenant_id AND u2.id = c.dest_nome`,
-  order: "c.id",
+  order: "c.date_time",
+  dateCol: "c.date_time",
   tenantCol: "c.tenant_id",
-  filters: { linkedid: "c.linkedid", origem: "c.num_did", destino: "c.dest_op", status: "u.nome" },
+  filters: { linkedid: "c.linkedid", origem: "c.num_did", destino: "c.opcao", status: "u.nome" },
 });
 cdrFilteredEndpoint("/cdr/cidades/entrada", {
-  select: "id, ddd, numero, sigla_estado, estado, data_hora",
-  from: "cdr_cidades_entrada",
-  order: "data_hora",
-  dateCol: "data_hora",
-  exactFilters: ["status"],
-  filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
+  select: "cde.id, cde.linkedid, cde.ddd, cde.numero, cde.sigla_estado, cde.estado, cr.tipo_chamada, cr.status, cde.data_hora",
+  from: `cdr_cidades_entrada cde LEFT JOIN cdr_ramal cr ON cde.linkedid = cr.linkedid AND cde.tenant_id = cr.tenant_id`,
+  order: "cde.data_hora",
+  dateCol: "cde.data_hora",
+  rankCol: "cde.ddd",
+  tenantCol: "cde.tenant_id",
+  exactFilters: ["cde.status", "cde.sigla_estado"],
+  filters: { origem: "cde.numero", destino: "cde.numero", tipo: "cr.tipo_chamada", status: "cr.status", sigla_estado: "cde.sigla_estado" },
 });
 cdrFilteredEndpoint("/cdr/cidades/saida", {
-  select: "id, ddd, numero, sigla_estado, estado, data_hora",
-  from: "cdr_cidades_saida",
-  order: "data_hora",
-  dateCol: "data_hora",
-  exactFilters: ["status"],
-  filters: { origem: "numero", destino: "numero", status: "sigla_estado" },
+  select: "cds.id, cds.linkedid, cds.ddd, cds.numero, cds.sigla_estado, cds.estado, cr.tipo_chamada, cr.status, cds.data_hora",
+  from: `cdr_cidades_saida cds LEFT JOIN cdr_ramal cr ON cds.linkedid = cr.linkedid AND cds.tenant_id = cr.tenant_id`,
+  order: "cds.data_hora",
+  dateCol: "cds.data_hora",
+  rankCol: "cds.ddd",
+  tenantCol: "cds.tenant_id",
+  exactFilters: ["cds.status", "cds.sigla_estado"],
+  filters: { origem: "cds.numero", destino: "cds.numero", tipo: "cr.tipo_chamada", status: "cr.status", sigla_estado: "cds.sigla_estado" },
 });
+
 
 // ---------- Filas (gestão) ----------
 app.get("/filas", async (req, res) => {
@@ -1470,7 +1568,7 @@ app.get("/filas", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.active,
+      `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.gravacao, f.active,
               q.strategy, q.timeout, q.retry, q.maxlen, q.musiconhold,
               (SELECT COUNT(*) FROM filas_agentes fa
                  WHERE fa.tenant_id = f.tenant_id AND fa.queue = f.name) AS membros
@@ -1480,7 +1578,7 @@ app.get("/filas", async (req, res) => {
         ORDER BY f.display_name`,
       [String(tenant)],
     );
-    res.json({ filas: rows.map((r) => ({ ...r, active: !!r.active })) });
+    res.json({ filas: rows.map((r) => ({ ...r, gravacao: !!r.gravacao, active: !!r.active })) });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -1492,7 +1590,7 @@ app.get("/filas/:id/agentes", async (req, res) => {
   const filaId = Number(req.params.id);
   try {
     const [filaRows] = await pool.query(
-      `SELECT id, name, display_name, description, active
+      `SELECT id, name, display_name, description, gravacao, active
          FROM filas WHERE tenant_id = ? AND id = ? LIMIT 1`,
       [tenant, filaId],
     );
@@ -1631,6 +1729,7 @@ app.post("/filas", async (req, res) => {
     timeout = 15,
     retry = 5,
     fila_timeout,
+    gravacao = false,
     active = true,
   } = req.body || {};
   if (!display_name) {
@@ -1657,9 +1756,9 @@ app.post("/filas", async (req, res) => {
     await ensureMoh(conn, tenant);
 
     await conn.query(
-      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, active)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [String(tenant), name, display_name, fila_timeout || null, description || null, active ? 1 : 0],
+      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, gravacao, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [String(tenant), name, display_name, fila_timeout || null, description || null, gravacao ? 1 : 0 , active ? 1 : 0],
     );
 
     await conn.query(
@@ -1684,7 +1783,7 @@ app.put("/filas/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
-  const { display_name, description, strategy, timeout, fila_timeout, retry, active } = req.body || {};
+  const { display_name, description, strategy, timeout, fila_timeout, retry, gravacao, active } = req.body || {};
   if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
     return res.status(400).json({ error: "Estratégia inválida" });
   }
@@ -1715,12 +1814,13 @@ app.put("/filas/:id", async (req, res) => {
     }
 
     await conn.query(
-      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, active = ?, name = ?
+      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, gravacao = ?, active = ?, name = ?
         WHERE id = ? AND tenant_id = ?`,
       [
         newDisplay,
         fila_timeout !== undefined ? Number(fila_timeout) : f.fila_timeout,
         description ?? f.description,
+        gravacao === undefined ? f.gravacao : gravacao ? 1 : 0,
         active === undefined ? f.active : active ? 1 : 0,
         newName,
         id,
@@ -2607,7 +2707,7 @@ app.delete("/horario-ramais/:id", async (req, res) => {
   }
 });
 
-app.get("/pesquisas", async (req, res) => {
+app.get("/pesquisa-satisfacao", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
@@ -2653,7 +2753,7 @@ function validatePesquisaBody(body) {
   return null;
 }
 
-app.post("/pesquisas", async (req, res) => {
+app.post("/pesquisa-satisfacao", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const err = validatePesquisaBody(req.body);
@@ -2686,7 +2786,7 @@ app.post("/pesquisas", async (req, res) => {
   }
 });
 
-app.put("/pesquisas/:id", async (req, res) => {
+app.put("/pesquisa-satisfacao/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
@@ -2712,14 +2812,37 @@ app.put("/pesquisas/:id", async (req, res) => {
       [String(nome_pesquisa).trim(), Number(quantidade_op), ativo ? 1 : 0, id, tenant],
     );
 
-    await conn.query(`DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ?`, [id]);
-    for (const p of perguntas) {
+    const idsEnviados = perguntas.map((p) => p.id).filter(Boolean);
+
+    if (idsEnviados.length > 0) {
       await conn.query(
-        `INSERT INTO pesquisa_perguntas (id_pesquisa, ordem, audio, max_digit)
-         VALUES (?, ?, ?, ?)`,
-        [id, Number(p.ordem), String(p.audio).trim(), Number(p.max_digit)],
+        `DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ? AND id NOT IN (?)`,
+        [id, idsEnviados],
       );
+    } else {
+      // Se não enviou nenhum ID válido, limpa tudo desse id_pesquisa
+      await conn.query(`DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ?`, [id]);
     }
+
+    for (const p of perguntas) {
+       if (p.id) {
+        // Se já tem ID, faz um UPDATE (preserva estatísticas e chaves estrangeiras)
+        await conn.query(
+          `UPDATE pesquisa_perguntas
+             SET ordem = ?, audio = ?, max_digit = ?
+           WHERE id = ? AND id_pesquisa = ?`,
+          [Number(p.ordem), String(p.audio).trim(), Number(p.max_digit), p.id, id],
+        );
+      } else {
+        // Se veio sem ID (pergunta nova adicionada no front), faz um INSERT
+        await conn.query(
+          `INSERT INTO pesquisa_perguntas (id_pesquisa, ordem, audio, max_digit)
+           VALUES (?, ?, ?, ?)`,
+          [id, Number(p.ordem), String(p.audio).trim(), Number(p.max_digit)],
+        );
+      }
+    }
+
     await conn.commit();
     res.json({ ok: true });
   } catch (e) {
@@ -2730,7 +2853,7 @@ app.put("/pesquisas/:id", async (req, res) => {
   }
 });
 
-app.delete("/pesquisas/:id", async (req, res) => {
+app.delete("/pesquisa-satisfacao/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
@@ -2741,6 +2864,68 @@ app.delete("/pesquisas/:id", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
+});
+
+const authMiddleware = (req, res, next) => {
+    // Tenta pegar o tenant_id do header (ou da query string se preferir)
+    const tenantId = req.headers['x-tenant-id'] || req.query.tenant_id;
+    if (!tenantId) {
+        return res.status(401).json({ error: "Faltando identificação do Tenant (x-tenant-id)" });
+    }
+    // Salva no objeto req para a rota usar
+    req.tenantId = tenantId;
+    next();
+};
+
+app.get("/gravacoes/:tipo/:id", authMiddleware, async (req, res) => {
+    try {
+        // Pega o tenant_id injetado pelo authMiddleware
+        const tenant = req.tenantId;
+        const chamadaId = req.params.id;
+        const tipo = req.params.tipo;
+
+        if (!tenant) {
+            return res.status(401).json({ error: "Tenant não identificado" });
+        }
+
+       // Valida o tipo para evitar manipulação de caminhos injetados (Directory Traversal)
+        if (tipo !== "ramal" && tipo !== "fila") {
+            return res.status(400).json({ error: "Tipo de gravação inválido" });
+        }
+
+        const tabela = tipo === "fila" ? "cdr_fila" : "cdr_ramal";
+
+        //Faz a consulta usando o pool.query no padrão exato do seu arquivo
+        const sql = `SELECT nome_gravacao FROM ${tabela} WHERE id = ? AND tenant_id = ? LIMIT 1`;
+        const [rows] = await pool.query(sql, [chamadaId, tenant]);
+
+        const chamada = rows[0];
+
+        if (!chamada || !chamada.nome_gravacao) {
+            return res.status(404).json({ erro: "Registro de gravação não encontrado no banco" });
+        }
+
+        // Extrai apenas o arquivo final de forma segura (ex: arquivo.wav)
+        const arquivo = path.basename(chamada.nome_gravacao);
+        // Monta o caminho completo no disco do Asterisk
+        const caminho = path.join(
+            GRAVACAO_BASE,
+            tipo,
+            `t${tenant}`,
+            arquivo
+        );
+
+        // 4. Verifica se o arquivo existe e faz o stream dele
+        await fs.access(caminho);
+        res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+        res.setHeader("Content-Disposition", `attachment; filename="${arquivo}"`);
+        res.setHeader("Content-Type", "audio/wav");
+        fsSync.createReadStream(caminho).pipe(res);
+
+    } catch (err) {
+        console.error("[Erro Gravacao]:", err);
+        res.status(404).json({ erro: "Gravação não encontrada no sistema" });
+    }
 });
 
 app.use((err, _req, res, _next) => {
