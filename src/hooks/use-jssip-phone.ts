@@ -41,6 +41,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ua.on("newRTCSession", (e: any) => {
       const session = e.session;
+
       if (sessionRef.current) {
         if (session.direction === "incoming") session.terminate();
         return;
@@ -89,6 +90,15 @@ export function useJsSipPhone(creds: SipCreds | null) {
       if (!uaRef.current || phoneState !== "registered" || !creds) return;
       uaRef.current.call(`sip:${number}@${creds.sip_domain}`, {
         mediaConstraints: { audio: true, video: false },
+
+        rtcOfferConstraints: {
+         offerToReceiveAudio: true,
+         offerToReceiveVideo: false,
+        },
+
+         pcConfig: {
+         iceServers: [{ urls: "stun:stun.l.google.com:19302", }],
+        },
       });
     },
     [phoneState, creds],
