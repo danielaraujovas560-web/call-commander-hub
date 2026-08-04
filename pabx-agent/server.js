@@ -776,7 +776,7 @@ app.get("/ramais", async (req, res) => {
     const [rows] = await pool.query(
       `SELECT r.ramal, r.nome AS ramal_nome, r.tronco, t.nome AS tronco_nome, r.ddd, r.callerid, r.senha,
               r.fixo, r.movel, r.ddi, r.especial, r.cng, r.endpoint_id,
-              r.gravacao, r.transbordo, r.transbordo_tronco
+              r.gravacao, r.transbordo, r.transbordo_tronco, r.pesquisa, r.pesquisa_id
          FROM ramais r LEFT JOIN troncos t
         ON r.tronco = t.id AND r.tenant_id = t.tenant_id
         WHERE r.tenant_id = ?  ORDER BY ramal`,
@@ -793,6 +793,7 @@ app.get("/ramais", async (req, res) => {
         cng: !!r.cng,
         gravacao: !!r.gravacao,
         transbordo: !!r.transbordo,
+        pesquisa: !!r.pesquisa,
       })),
     });
   } catch (e) {
@@ -803,7 +804,7 @@ app.get("/ramais", async (req, res) => {
 app.post("/ramais", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  let { nome, ramal, senha, tronco, ddd, callerid, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco } =
+  let { nome, ramal, senha, tronco, ddd, callerid, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco, pesquisa, pesquisa_id } =
     req.body || {};
   if (!ramal || !tronco || !ddd) {
     return res.status(400).json({ error: "Campos obrigatórios: ramal, tronco, ddd" });
@@ -816,10 +817,17 @@ app.post("/ramais", async (req, res) => {
   const authId = `auth-${endpointId}`;
   const transbordoInt = transbordo ? 1 : 0;
   const transbordoTroncoVal = transbordoInt && transbordo_tronco ? String(transbordo_tronco) : null;
+  const pesquisaInt = pesquisa ? 1 : 0;
+  const pesquisaIdVal = pesquisaInt && pesquisa_id ? Number(pesquisa_id) : null;
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    const pesquisaErr = await validatePesquisaId(conn, tenant, pesquisaInt, pesquisaIdVal);
+    if (pesquisaErr) {
+      await conn.rollback();
+      return res.status(400).json({ error: pesquisaErr });
+    }
 
     await conn.query(`INSERT IGNORE INTO tenants (id, nome) VALUES (?, ?)`, [tenant, `tenant-${tenant}`]);
 
@@ -832,8 +840,8 @@ app.post("/ramais", async (req, res) => {
     );
     await conn.query(
       `INSERT INTO ramais (endpoint_id, tenant_id, nome, ramal, senha, tronco, ddd, callerid,
-                           fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco, pesquisa, pesquisa_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         endpointId,
         tenant,
@@ -851,6 +859,8 @@ app.post("/ramais", async (req, res) => {
         gravacao ? 1: 0,
         transbordoInt,
         transbordoTroncoVal,
+        pesquisaInt,
+        pesquisaIdVal,
       ],
     );
 
@@ -898,6 +908,8 @@ app.post("/ramais", async (req, res) => {
         gravacao: !!gravacao,
         transbordo: !!transbordoInt,
         transbordo_tronco: transbordoTroncoVal,
+        pesquisa: !!pesquisaInt,
+        pesquisa_id: pesquisaIdVal,
         endpoint_id: endpointId,
       },
     });
@@ -916,7 +928,7 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
   if (!endpointId) {
     return res.status(400).json({ error: "endpoint inválido" });
   }
-  const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco } =
+  const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco, pesquisa, pesquisa_id } =
     req.body || {};
   const conn = await pool.getConnection();
   try {
@@ -975,7 +987,22 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
       sets.push("transbordo_tronco = ?");
       vals.push(transbordo_tronco || null);
     }
-
+    if (pesquisa !== undefined) {
+      const pesquisaIntUpdate = pesquisa ? 1 : 0;
+      const pesquisaIdUpdate = pesquisaIntUpdate && pesquisa_id ? Number(pesquisa_id) : null;
+      const pesquisaErr = await validatePesquisaId(conn, tenant, pesquisaIntUpdate, pesquisaIdUpdate);
+      if (pesquisaErr) {
+        await conn.rollback();
+        return res.status(400).json({ error: pesquisaErr });
+      }
+      sets.push("pesquisa = ?");
+      vals.push(pesquisaIntUpdate);
+      sets.push("pesquisa_id = ?");
+      vals.push(pesquisaIdUpdate);
+    } else if (pesquisa_id !== undefined) {
+      sets.push("pesquisa_id = ?");
+      vals.push(pesquisa_id || null);
+    }
     if (sets.length > 0) {
       await conn.query(`UPDATE ramais SET ${sets.join(", ")} WHERE endpoint_id = ? AND tenant_id = ?`, [...vals, endpointId, tenant]);
     }
@@ -1569,6 +1596,7 @@ app.get("/filas", async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.gravacao, f.active,
+              f.pesquisa, f.pesquisa_id,
               q.strategy, q.timeout, q.retry, q.maxlen, q.musiconhold,
               (SELECT COUNT(*) FROM filas_agentes fa
                  WHERE fa.tenant_id = f.tenant_id AND fa.queue = f.name) AS membros
@@ -1578,7 +1606,7 @@ app.get("/filas", async (req, res) => {
         ORDER BY f.display_name`,
       [String(tenant)],
     );
-    res.json({ filas: rows.map((r) => ({ ...r, gravacao: !!r.gravacao, active: !!r.active })) });
+    res.json({ filas: rows.map((r) => ({ ...r, gravacao: !!r.gravacao, active: !!r.active, pesquisa: !!r.pesquisa })) });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -1731,6 +1759,8 @@ app.post("/filas", async (req, res) => {
     fila_timeout,
     gravacao = false,
     active = true,
+    pesquisa = false,
+    pesquisa_id,
   } = req.body || {};
   if (!display_name) {
     return res.status(400).json({ error: "display_name obrigatório" });
@@ -1740,6 +1770,8 @@ app.post("/filas", async (req, res) => {
   }
   const slug = slugName(display_name);
   const name = `q${tenant}-${slug}`;
+  const pesquisaInt = pesquisa ? 1 : 0;
+  const pesquisaIdVal = pesquisaInt && pesquisa_id ? Number(pesquisa_id) : null;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -1753,12 +1785,18 @@ app.post("/filas", async (req, res) => {
       return res.status(409).json({ error: "Já existe uma fila com esse nome neste tenant." });
     }
 
+    const pesquisaErr = await validatePesquisaId(conn, tenant, pesquisaInt, pesquisaIdVal);
+    if (pesquisaErr) {
+      await conn.rollback();
+      return res.status(400).json({ error: pesquisaErr });
+    }
+
     await ensureMoh(conn, tenant);
 
     await conn.query(
-      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, gravacao, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [String(tenant), name, display_name, fila_timeout || null, description || null, gravacao ? 1 : 0 , active ? 1 : 0],
+      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, gravacao, active, pesquisa, pesquisa_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [String(tenant), name, display_name, fila_timeout || null, description || null, gravacao ? 1 : 0 , active ? 1 : 0, pesquisaInt, pesquisaIdVal],
     );
 
     await conn.query(
@@ -1783,7 +1821,7 @@ app.put("/filas/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
-  const { display_name, description, strategy, timeout, fila_timeout, retry, gravacao, active } = req.body || {};
+  const { display_name, description, strategy, timeout, fila_timeout, retry, gravacao, active, pesquisa, pesquisa_id } = req.body || {};
   if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
     return res.status(400).json({ error: "Estratégia inválida" });
   }
@@ -1813,8 +1851,23 @@ app.put("/filas/:id", async (req, res) => {
       }
     }
 
+    let pesquisaIntUpdate = f.pesquisa;
+    let pesquisaIdUpdate = f.pesquisa_id;
+    if (pesquisa !== undefined) {
+      pesquisaIntUpdate = pesquisa ? 1 : 0;
+      pesquisaIdUpdate = pesquisaIntUpdate && pesquisa_id ? Number(pesquisa_id) : null;
+      const pesquisaErr = await validatePesquisaId(conn, tenant, pesquisaIntUpdate, pesquisaIdUpdate);
+      if (pesquisaErr) {
+        await conn.rollback();
+        return res.status(400).json({ error: pesquisaErr });
+      }
+    } else if (pesquisa_id !== undefined) {
+      pesquisaIdUpdate = pesquisa_id || null;
+    }
+
     await conn.query(
-      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, gravacao = ?, active = ?, name = ?
+      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, gravacao = ?, active = ?, name = ?,
+                        pesquisa = ?, pesquisa_id = ?
         WHERE id = ? AND tenant_id = ?`,
       [
         newDisplay,
@@ -1823,6 +1876,8 @@ app.put("/filas/:id", async (req, res) => {
         gravacao === undefined ? f.gravacao : gravacao ? 1 : 0,
         active === undefined ? f.active : active ? 1 : 0,
         newName,
+        pesquisaIntUpdate,
+        pesquisaIdUpdate,
         id,
         String(tenant),
       ],
