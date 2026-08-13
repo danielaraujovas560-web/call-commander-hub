@@ -801,6 +801,29 @@ app.get("/ramais", async (req, res) => {
   }
 });
 
+async function validatePesquisaId(conn, tenant, pesquisaAtivo, pesquisaId) {
+  if (!pesquisaAtivo) return null;
+
+  const pid = Number(pesquisaId);
+  if (!pid) {
+    return "pesquisa_id obrigatório quando pesquisa está ativada";
+  }
+
+  const [rows] = await conn.query(
+    `SELECT 1
+       FROM pesquisa_satisfacao
+      WHERE id = ? AND tenant_id = ?
+      LIMIT 1`,
+    [pid, tenant]
+  );
+
+  if (!rows.length) {
+    return "Pesquisa de satisfação não encontrada";
+  }
+
+  return null;
+}
+
 app.post("/ramais", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
@@ -1568,8 +1591,9 @@ cdrFilteredEndpoint("/cdr/ura", {
   filters: { linkedid: "c.linkedid", origem: "c.num_did", destino: "c.opcao", status: "u.nome" },
 });
 cdrFilteredEndpoint("/cdr/cidades/entrada", {
-  select: "cde.id, cde.linkedid, cde.ddd, cde.numero, cde.sigla_estado, cde.estado, cr.tipo_chamada, cr.status, cde.data_hora",
-  from: `cdr_cidades_entrada cde LEFT JOIN cdr_ramal cr ON cde.linkedid = cr.linkedid AND cde.tenant_id = cr.tenant_id`,
+  select: "cde.id, cde.linkedid, cde.ddd, cde.numero, cde.sigla_estado, cd.estado, cr.tipo_chamada, cr.status, cde.data_hora",
+  from: `cdr_cidades_entrada cde LEFT JOIN cdr_ramal cr ON cde.linkedid = cr.linkedid AND cde.tenant_id = cr.tenant_id
+         LEFT JOIN cidades_ddd cd ON cde.ddd = cd.ddd`,
   order: "cde.data_hora",
   dateCol: "cde.data_hora",
   rankCol: "cde.ddd",
@@ -1578,8 +1602,9 @@ cdrFilteredEndpoint("/cdr/cidades/entrada", {
   filters: { origem: "cde.numero", destino: "cde.numero", tipo: "cr.tipo_chamada", status: "cr.status", sigla_estado: "cde.sigla_estado" },
 });
 cdrFilteredEndpoint("/cdr/cidades/saida", {
-  select: "cds.id, cds.linkedid, cds.ddd, cds.numero, cds.sigla_estado, cds.estado, cr.tipo_chamada, cr.status, cds.data_hora",
-  from: `cdr_cidades_saida cds LEFT JOIN cdr_ramal cr ON cds.linkedid = cr.linkedid AND cds.tenant_id = cr.tenant_id`,
+  select: "cds.id, cds.linkedid, cds.ddd, cds.numero, cds.sigla_estado, cd.estado, cr.tipo_chamada, cr.status, cds.data_hora",
+  from: `cdr_cidades_saida cds LEFT JOIN cdr_ramal cr ON cds.linkedid = cr.linkedid AND cds.tenant_id = cr.tenant_id
+         LEFT JOIN cidades_ddd cd ON cds.ddd = cd.ddd`,
   order: "cds.data_hora",
   dateCol: "cds.data_hora",
   rankCol: "cds.ddd",
@@ -1597,7 +1622,7 @@ app.get("/filas", async (req, res) => {
     const [rows] = await pool.query(
       `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.gravacao, f.active,
               f.pesquisa, f.pesquisa_id,
-              q.strategy, q.timeout, q.retry, q.maxlen, q.musiconhold,
+              q.strategy, q.timeout, q.ringinuse, q.retry, q.maxlen, q.musiconhold,
               (SELECT COUNT(*) FROM filas_agentes fa
                  WHERE fa.tenant_id = f.tenant_id AND fa.queue = f.name) AS membros
          FROM filas f
@@ -1756,6 +1781,7 @@ app.post("/filas", async (req, res) => {
     strategy = "ringall",
     timeout = 15,
     retry = 5,
+    ringinuse = "no",
     fila_timeout,
     gravacao = false,
     active = true,
@@ -1800,9 +1826,9 @@ app.post("/filas", async (req, res) => {
     );
 
     await conn.query(
-      `INSERT INTO queues (tenant_id, name, musiconhold, strategy, timeout, retry)
-       VALUES (?, ?, 'musiconhold-default', ?, ?, ?)`,
-      [String(tenant), name, strategy, Number(timeout) || 0, Number(retry)],
+      `INSERT INTO queues (tenant_id, name, musiconhold, strategy, timeout, retry, ringinuse)
+       VALUES (?, ?, 'musiconhold-default', ?, ?, ?, ?)`,
+      [String(tenant), name, strategy, Number(timeout) || 0, Number(retry), ringinuse ?? "no",]
     );
 
     await conn.commit();
@@ -1821,7 +1847,7 @@ app.put("/filas/:id", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const id = Number(req.params.id);
-  const { display_name, description, strategy, timeout, fila_timeout, retry, gravacao, active, pesquisa, pesquisa_id } = req.body || {};
+  const { display_name, description, strategy, timeout, fila_timeout, retry, ringinuse, gravacao, active, pesquisa, pesquisa_id } = req.body || {};
   if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
     return res.status(400).json({ error: "Estratégia inválida" });
   }
@@ -2485,13 +2511,17 @@ app.get("/cdr/pesquisa", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 500, 5000);
   const where = ["(ps.tenant_id = ? OR ps.tenant_id IS NULL)"];
   const vals = [tenant];
-  const map = { linkedid: "p.unique_id", origem: "p.numero_origem", destino: "agente", status: "fila" };
+  const map = { linkedid: "p.linkedid", origem: "COALESCE(ro.nome, p.origem)", destino: "COALESCE(rd.nome, p.destino)", status: "COALESCE(f.display_name, p.fila)" };
   for (const [k, col] of Object.entries(map)) {
     const v = req.query[k];
     if (v !== undefined && String(v).trim() !== "") {
       where.push(`${col} LIKE ?`);
       vals.push(`%${String(v).trim()}%`);
     }
+  }
+  if (req.query.tipo && String(req.query.tipo).trim() !== "") {
+    where.push("p.tipo = ?");
+    vals.push(String(req.query.tipo).trim());
   }
   if (req.query.from) {
     where.push("p.data >= ?");
@@ -2504,11 +2534,12 @@ app.get("/cdr/pesquisa", async (req, res) => {
   vals.push(limit);
   try {
     const [rows] = await pool.query(
-      `SELECT p.id, p.unique_id, p.numero_origem, COALESCE(r.nome, p.agente) AS agente, COALESCE(f.display_name, p.fila) AS fila,
+      `SELECT p.id, p.linkedid, p.tipo, COALESCE(ro.nome, p.origem) origem, COALESCE(rd.nome, p.destino) AS destino, COALESCE(f.display_name, p.fila) AS fila,
               p.pergunta_id, p.nota, p.data
          FROM cdr_pesquisa p
          LEFT JOIN pesquisa_satisfacao ps ON ps.id = p.pesquisa_id
-         LEFT JOIN ramais r ON r.endpoint_id = p.agente
+         LEFT JOIN ramais ro ON ro.endpoint_id = p.origem
+         LEFT JOIN ramais rd ON rd.endpoint_id = p.destino
          LEFT JOIN filas f ON f.id = p.fila
         WHERE ${where.join(" AND ")}
         ORDER BY p.data DESC
