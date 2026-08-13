@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relator
 function Page() {
   const { tenantId: p } = Route.useParams();
   const tenantId = Number(p);
-  const [fRamais, setFRamais] = useState<ReportFilterValues>(() => getTodayFilters());
+  const [fRamais, setFRamais] = useState<ReportFilterValues>(() => ({ ...getTodayFilters(), limit: 25 }));
   const [page, setPage] = useState(1); 
   const fn = useServerFn(listCdrRamal);
   const { data, isLoading, error } = useQuery({

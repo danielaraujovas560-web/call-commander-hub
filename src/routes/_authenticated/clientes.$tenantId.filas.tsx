@@ -10,6 +10,7 @@ import {
   getFilaAgentes, addFilaAgente, removeFilaAgente, setFilaAgentePenalty,
   listRamais,
   type Fila,
+  listPesquisaSatisfacao,
 } from "@/lib/ramais.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -272,14 +273,27 @@ function FilaFormDialog({
   const setOpen = (v: boolean) => onOpenChange ? onOpenChange(v) : setInternalOpen(v);
   const editing = !!fila;
 
+  const pesquisasFn = useServerFn(listPesquisaSatisfacao);
+
+  const { data: pesquisasData } = useQuery({
+    queryKey: ["pesquisas", tenantId],
+    queryFn: () => pesquisasFn({ data: { tenant_id: tenantId } }),
+    enabled: open,
+  });
+
+  const pesquisas = pesquisasData?.pesquisas ?? [];
+
   const [form, setForm] = useState({
     display_name: fila?.display_name ?? "",
     description: fila?.description ?? "",
     strategy: (fila?.strategy as string) ?? "ringall",
     timeout: fila?.timeout ?? 15,
     retry: fila?.retry ?? 5,
+    ringinuse: fila?.ringinuse ?? "",
     fila_timeout: fila?.fila_timeout ?? 30,
     gravacao: fila?.gravacao ?? false,
+    pesquisa: fila?.pesquisa ?? false,
+    pesquisa_id: fila?.pesquisa_id ?? null,
     active: fila?.active ?? true,
   });
 
@@ -291,8 +305,11 @@ function FilaFormDialog({
         strategy: (fila?.strategy as string) ?? "ringall",
         timeout: fila?.timeout ?? 15,
         retry: fila?.retry ?? 5,
+        ringinuse: fila?.ringinuse ?? "",
         fila_timeout: fila?.fila_timeout ?? 30,
         gravacao: fila?.gravacao ?? false,
+        pesquisa: fila?.pesquisa ?? false,
+        pesquisa_id: fila?.pesquisa_id ?? null,
         active: fila?.active ?? true,
       });
     }
@@ -311,7 +328,10 @@ function FilaFormDialog({
         timeout: Number(form.timeout) || 0,
         fila_timeout: Number(form.fila_timeout) || 0,
         retry: Number(form.retry) || 0,
+        ringinuse: form.ringinuse as "no" | "yes",
         gravacao: form.gravacao,
+        pesquisa: form.pesquisa,
+        pesquisa_id: form.pesquisa ? form.pesquisa_id : undefined,
         active: form.active,
       };
       return editing ? updateFn({ data: { id: fila!.id, ...body } }) : createFn({ data: body });
@@ -352,6 +372,14 @@ function FilaFormDialog({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label>Chama ramal ocupado?</Label>
+               <Select value={form.ringinuse} onValueChange={(v) => setForm({ ...form, ringinuse: v as "no" | "yes" })}>
+                <SelectTrigger><SelectValue placeholder="Selecione a opção" /></SelectTrigger>
+                <SelectContent><SelectItem value="no">Não</SelectItem><SelectItem value="yes">Sim</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="w-full flex items-center gap-2 rounded-md border p-3">
               <Switch checked={form.gravacao} onCheckedChange={(v) => setForm({ ...form, gravacao: v })} />
             <div>
@@ -370,6 +398,33 @@ function FilaFormDialog({
                </p>
               </div>
             </div>
+          <div className="col-span-2 rounded-md border p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.pesquisa}
+                onCheckedChange={(v) => setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null, })}
+              />
+             <div>
+               <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+               <p className="text-xs text-muted-foreground"> Executa uma pesquisa ao finalizar a chamada.</p>
+             </div>
+            </div>
+            {form.pesquisa && (
+              <Select
+                value={form.pesquisa_id?.toString() ?? ""}
+                onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
+              >
+                <SelectTrigger>
+                   <SelectValue placeholder="Selecione uma pesquisa" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {pesquisas.map((p) => ( <SelectItem key={p.id} value={String(p.id)}> {p.nome_pesquisa}</SelectItem>))}
+                  {pesquisas.length === 0 && ( <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>)}
+                 </SelectContent>
+              </Select>
+             )}
+          </div>
             <div className="grid grid-cols-3 gap-3 border-t pt-3">
             <div className="space-y-1"><Label title="Tempo de toque máximo no agente">Timeout Agente</Label>
               <Input type="number" min={0} max={3600} placeholder="15" value={form.timeout === null || form.timeout === undefined ? "" : form.timeout}

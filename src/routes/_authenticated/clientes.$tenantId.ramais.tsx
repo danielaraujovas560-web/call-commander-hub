@@ -14,8 +14,7 @@ import {
   Trash2,
   PhoneCall,
 } from "lucide-react";
-import { listRamais, listRamaisStatus, listTroncos, createRamal, updateRamal, deleteRamal, type Ramal, } from "@/lib/ramais.functions";
-
+import { listRamais, listRamaisStatus, listTroncos, createRamal, updateRamal, deleteRamal, type Ramal, listPesquisaSatisfacao, } from "@/lib/ramais.functions";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +63,7 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/ramais"
   component: RamaisPage,
 });
 
-export const listaDDDs = Array.from({ length: 89 }, (_, i) => String(i + 11));
+const listaDDDs = Array.from({ length: 89 }, (_, i) => String(i + 11));
 
 function RamaisPage() {
   const { tenantId: tenantParam } = Route.useParams();
@@ -263,9 +262,17 @@ function genPassword() {
 function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const troncosFn = useServerFn(listTroncos);
+  const pesquisasFn = useServerFn(listPesquisaSatisfacao);
+
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
     queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
+    enabled: open,
+  });
+
+  const { data: pesquisasData } = useQuery({
+    queryKey: ["pesquisas", tenantId],
+    queryFn: () => pesquisasFn({ data: { tenant_id: tenantId } }),
     enabled: open,
   });
 
@@ -282,7 +289,9 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
     cng: false,
     gravacao: false,
     transbordo: false,
-    transbordo_troncos: [] as string[],
+    transbordo_troncos: [] as number[],
+    pesquisa: false,
+    pesquisa_id: null as number | null,
   };
   const queryClient = useQueryClient();
   const create = useServerFn(createRamal);
@@ -295,7 +304,8 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
   };
 
   const troncos = troncosData?.troncos ?? [];
-  const troncosDisponiveisTransbordo = troncos.filter((t) => t.nome !== form.tronco);
+  const pesquisas = pesquisasData?.pesquisas ?? [];
+  const troncosDisponiveisTransbordo = troncos.filter((t) => t.id !== Number(form.tronco));
 
   const mut = useMutation({
     mutationFn: () =>
@@ -375,7 +385,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
 
           <div className="col-span-2 space-y-1">
             <Label>Tronco *</Label>
-            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v, transbordo_troncos: form.transbordo_troncos.filter((t) => t !== v) })}>
+            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v, transbordo_troncos: form.transbordo_troncos.filter((id) => id !== Number(v)) })}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um tronco" />
               </SelectTrigger>
@@ -430,6 +440,34 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
             )}
           </div>
 
+          <div className="col-span-2 rounded-md border p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.pesquisa}
+                onCheckedChange={(v) => setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null, })}
+              />
+             <div>
+               <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+               <p className="text-xs text-muted-foreground"> Executa uma pesquisa ao finalizar a chamada.</p>
+             </div>
+            </div>
+            {form.pesquisa && (
+              <Select
+                value={form.pesquisa_id?.toString() ?? ""}
+                onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
+              >
+                <SelectTrigger>
+                   <SelectValue placeholder="Selecione uma pesquisa" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {pesquisas.map((p) => ( <SelectItem key={p.id} value={String(p.id)}> {p.nome_pesquisa}</SelectItem>))}
+                  {pesquisas.length === 0 && ( <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>)}
+                 </SelectContent>
+              </Select>
+             )}
+          </div>
+
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
             <div className="col-span-2 text-xs text-muted-foreground">
               Ativo = <strong>bloqueia</strong> este tipo de ligação
@@ -471,26 +509,29 @@ function TransbordoTroncosSelector({
   onChange,
 }: {
   available: { id: number; nome: string; tipo: string | null }[];
-  selected: string[];
-  onChange: (v: string[]) => void;
+  selected: number[];
+  onChange: (v: number[]) => void;
 }) {
-  const remaining = available.filter((t) => !selected.includes(t.nome));
+  const remaining = available.filter((t) => !selected.includes(t.id));
   const [pick, setPick] = useState("");
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
-        {selected.map((s) => (
-          <Badge key={s} variant="secondary" className="gap-1">
-            {s}
-            <button
-              type="button"
-              className="ml-1 text-muted-foreground hover:text-foreground"
-              onClick={() => onChange(selected.filter((x) => x !== s))}
-            >
-              ×
-            </button>
-          </Badge>
-        ))}
+        {selected.map((id) => {
+          const t = available.find((x) => x.id === id);
+          return (
+            <Badge key={id} variant="secondary" className="gap-1">
+              {t?.nome ?? `#${id}`}
+              <button
+                type="button"
+                className="ml-1 text-muted-foreground hover:text-foreground"
+                onClick={() => onChange(selected.filter((x) => x !== id))}
+              >
+                ×
+              </button>
+            </Badge>
+          );
+        })}
         {selected.length === 0 && (
           <span className="text-xs text-muted-foreground">Nenhum tronco de transbordo selecionado</span>
         )}
@@ -502,7 +543,7 @@ function TransbordoTroncosSelector({
           </SelectTrigger>
           <SelectContent>
             {remaining.map((t) => (
-              <SelectItem key={t.id} value={t.nome}>
+              <SelectItem key={t.id} value={String(t.id)}>
                 {t.nome} {t.tipo ? `(${t.tipo})` : ""}
               </SelectItem>
             ))}
@@ -512,7 +553,7 @@ function TransbordoTroncosSelector({
           type="button"
           variant="outline"
           disabled={!pick}
-          onClick={() => { onChange([...selected, pick]); setPick(""); }}
+          onClick={() => { onChange([...selected, Number(pick)]); setPick(""); }}
         >
           Adicionar
         </Button>
@@ -521,13 +562,19 @@ function TransbordoTroncosSelector({
   );
 }
 
-
 function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }) {
   const [open, setOpen] = useState(false);
   const troncosFn = useServerFn(listTroncos);
+  const pesquisasFn = useServerFn(listPesquisaSatisfacao);
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
     queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
+    enabled: open,
+  });
+
+  const { data: pesquisasData } = useQuery({
+    queryKey: ["pesquisas", tenantId],
+    queryFn: () => pesquisasFn({ data: { tenant_id: tenantId } }),
     enabled: open,
   });
 
@@ -545,8 +592,10 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     gravacao: ramal.gravacao,
     transbordo: ramal.transbordo,
     transbordo_troncos: ramal.transbordo_tronco
-      ? ramal.transbordo_tronco.split("&").filter(Boolean)
+      ? ramal.transbordo_tronco.split("&").filter(Boolean).map(Number)
       : [],
+    pesquisa: ramal.pesquisa,
+    pesquisa_id: ramal.pesquisa_id,
   });
   const [form, setForm] = useState(initial);
 
@@ -557,7 +606,8 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   };
 
   const troncos = troncosData?.troncos ?? [];
-  const troncosDisponiveisTransbordo = troncos.filter((t) => t.nome !== form.tronco);
+  const pesquisas = pesquisasData?.pesquisas ?? [];
+  const troncosDisponiveisTransbordo = troncos.filter((t) => t.id !== Number(form.tronco));
 
   const queryClient = useQueryClient();
   const update = useServerFn(updateRamal);
@@ -582,6 +632,8 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           transbordo_tronco: form.transbordo
             ? form.transbordo_troncos.join("&")
             : "",
+          pesquisa: form.pesquisa,
+          pesquisa_id: form.pesquisa ? form.pesquisa_id : null,
         },
       }),
     onSuccess: () => {
@@ -643,7 +695,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
               value={form.tronco}
               onValueChange={(v) => setForm({
                 ...form, tronco: v,
-                transbordo_troncos: form.transbordo_troncos.filter((t) => t !== v),
+                transbordo_troncos: form.transbordo_troncos.filter((id) => id !== Number(v)),
               })}
             >
               <SelectTrigger>
@@ -702,6 +754,34 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
                 onChange={(v) => setForm({ ...form, transbordo_troncos: v })}
               />
             )}
+          </div>
+
+          <div className="col-span-2 rounded-md border p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.pesquisa}
+                onCheckedChange={(v) => setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null, })}
+              />
+             <div>
+               <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+               <p className="text-xs text-muted-foreground"> Executa uma pesquisa ao finalizar a chamada.</p>
+             </div>
+            </div>
+            {form.pesquisa && (
+              <Select
+                value={form.pesquisa_id?.toString() ?? ""}
+                onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
+              >
+                <SelectTrigger>
+                   <SelectValue placeholder="Selecione uma pesquisa" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {pesquisas.map((p) => ( <SelectItem key={p.id} value={String(p.id)}> {p.nome_pesquisa}</SelectItem>))}
+                  {pesquisas.length === 0 && ( <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>)}
+                 </SelectContent>
+              </Select>
+             )}
           </div>
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">

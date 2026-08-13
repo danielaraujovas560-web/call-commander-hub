@@ -31,6 +31,8 @@ export interface Ramal {
   endpoint_id: string | null;
   transbordo: boolean;
   transbordo_tronco: string | null;
+  pesquisa: boolean;
+  pesquisa_id: number | null;
 }
 
 export interface Tronco {
@@ -71,6 +73,8 @@ const RamalInput = z.object({
   cng: z.boolean().default(false),
   transbordo: z.boolean().default(false),
   transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")),
+  pesquisa: z.boolean().default(false),
+  pesquisa_id: z.number().int().positive().optional(),
   tenant_id: z.number().int().positive().optional(),
 });
 
@@ -139,6 +143,8 @@ const RamalUpdateInput = z.object({
   gravacao: z.boolean().optional(),
   transbordo: z.boolean().optional(),
   transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")).or(z.null()),
+  pesquisa: z.boolean().optional(),
+  pesquisa_id: z.number().int().positive().optional().or(z.null()),
 });
 
 export const updateRamal = createServerFn({ method: "POST" })
@@ -349,10 +355,13 @@ export interface Fila {
   description: string | null;
   active: boolean;
   strategy: string | null;
+  ringinuse: "yes" | "no" | null;
   timeout: number | null;
   maxlen: number | null;
   musiconhold: string | null;
   membros: number;
+  pesquisa: boolean;
+  pesquisa_id: number | null;
 }
 
 export interface FilaAgente {
@@ -369,6 +378,7 @@ export interface FilaQueueConfig {
   musiconhold: string | null;
   strategy: string | null;
   timeout: number | null;
+  ringinuse: "yes" | "no" | null;
   maxlen: number | null;
 }
 
@@ -760,6 +770,8 @@ const FilaInput = z.object({
   retry: z.coerce.number().int().min(0).max(3600).default(5),
   gravacao: z.boolean().default(false),
   active: z.boolean().default(true),
+  pesquisa: z.boolean().default(false),
+  pesquisa_id: z.number().int().positive().optional(),
 });
 const FilaUpdate = FilaInput.partial().extend({
   id: z.number().int().positive(),

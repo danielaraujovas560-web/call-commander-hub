@@ -3,6 +3,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
+export const notaColors: Record<number, string> = {
+  1: "bg-[#EF4444] text-white hover:bg-[#EF4444]/90 border-transparent",
+  2: "bg-[#F97316] text-white hover:bg-[#F97316]/90 border-transparent",
+  3: "bg-[#EAB308] text-black hover:bg-[#EAB308]/90 border-transparent",
+  4: "bg-[#84CC16] text-black hover:bg-[#84CC16]/90 border-transparent",
+  5: "bg-[#22C55E] text-white hover:bg-[#22C55E]/90 border-transparent",
+};
+
 const badgeVariants = cva(
   "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
