@@ -13,8 +13,12 @@ import {
   RefreshCw,
   Trash2,
   PhoneCall,
+  KeyRound,
+  Copy,
+  UserRound,
 } from "lucide-react";
 import { listRamais, listRamaisStatus, listTroncos, createRamal, updateRamal, deleteRamal, type Ramal, listPesquisaSatisfacao, } from "@/lib/ramais.functions";
+import { getSipConfig } from "@/lib/login-config.functions";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,7 +156,6 @@ function RamaisPage() {
               <TableHead>DDD</TableHead>
               <TableHead>CallerID</TableHead>
               <TableHead>Sem Permissão Lig/</TableHead>
-              <TableHead>Senha</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Gravação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -195,9 +198,6 @@ function RamaisPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <PasswordCell value={r.senha ?? ""} />
-                </TableCell>
-                <TableCell>
                   <OnlineBadge state={statusData?.endpoints?.[String(r.ramal)]} showLabel />
                 </TableCell>
                 <TableCell>
@@ -205,6 +205,7 @@ function RamaisPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
+                      <RamalLoginInfoDialog ramal={r} />
                     <EditRamalDialog key={`${r.endpoint_id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`} tenantId={tenantId} ramal={r} />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -251,6 +252,67 @@ function PasswordCell({ value }: { value: string }) {
     </div>
   );
 }
+
+function ReadOnlyCopyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input value={value} readOnly className="font-mono text-sm" />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => {
+            navigator.clipboard.writeText(value);
+            toast.success(`${label} copiado`);
+          }}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function RamalLoginInfoDialog({ ramal }: { ramal: Ramal }) {
+  const [open, setOpen] = useState(false);
+  const fn = useServerFn(getSipConfig);
+  const { data } = useQuery({
+    queryKey: ["sip-config"],
+    queryFn: () => fn(),
+    enabled: open,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <UserRound className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Credenciais do ramal {ramal.ramal}</DialogTitle>
+          <DialogDescription>
+            Use estes dados para configurar um softphone (Zoiper, Grandstream, etc).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <ReadOnlyCopyField label="Usuário (login)" value={ramal.endpoint_id} />
+          <ReadOnlyCopyField label="Senha" value={ramal.senha ?? "-"} />
+          <ReadOnlyCopyField label="Servidor / Domínio" value={data?.host ?? "carregando…"} />
+          <ReadOnlyCopyField label="Porta" value={data?.port ?? "carregando…"} />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 
 function genPassword() {
   const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
