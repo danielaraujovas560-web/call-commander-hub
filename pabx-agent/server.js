@@ -13,7 +13,7 @@ const path = require("path");
 const { exec, execFile } = require("child_process");
 const { promisify } = require("util");
 const rateLimit = require("express-rate-limit");
-const { getEndpointsDeviceState, amiCommand, amiReady, queueAdd, queueRemove, queuePenalty } = require("./ami");
+const { getEndpointsDeviceState, amiCommand, amiReady, queueAdd, queueRemove, queuePenalty, onAmiConnect, getQueueStatus } = require("./ami");
 const execFileAsync = promisify(execFile);
 
 // Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
@@ -42,6 +42,7 @@ const {
   DB_PASSWORD = "",
   DB_NAME = "asterisk",
   WSS_URL = "",
+  SIP_PORT = "5060",
   AGENT_SECRET,
   SIGNATURE_WINDOW = "300",
   PORT = "8787",
@@ -74,6 +75,128 @@ const pool = mysql.createPool({
   dateStrings: true,
 });
 
+// Função auxiliar para mapear o status atual das filas via AMI
+async function getActiveQueueMembers() {
+  return new Promise((resolve) => {
+    const activeMembers = new Set();
+
+    // Evento que traz cada membro ativo na fila
+    function onQueueMember(evt) {
+      // Ex: evt.queue e evt.interface (ex: PJSIP/19999)
+      if (evt.queue && evt.interface) {
+        activeMembers.add(`${evt.queue}|${evt.interface}`);
+      }
+    }
+
+    // Evento que avisa quando acabou a listagem do QueueStatus
+    function onQueueStatusComplete(evt) {
+      cleanup();
+      resolve(activeMembers);
+    }
+
+    function cleanup() {
+      ami.removeListener("queuemember", onQueueMember);
+      ami.removeListener("queuestatuscomplete", onQueueStatusComplete);
+    }
+
+    ami.on("queuemember", onQueueMember);
+    ami.on("queuestatuscomplete", onQueueStatusComplete);
+
+    // Dispara o comando QueueStatus para o Asterisk
+    ami.action({ Action: "QueueStatus" }, (err) => {
+      if (err) {
+        cleanup();
+        resolve(new Set()); // Se falhar, retorna vazio para garantir o restore tradicional
+      }
+    });
+
+    // Timeout de segurança caso o Asterisk demore a responder
+    setTimeout(() => {
+      cleanup();
+      resolve(activeMembers);
+    }, 4000);
+  });
+}
+
+async function restoreQueueMembers() {
+  console.log("[queue-restore] verificando membros ativos no Asterisk...");
+
+  const activeMembers = await getQueueStatus();
+
+  console.log("[queue-restore] consultando banco de dados...");
+
+  try {
+    const [agentes] = await pool.query(`
+      SELECT
+        id,
+        tenant_id,
+        queue,
+        interface,
+        penalty,
+        membername,
+        ramal
+      FROM filas_agentes
+      ORDER BY queue, penalty, id
+    `);
+
+    console.log(
+      `[queue-restore] ${agentes.length} membros registrados no banco.`
+    );
+
+    for (const agente of agentes) {
+      const chaveUnica = `${agente.queue.toLowerCase()}|${agente.interface.toLowerCase()}`;
+
+      if (activeMembers.has(chaveUnica)) {
+        console.log(
+          `[queue-restore] pulado (já está ativo): ${agente.queue} <- ${agente.interface}`
+        );
+        continue;
+      }
+
+      try {
+        await queueAdd({
+          queue: agente.queue,
+          interface: agente.interface,
+          penalty: agente.penalty,
+          memberName: agente.membername,
+        });
+
+        console.log(
+          `[queue-restore] restaurado: ${agente.queue} <- ${agente.interface}`
+        );
+      } catch (err) {
+        console.error(
+          `[queue-restore] falha ao restaurar ${agente.interface} ` +
+          `na fila ${agente.queue}:`,
+          err.message || err
+        );
+      }
+    }
+
+    console.log("[queue-restore] sincronização inteligente concluída.");
+  } catch (err) {
+    console.error(
+      "[queue-restore] erro consultando filas_agentes:",
+      err.message || err
+    );
+  }
+}
+
+onAmiConnect(async () => {
+  console.log("[queue-restore] AMI conectado.");
+
+  // Dá tempo para o Asterisk terminar de inicializar as filas.
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  console.log("[queue-restore] recarregando parâmetros das filas...");
+
+  await amiQueueReloadAll();
+
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  await restoreQueueMembers();
+});
+
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: AUDIO_UPLOAD_LIMIT }));
@@ -89,7 +212,8 @@ app.use(
 // ---------- HMAC verification ----------
 app.use((req, res, next) => {
  if (req.path.startsWith("/auth/") || req.path.startsWith("/tenant/") || req.path.startsWith("/admin/") || req.path.startsWith("/clientes") ||
-     req.path.startsWith("/my/") || req.path.startsWith("/audit-log/") || req.path.startsWith("/gravacoes/") || req.path.startsWith("/ramal-auth/"))
+     req.path.startsWith("/my/") || req.path.startsWith("/audit-log/") || req.path.startsWith("/gravacoes/") || req.path.startsWith("/ramal-auth/") ||
+     req.path.startsWith("/config/"))
   return next();
   const ts = req.header("X-Timestamp");
   const sig = req.header("X-Signature");
@@ -741,6 +865,13 @@ app.post("/ramal-auth/login", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
+});
+
+// Dados de conexão SIP padrão (softphone comum — Zoiper, Grandstream, etc),
+// não confundir com o WSS do painel WebRTC. Porta fixa configurável via env.
+app.get("/config/sip", (req, res) => {
+  const host = String(WSS_URL).replace(/^wss?:\/\//, "").split(":")[0].split("/")[0];
+  res.json({ host, port: SIP_PORT });
 });
 
 // ---------- Tenants ----------

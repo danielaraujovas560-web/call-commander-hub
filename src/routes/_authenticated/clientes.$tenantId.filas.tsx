@@ -204,8 +204,8 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Ramal</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Ramal</TableHead>
                   <TableHead className="w-28">Prioridade</TableHead>
                   <TableHead className="w-16 text-right">Ações</TableHead>
                 </TableRow>
@@ -213,8 +213,8 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
               <TableBody>
                 {agentes.map((a) => (
                   <TableRow key={a.id}>
-                    <TableCell className="font-mono">{a.ramal ?? "-"}</TableCell>
                     <TableCell>{a.membername ?? "-"}</TableCell>
+                    <TableCell className="font-mono">{a.ramal ?? "-"}</TableCell>
                     <TableCell>
                       <Input
                         type="number" min={0} max={100} defaultValue={a.penalty ?? 0}
@@ -248,7 +248,7 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
               <SelectContent>
                 {ramais.map((r) => (
                   <SelectItem key={r.id} value={String(r.ramal)}>
-                    {(r.nome ?? "(sem nome)")} — {r.ramal}
+                    {(r.ramal_nome ? r.ramal_nome.replace(/-/g, " ") : "(sem nome)")} — {r.ramal}
                   </SelectItem>
                 ))}
               </SelectContent>

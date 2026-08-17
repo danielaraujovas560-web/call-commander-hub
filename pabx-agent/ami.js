@@ -18,14 +18,27 @@ const ami = new AsteriskManager(Number(AMI_PORT), AMI_HOST, AMI_USER, AMI_PASSWO
 ami.keepConnected(); // reconecta sozinho se a conexão cair
 
 let _amiConnected = false;
+let _onConnect = null;
 ami.on("connect", () => {
   _amiConnected = true;
   console.log("[ami] conectado");
+
+  if (_onConnect) {
+    Promise.resolve()
+      .then(() => _onConnect())
+      .catch((err) => {
+        console.error("[ami] erro no callback de conexão:", err.message || err);
+      });
+  }
 });
 ami.on("error", (err) => {
   _amiConnected = false;
   console.error("[ami] erro:", err.message || err);
 });
+
+function onAmiConnect(callback) {
+  _onConnect = callback;
+}
 
 // Indica se a conexão AMI está ativa no momento (usado para health checks).
 function amiReady() {
@@ -140,6 +153,52 @@ function queuePenalty({ queue, interface: iface, penalty }) {
   return amiAction(action);
 }
 
+function getQueueStatus(timeoutMs = 4000) {
+  return new Promise((resolve) => {
+    const activeMembers = new Set();
+    let settled = false;
+
+    function onQueueMember(evt) {
+      // asterisk-manager sempre entrega chaves em letras minúsculas
+      const queue = evt.queue;
+      const iface = evt.interface || evt.location; // Fallback de segurança para versões do Asterisk
+
+      if (queue && iface) {
+        // Padroniza TUDO para minúsculo para cruzar os dados com perfeição
+        activeMembers.add(`${queue.toLowerCase()}|${iface.toLowerCase()}`);
+      }
+    }
+
+    function onQueueStatusComplete() {
+      cleanup();
+      resolve(activeMembers);
+    }
+
+    function cleanup() {
+      if (settled) return;
+      settled = true;
+      ami.removeListener("queuemember", onQueueMember);
+      ami.removeListener("queuestatuscomplete", onQueueStatusComplete);
+      clearTimeout(timer);
+    }
+
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve(activeMembers); // Se der timeout, retorna o que já conseguiu ler
+    }, timeoutMs);
+
+    ami.on("queuemember", onQueueMember);
+    ami.on("queuestatuscomplete", onQueueStatusComplete);
+
+    ami.action({ action: "QueueStatus" }, (err) => {
+      if (err) {
+        cleanup();
+        resolve(activeMembers);
+      }
+    });
+  });
+}
+
 module.exports = {
   getEndpointsDeviceState,
   amiCommand,
@@ -147,4 +206,6 @@ module.exports = {
   queueAdd,
   queueRemove,
   queuePenalty,
+  onAmiConnect,
+  getQueueStatus,
 };
