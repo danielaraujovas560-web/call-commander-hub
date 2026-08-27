@@ -61,10 +61,33 @@ export function useJsSipPhone(creds: SipCreds | null) {
       session.on("ended", finish);
       session.on("failed", finish);
 
+      // Conecta o áudio remoto ao elemento <audio>. Cobre 3 cenários:
+      // 1) conexão já existe (comum em chamadas recebidas) e já tem tracks
+      //    prontas — nesse caso o evento "track" já disparou e passou, então
+      //    puxamos as tracks direto via getReceivers().
+      // 2) conexão já existe mas ainda vai receber tracks — o listener abaixo
+      //    ainda pega isso a tempo.
+      // 3) conexão ainda não existe (comum em chamadas de saída) — esperamos
+      //    o evento "peerconnection" do JsSIP.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      session.connection?.addEventListener("track", (ev: any) => {
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = ev.streams[0];
-      });
+      const attachTrackHandling = (pc: any) => {
+        pc.addEventListener("track", (ev: any) => {
+          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = ev.streams[0];
+        });
+        const receivers = pc.getReceivers?.() ?? [];
+        const existingTracks = receivers.map((r: any) => r.track).filter(Boolean);
+        if (existingTracks.length) {
+          const remoteStream = new MediaStream(existingTracks);
+          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
+        }
+      };
+
+      if (session.connection) {
+        attachTrackHandling(session.connection);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        session.on("peerconnection", (data: any) => attachTrackHandling(data.peerconnection));
+      }
     });
 
     setPhoneState("registering");

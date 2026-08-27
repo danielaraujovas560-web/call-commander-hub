@@ -857,6 +857,7 @@ app.post("/ramal-auth/login", async (req, res) => {
       ramal: r.ramal,
       nome: r.nome,
       sip_username: `${r.endpoint_id}-web`,
+     // sip_username: `${r.endpoint_id}`,
       sip_password: r.senha,
       tenant_id: r.tenant_id,
       wss_url: WSS_URL,
@@ -2055,6 +2056,7 @@ app.put("/filas/:id", async (req, res) => {
       if (strategy !== undefined) { sets.push("strategy = ?"); vals.push(strategy); }
       if (timeout !== undefined) { sets.push("timeout = ?"); vals.push(Number(timeout) || 0); }
       if (retry !== undefined) { sets.push("retry = ?"); vals.push(Number(retry) || 0); }
+      if (ringinuse !== undefined) { sets.push("ringinuse = ?"); vals.push(ringinuse); }
       await conn.query(`UPDATE queues SET ${sets.join(", ")} WHERE tenant_id = ? AND name = ?`, [
         ...vals, String(tenant), newName,
       ]);

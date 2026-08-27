@@ -74,7 +74,7 @@ const RamalInput = z.object({
   transbordo: z.boolean().default(false),
   transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")),
   pesquisa: z.boolean().default(false),
-  pesquisa_id: z.number().int().positive().optional(),
+  pesquisa_id: z.number().int().positive().optional().nullable(),
   tenant_id: z.number().int().positive().optional(),
 });
 
@@ -765,6 +765,7 @@ const FilaInput = z.object({
   display_name: z.coerce.string().trim().min(1).max(120),
   description: z.coerce.string().trim().max(255).optional().or(z.literal("")),
   strategy: z.enum(["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"]).default("ringall"),
+  ringinuse: z.enum(["no", "yes"]),
   timeout: z.coerce.number().int().min(0).max(3600).default(15),
   fila_timeout: z.coerce.number().int().min(0).max(3600).default(0),
   retry: z.coerce.number().int().min(0).max(3600).default(5),
