@@ -591,7 +591,7 @@ app.delete("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => 
 app.get("/clientes", requireJwt, async (req, res) => {
   try {
     if (req.role === "admin") {
-      const [rows] = await pool.query("SELECT * FROM clientes ORDER BY created_at DESC");
+      const [rows] = await pool.query("SELECT * FROM clientes ORDER BY created_at ASC");
       return res.json({ clientes: rows.map((c) => ({ ...c, ativo: !!c.ativo })) });
     }
     const [rows] = await pool.query(
@@ -656,13 +656,30 @@ app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
     sets.push("quantidade_ramais = ?");
     vals.push(Number(quantidade_ramais));
   }
+  let mudouAtivo = false;
   if (ativo !== undefined) {
+
+    const novoAtivo = ativo ? 1 : 0;
+
+    const [rows] = await pool.query("SELECT ativo FROM clientes WHERE id = ?", [req.params.id]);
+
+    if (rows.length > 0) {
+      const ativoAtual = Number(rows[0].ativo);
+      if (ativoAtual !== novoAtivo) {
+        mudouAtivo = true;
+      }
+    }
     sets.push("ativo = ?");
-    vals.push(ativo ? 1 : 0);
+    vals.push(novoAtivo);
   }
   if (!sets.length) return res.json({ ok: true });
   try {
     await pool.query(`UPDATE clientes SET ${sets.join(", ")} WHERE id = ?`, [...vals, req.params.id]);
+
+    if (mudouAtivo) {
+      amiPjsipReload();
+     }
+
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -910,7 +927,7 @@ app.get("/ramais", async (req, res) => {
               r.fixo, r.movel, r.ddi, r.especial, r.cng, r.endpoint_id,
               r.gravacao, r.transbordo, r.transbordo_tronco, r.pesquisa, r.pesquisa_id
          FROM ramais r LEFT JOIN troncos t
-        ON r.tronco = t.id AND r.tenant_id = t.tenant_id
+        ON r.tronco = t.tronco_pjsip AND r.tenant_id = t.tenant_id
         WHERE r.tenant_id = ?  ORDER BY ramal`,
       [tenant],
     );
@@ -1166,7 +1183,6 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
       await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, `auth-${endpointId}-web`]);
     }
     await conn.commit();
-    if (senha !== undefined) amiPjsipReload();
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
@@ -1205,13 +1221,51 @@ app.delete("/ramais/:endpoint_id", async (req, res) => {
   }
 });
 
+app.post("/ramais/generate-password", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const endpointId = req.body.endpoint_id;
+  if (!endpointId) return res.status(400).json({ error: "endpoint inválido"});
+  const crypto = require("crypto");
+
+  function genPassword() {
+      const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const bytes = crypto.randomBytes(12);
+      let senha = "";
+      for (let i = 0; i < 12; i++) {
+          senha += chars[bytes[i] % chars.length];
+      }
+      return senha;
+  }
+
+  const senha = genPassword();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const webEndpointId = `${endpointId}-web`;
+    await conn.query(`UPDATE ramais SET senha = ? WHERE tenant_id = ? AND endpoint_id = ?`, [senha, tenant, endpointId]);
+    await conn.query(`UPDATE ps_auths SET password = ? WHERE username = ? AND id = ?`, [senha, endpointId, `auth-${endpointId}`]);
+    await conn.query(`UPDATE ps_auths SET password = ? WHERE username = ? AND id = ?`, [senha, webEndpointId, `auth-${webEndpointId}`]);
+    await conn.commit();
+
+   return res.json({ ok: true });
+
+  } catch(e) {
+    await conn.rollback();
+    console.error(e)
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
 // ---------- Troncos ----------
 app.get("/troncos", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT id, nome, tronco_pjsip, techprefix, tipo, registrar, login, senha, ip, porta, status
+      `SELECT tronco_pjsip, nome, techprefix, tipo, registrar, login, senha, ip, porta, status
          FROM troncos WHERE tenant_id = ? ORDER BY nome`,
       [tenant],
     );
@@ -1222,12 +1276,12 @@ app.get("/troncos", async (req, res) => {
 });
 
 // status de um endpoint específico via CLI (pjsip show endpoint)
-app.get("/troncos/:id/status", async (req, res) => {
+app.get("/troncos/:pjsip/status", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
+  const pjsip = req.params.pjsip;
   try {
-    const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ? LIMIT 1`, [tenant, pjsip]);
     if (!rows.length) return res.status(404).json({ error: "Tronco não encontrado" });
     const endpointName = rows[0].tronco_pjsip;
     // usa o cache do AMI (PJSIPShowEndpoints) — mesma fonte do /troncos/status
@@ -1290,13 +1344,13 @@ app.get("/troncos/status", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT id, tronco_pjsip FROM troncos WHERE tenant_id = ?`,
+      `SELECT tronco_pjsip FROM troncos WHERE tenant_id = ?`,
       [tenant],
     );
     const map = await fetchEndpointsMap();
     const endpoints = {};
     for (const row of rows) {
-      endpoints[String(row.id)] = map[row.tronco_pjsip] || "Unknown";
+      endpoints[String(row.tronco_pjsip)] = map[row.tronco_pjsip] || "Unknown";
     }
     res.json({ endpoints });
   } catch (e) {
@@ -1359,12 +1413,12 @@ app.post("/troncos", async (req, res) => {
     }
 
     const [r] = await conn.query(
-      `INSERT INTO troncos (tenant_id, nome, tronco_pjsip, techprefix, tipo, registrar, login, senha, ip, porta, status)
+      `INSERT INTO troncos (tronco_pjsip, tenant_id, nome, techprefix, tipo, registrar, login, senha, ip, porta, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
+        pjsipName,
         tenant,
         nome,
-        pjsipName,
         techprefix ? String(techprefix) : null,
         tipo,
         wantsReg ? "sim" : "não",
@@ -1377,7 +1431,7 @@ app.post("/troncos", async (req, res) => {
 
     await conn.commit();
     amiPjsipReload();
-    res.json({ ok: true, id: r.insertId, tronco_pjsip: pjsipName });
+    res.json({ ok: true, tronco_pjsip: pjsipName });
   } catch (e) {
     await conn.rollback();
     res.status(500).json({ error: String(e.message || e) });
@@ -1386,16 +1440,16 @@ app.post("/troncos", async (req, res) => {
   }
 });
 
-app.put("/troncos/:id", async (req, res) => {
+app.put("/troncos/:pjsip", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
+  const pjsip = req.params.pjsip;
   const { nome, ip, porta, tipo, techprefix, registrar, login, senha } = req.body || {};
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT * FROM troncos WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    const [rows] = await conn.query(`SELECT * FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ?`, [tenant, pjsip]);
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Tronco não encontrado" });
@@ -1491,12 +1545,12 @@ app.put("/troncos/:id", async (req, res) => {
     }
 
     await conn.query(
-      `UPDATE troncos SET nome = ?, tronco_pjsip = ?, ip = ?, porta = ?, tipo = ?, techprefix = ?,
+      `UPDATE troncos SET tronco_pjsip = ?, nome = ?, ip = ?, porta = ?, tipo = ?, techprefix = ?,
                           registrar = ?, login = ?, senha = ?
-        WHERE id = ? AND tenant_id = ?`,
+        WHERE tenant_id = ? AND tronco_pjsip = ?`,
       [
-        newNome,
         newPjsip,
+        newNome,
         newIp,
         newPorta,
         newTipo,
@@ -1504,23 +1558,33 @@ app.put("/troncos/:id", async (req, res) => {
         wantsReg ? "sim" : "não",
         wantsReg ? newLogin || slug : null,
         wantsReg ? newSenha || null : null,
-        id,
         tenant,
+        oldPjsip,
       ],
     );
 
-    if (newNome !== t.nome) {
+    if (newPjsip !== oldPjsip) {
       await conn.query(
         `UPDATE ramais
          SET tronco = ?
          WHERE tenant_id = ?
          AND tronco = ?`,
-        [newNome, tenant, t.nome],
+        [newPjsip, tenant, oldPjsip],
   );
 }
 
+    const mudouNomeOuIp = (newPjsip !== oldPjsip) || (newIp !== t.ip);
+    const mudouEstadoReg = (wantsReg !== wasReg);
+    const mudouDadosReg = wantsReg && wasReg && (
+      (newSenha && newSenha !== t.senha) ||
+      (newLogin && newLogin !== t.login)
+    );
+    const precisaReload = mudouNomeOuIp || mudouEstadoReg || mudouDadosReg;
+
     await conn.commit();
-    amiPjsipReload();
+
+    if(precisaReload) amiPjsipReload();
+
     res.json({ ok: true, tronco_pjsip: newPjsip });
   } catch (e) {
     await conn.rollback();
@@ -1530,16 +1594,16 @@ app.put("/troncos/:id", async (req, res) => {
   }
 });
 
-app.delete("/troncos/:id", async (req, res) => {
+app.delete("/troncos/:pjsip", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
+  const pjsip = req.params.pjsip;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT tronco_pjsip, registrar FROM troncos WHERE id = ? AND tenant_id = ?`, [
-      id,
+    const [rows] = await conn.query(`SELECT tronco_pjsip, registrar FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ?`, [
       tenant,
+      pjsip,
     ]);
     if (!rows.length) {
       await conn.rollback();
@@ -1551,7 +1615,7 @@ app.delete("/troncos/:id", async (req, res) => {
     await conn.query(`DELETE FROM ps_endpoints       WHERE id = ?`, [pj]);
     await conn.query(`DELETE FROM ps_auths           WHERE id = ?`, [`auth-${pj}`]);
     await conn.query(`DELETE FROM ps_aors            WHERE id = ?`, [`${pj}-aor`]);
-    await conn.query(`DELETE FROM troncos            WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    await conn.query(`DELETE FROM troncos            WHERE tenant_id = ? AND tronco_pjsip = ?`, [tenant, pjsip]);
     await conn.commit();
     amiPjsipReload();
     res.json({ ok: true });
@@ -1694,7 +1758,7 @@ cdrFilteredEndpoint("/cdr/ramal", {
   from: `cdr_ramal c
          LEFT JOIN ramais ro ON ro.tenant_id = c.tenant_id AND ro.endpoint_id = c.origem
          LEFT JOIN ramais rd ON rd.tenant_id = c.tenant_id AND rd.endpoint_id = c.destino
-         LEFT JOIN troncos t ON t.id = c.tronco`,
+         LEFT JOIN troncos t ON t.tronco_pjsip = c.tronco`,
   order: "c.date_time",
   dateCol: "c.date_time",
   tenantCol: "c.tenant_id",
@@ -2786,15 +2850,15 @@ app.get("/horario-ramais", async (req, res) => {
   if (!tenant) return;
   try {
     const [regras] = await pool.query(
-      `SELECT id, nome, dias, hora_inicial, hora_final
+      `SELECT regra, nome, dias, hora_inicial, hora_final
          FROM regra_horario_ramais WHERE tenant_id = ? ORDER BY nome`,
       [tenant],
     );
     // count members
     for (const r of regras) {
       const [[c]] = await pool.query(
-        `SELECT COUNT(*) AS n FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`,
-        [tenant, r.id],
+        `SELECT COUNT(*) AS n FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`,
+        [tenant, r.regra],
       );
       r.membros = Number(c.n) || 0;
     }
@@ -2804,17 +2868,17 @@ app.get("/horario-ramais", async (req, res) => {
   }
 });
 
-app.get("/horario-ramais/:id/membros", async (req, res) => {
+app.get("/horario-ramais/:regra/membros", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT g.id, g.ramal, r.nome
+      `SELECT g.regra, g.ramal, r.nome
          FROM ramais_grupo_horario g
-         LEFT JOIN ramais r ON r.ramal = g.ramal AND r.tenant_id = g.tenant_id
-        WHERE g.tenant_id = ? AND g.id_regra_horario = ?
+         LEFT JOIN ramais r ON r.endpoint_id = g.ramal AND r.tenant_id = g.tenant_id
+        WHERE g.tenant_id = ? AND g.regra = ?
         ORDER BY g.ramal`,
-      [tenant, Number(req.params.id)],
+      [tenant, req.params.regra],
     );
     res.json({ membros: rows });
   } catch (e) {
@@ -2835,15 +2899,19 @@ app.post("/horario-ramais", async (req, res) => {
   if (err) return res.status(400).json({ error: err });
   const b = req.body;
   const ramais = Array.isArray(b.ramais) ? b.ramais : [];
+  const slug = slugName(String(b.nome));
+  if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
+  const regraHoraRamalName = `r${tenant}-${slug}`;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
     const [r] = await conn.query(
-      `INSERT INTO regra_horario_ramais (tenant_id, nome, dias, hora_inicial, hora_final)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO regra_horario_ramais (regra, tenant_id, nome, dias, hora_inicial, hora_final)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
+        regraHoraRamalName,
         tenant,
-        slugName(String(b.nome).slice(0, 100)),
+        b.nome,
         String(b.dias).slice(0, 100),
         String(b.hora_inicial),
         String(b.hora_final),
@@ -2852,9 +2920,9 @@ app.post("/horario-ramais", async (req, res) => {
     const regraId = r.insertId;
     for (const ramal of ramais) {
       if (!ramal) continue;
-      await conn.query(`INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`, [
+      await conn.query(`INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`, [
+        regraHoraRamalName,
         tenant,
-        regraId,
         String(ramal),
       ]);
     }
@@ -2868,37 +2936,41 @@ app.post("/horario-ramais", async (req, res) => {
   }
 });
 
-app.put("/horario-ramais/:id", async (req, res) => {
+app.put("/horario-ramais/:regra", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const err = validateHorarioRamal(req.body);
   if (err) return res.status(400).json({ error: err });
   const b = req.body;
-  const id = Number(req.params.id);
+  const regra = req.params.regra;
+  const slug = slugName(String(b.nome));
+  if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
+  const regraHoraRamalName = `r${tenant}-${slug}`
   const ramais = Array.isArray(b.ramais) ? b.ramais : null;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
     await conn.query(
       `UPDATE regra_horario_ramais
-         SET nome=?, dias=?, hora_inicial=?, hora_final=?
-       WHERE id = ? AND tenant_id = ?`,
+         SET regra=?, nome=?, dias=?, hora_inicial=?, hora_final=?
+       WHERE regra = ? AND tenant_id = ?`,
       [
-        slugName(String(b.nome).slice(0, 100)),
+        regraHoraRamalName,
+        b.nome,
         String(b.dias).slice(0, 100),
         String(b.hora_inicial),
         String(b.hora_final),
-        id,
+        regra,
         tenant,
       ],
     );
     if (ramais) {
-      await conn.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`, [tenant, id]);
+      await conn.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [tenant, regra]);
       for (const ramal of ramais) {
         if (!ramal) continue;
-        await conn.query(`INSERT INTO ramais_grupo_horario (tenant_id, id_regra_horario, ramal) VALUES (?, ?, ?)`, [
+        await conn.query(`INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`, [
+          regraHoraRamalName,
           tenant,
-          id,
           String(ramal),
         ]);
       }
@@ -2913,13 +2985,13 @@ app.put("/horario-ramais/:id", async (req, res) => {
   }
 });
 
-app.delete("/horario-ramais/:id", async (req, res) => {
+app.delete("/horario-ramais/:regra", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
-    const id = Number(req.params.id);
-    await pool.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND id_regra_horario = ?`, [tenant, id]);
-    await pool.query(`DELETE FROM regra_horario_ramais WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    const regra = req.params.regra;
+    await pool.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [tenant, regra]);
+    await pool.query(`DELETE FROM regra_horario_ramais WHERE regra = ? AND tenant_id = ?`, [regra, tenant]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });

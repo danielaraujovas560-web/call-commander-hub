@@ -15,6 +15,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -349,6 +356,7 @@ function EditClienteDialog({
     razao_social: cliente.razao_social,
     email: cliente.email,
     quantidade_ramais: String(cliente.quantidade_ramais),
+    ativo: cliente.ativo ? 1 : 0,
   });
 
   const mut = useMutation({
@@ -360,6 +368,10 @@ function EditClienteDialog({
       if (form.email !== cliente.email) patch.email = form.email;
       if (Number(form.quantidade_ramais) !== cliente.quantidade_ramais)
         patch.quantidade_ramais = Number(form.quantidade_ramais);
+      const novoAtivoBool = form.ativo === 1;
+      if (novoAtivoBool !== Boolean(cliente.ativo)) {
+        patch.ativo = novoAtivoBool;
+      }
       return fn({ data: patch });
     },
     onSuccess: () => {
@@ -381,6 +393,7 @@ function EditClienteDialog({
             razao_social: cliente.razao_social,
             email: cliente.email,
             quantidade_ramais: String(cliente.quantidade_ramais),
+	    ativo: cliente.ativo ? 1 : 0,
           });
         }
       }}

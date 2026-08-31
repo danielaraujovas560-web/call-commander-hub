@@ -17,7 +17,7 @@ import {
   Copy,
   UserRound,
 } from "lucide-react";
-import { listRamais, listRamaisStatus, listTroncos, createRamal, updateRamal, deleteRamal, type Ramal, listPesquisaSatisfacao, } from "@/lib/ramais.functions";
+import { listRamais, listRamaisStatus, listTroncos, createRamal, updateRamal, deleteRamal, type Ramal, listPesquisaSatisfacao, generateRamalPassword, } from "@/lib/ramais.functions";
 import { getSipConfig } from "@/lib/login-config.functions";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
@@ -205,7 +205,8 @@ function RamaisPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                      <RamalLoginInfoDialog ramal={r} />
+                    <RamalNewPassword ramal={r} />
+                    <RamalLoginInfoDialog ramal={r} />
                     <EditRamalDialog key={`${r.endpoint_id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`} tenantId={tenantId} ramal={r} />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -275,6 +276,47 @@ function ReadOnlyCopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function RamalNewPassword({ ramal }: {ramal: Ramal}) {
+  const { tenantId: tenantParam } = Route.useParams();
+  const tenantId = Number(tenantParam);
+  const queryClient = useQueryClient();
+  const generate = useServerFn(generateRamalPassword);
+  const mut = useMutation({
+    mutationFn: () =>
+      generate({
+        data: {
+          tenant_id: tenantId,
+          endpoint_id: ramal.endpoint_id,
+        },
+      }),
+
+    onSuccess: () => {
+      toast.success("Nova senha gerada");
+      queryClient.invalidateQueries({
+        queryKey: ["ramais", tenantId],
+      });
+    },
+
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => mut.mutate()}
+      disabled={mut.isPending}
+      title="Gerar nova senha"
+    >
+      <KeyRound
+        className={mut.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+      />
+    </Button>
+  );
+}
+
 function RamalLoginInfoDialog({ ramal }: { ramal: Ramal }) {
   const [open, setOpen] = useState(false);
   const fn = useServerFn(getSipConfig);
@@ -311,8 +353,6 @@ function RamalLoginInfoDialog({ ramal }: { ramal: Ramal }) {
     </Dialog>
   );
 }
-
-
 
 function genPassword() {
   const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -351,7 +391,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
     cng: false,
     gravacao: false,
     transbordo: false,
-    transbordo_troncos: [] as number[],
+    transbordo_troncos: [],
     pesquisa: false,
     pesquisa_id: null as number | null,
   };
@@ -367,7 +407,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
 
   const troncos = troncosData?.troncos ?? [];
   const pesquisas = pesquisasData?.pesquisas ?? [];
-  const troncosDisponiveisTransbordo = troncos.filter((t) => t.id !== Number(form.tronco));
+  const troncosDisponiveisTransbordo = troncos.filter((t) => t.tronco_pjsip !== form.tronco);
 
   const mut = useMutation({
     mutationFn: () =>
@@ -400,7 +440,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
         <DialogHeader>
           <DialogTitle>Novo ramal</DialogTitle>
           <DialogDescription>
-            Senha será gerada automaticamente. Você poderá editar depois.
+            Criação de um novo ramal.
           </DialogDescription>
         </DialogHeader>
 
@@ -447,13 +487,13 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
 
           <div className="col-span-2 space-y-1">
             <Label>Tronco *</Label>
-            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v, transbordo_troncos: form.transbordo_troncos.filter((id) => id !== Number(v)) })}>
+            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v, transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v) })}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um tronco" />
               </SelectTrigger>
               <SelectContent>
                 {troncos.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
+                  <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
                     {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}
@@ -570,24 +610,24 @@ function TransbordoTroncosSelector({
   selected,
   onChange,
 }: {
-  available: { id: number; nome: string; tipo: string | null }[];
-  selected: number[];
-  onChange: (v: number[]) => void;
+  available: { tronco_pjsip: string; nome: string; tipo: string | null }[];
+  selected: string[];
+  onChange: (v: string[]) => void;
 }) {
-  const remaining = available.filter((t) => !selected.includes(t.id));
+  const remaining = available.filter((t) => !selected.includes(t.tronco_pjsip));
   const [pick, setPick] = useState("");
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
-        {selected.map((id) => {
-          const t = available.find((x) => x.id === id);
+        {selected.map((troncoPjsip) => {
+          const t = available.find((x) => x.tronco_pjsip === troncoPjsip);
           return (
-            <Badge key={id} variant="secondary" className="gap-1">
-              {t?.nome ?? `#${id}`}
+            <Badge key={troncoPjsip} variant="secondary" className="gap-1">
+              {t?.nome ?? `#${troncoPjsip}`}
               <button
                 type="button"
                 className="ml-1 text-muted-foreground hover:text-foreground"
-                onClick={() => onChange(selected.filter((x) => x !== id))}
+                onClick={() => onChange(selected.filter((x) => x !== troncoPjsip))}
               >
                 ×
               </button>
@@ -605,7 +645,7 @@ function TransbordoTroncosSelector({
           </SelectTrigger>
           <SelectContent>
             {remaining.map((t) => (
-              <SelectItem key={t.id} value={String(t.id)}>
+              <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
                 {t.nome} {t.tipo ? `(${t.tipo})` : ""}
               </SelectItem>
             ))}
@@ -615,7 +655,7 @@ function TransbordoTroncosSelector({
           type="button"
           variant="outline"
           disabled={!pick}
-          onClick={() => { onChange([...selected, Number(pick)]); setPick(""); }}
+          onClick={() => { onChange([...selected, pick]); setPick(""); }}
         >
           Adicionar
         </Button>
@@ -654,7 +694,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     gravacao: ramal.gravacao,
     transbordo: ramal.transbordo,
     transbordo_troncos: ramal.transbordo_tronco
-      ? ramal.transbordo_tronco.split("&").filter(Boolean).map(Number)
+      ? ramal.transbordo_tronco.split("&").filter(Boolean)
       : [],
     pesquisa: ramal.pesquisa,
     pesquisa_id: ramal.pesquisa_id,
@@ -669,7 +709,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
 
   const troncos = troncosData?.troncos ?? [];
   const pesquisas = pesquisasData?.pesquisas ?? [];
-  const troncosDisponiveisTransbordo = troncos.filter((t) => t.id !== Number(form.tronco));
+  const troncosDisponiveisTransbordo = troncos.filter((t) => t.tronco_pjsip !== form.tronco);
 
   const queryClient = useQueryClient();
   const update = useServerFn(updateRamal);
@@ -717,7 +757,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
         <DialogHeader>
           <DialogTitle>Editar ramal {ramal.ramal}</DialogTitle>
           <DialogDescription>
-            Permissões marcadas = <strong>bloqueado</strong> para aquele tipo de ligação.
+            Edição de um Ramal já existente.
           </DialogDescription>
         </DialogHeader>
 
@@ -757,7 +797,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
               value={form.tronco}
               onValueChange={(v) => setForm({
                 ...form, tronco: v,
-                transbordo_troncos: form.transbordo_troncos.filter((id) => id !== Number(v)),
+                transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
               })}
             >
               <SelectTrigger>
@@ -765,7 +805,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
               </SelectTrigger>
               <SelectContent>
                 {troncos.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
+                  <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
                     {t.nome} {t.tipo ? `(${t.tipo})` : ""}
                   </SelectItem>
                 ))}
@@ -774,15 +814,6 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
                 )}
               </SelectContent>
             </Select>
-          </div>
-          <div className="col-span-2 space-y-1">
-            <Label>Senha</Label>
-            <div className="flex gap-2">
-              <Input value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
-              <Button type="button" variant="outline" onClick={() => setForm({ ...form, senha: genPassword() })}>
-                Gerar
-              </Button>
-            </div>
           </div>
 
           <div className="col-span-2 w-full flex items-center gap-2 rounded-md border p-3">

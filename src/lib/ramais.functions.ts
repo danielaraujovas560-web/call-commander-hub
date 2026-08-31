@@ -36,9 +36,8 @@ export interface Ramal {
 }
 
 export interface Tronco {
-  id: number;
-  nome: string;
   tronco_pjsip: string;
+  nome: string;
   status: number | null;
   techprefix: string | null;
   tipo: "STFC" | "E164" | string | null;
@@ -205,6 +204,20 @@ export const getMyTenant = createServerFn({ method: "GET" })
       tenants: { tenant_id: number; label: string | null; is_default: boolean }[];
     }>("/my/tenants", { bearerToken: context.token });
     return { tenants: res.tenants ?? [] };
+  });
+
+export const generateRamalPassword = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ tenant_id: z.number().int().positive().optional(), endpoint_id: z.string().min(1), }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId( context.token, data.tenant_id );
+    return await agentFetch<{ ok: true; senha: string }>(
+      "/ramais/generate-password",
+      { method: "POST", tenantId,body: { endpoint_id: data.endpoint_id, },
+      }
+    );
   });
 
 // ---------- Tenant upsert (mariadb) ----------
@@ -692,8 +705,7 @@ const TroncoInput = z.object({
   senha: z.coerce.string().trim().max(100).optional().or(z.literal("")),
 });
 const TroncoUpdate = TroncoInput.partial().extend({
-  id: z.number().int().positive(),
-  tenant_id: z.number().int().positive().optional(),
+  tronco_pjsip: z.coerce.string().trim().min(1),
 });
 
 export const createTronco = createServerFn({ method: "POST" })
@@ -703,7 +715,7 @@ export const createTronco = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; id: number }>("/troncos", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; tronco_pjsip: string }>("/troncos", { method: "POST", tenantId, body });
   });
 
 export const updateTronco = createServerFn({ method: "POST" })
@@ -712,29 +724,29 @@ export const updateTronco = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/troncos/${id}`, { method: "PUT", tenantId, body });
+    const { tronco_pjsip, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/troncos/${tronco_pjsip}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteTronco = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z.object({ tronco_pjsip: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/troncos/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/troncos/${data.tronco_pjsip}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 
 export const getTroncoStatus = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z.object({ tronco_pjsip: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    return await agentFetch<{ endpoint: string; state?: string; status: string }>(`/troncos/${data.id}/status`, { tenantId });
+    return await agentFetch<{ endpoint: string; state?: string; status: string }>(`/troncos/${data.tronco_pjsip}/status`, { tenantId });
   });
 
 // ---------- Status em lote (online/offline) ----------
@@ -984,14 +996,14 @@ export const deleteRegraHorario = createServerFn({ method: "POST" })
 
 // ---------- Horário para Ramais (regra_horario_ramais + ramais_grupo_horario) ----------
 export interface HorarioRamal {
-  id: number;
+  regra: string;
   nome: string;
   dias: string;
   hora_inicial: string;
   hora_final: string;
   membros: number;
 }
-export interface HorarioRamalMembro { id: number; ramal: string; nome: string | null }
+export interface HorarioRamalMembro { regra: string; ramal: string; nome: string | null }
 
 const HorarioRamalInput = z.object({
   tenant_id: z.number().int().positive().optional(),
@@ -1015,11 +1027,11 @@ export const listHorarioRamais = createServerFn({ method: "GET" })
 export const getHorarioRamalMembros = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z.object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ membros: HorarioRamalMembro[] }>(`/horario-ramais/${data.id}/membros`, { tenantId });
+    const res = await agentFetch<{ membros: HorarioRamalMembro[] }>(`/horario-ramais/${data.regra}/membros`, { tenantId });
     return { membros: res.membros ?? [] };
   });
 
@@ -1030,27 +1042,27 @@ export const createHorarioRamal = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; id: number }>("/horario-ramais", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; regra: string }>("/horario-ramais", { method: "POST", tenantId, body });
   });
 
 export const updateHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => HorarioRamalInput.extend({ id: z.number().int().positive() }).parse(d))
+  .inputValidator((d: unknown) => HorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/horario-ramais/${id}`, { method: "PUT", tenantId, body });
+    const { regra, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/horario-ramais/${regra}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z.object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/horario-ramais/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/horario-ramais/${data.regra}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 

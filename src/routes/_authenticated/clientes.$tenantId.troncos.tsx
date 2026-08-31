@@ -52,7 +52,7 @@ function TroncosPage() {
 
   const delFn = useServerFn(deleteTronco);
   const delMut = useMutation({
-    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
+    mutationFn: (tronco_pjsip: string) => delFn({ data: { tronco_pjsip, tenant_id: tenantId } }),
     onSuccess: () => { toast.success("Tronco removido"); qc.invalidateQueries({ queryKey: ["troncos", tenantId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -102,14 +102,14 @@ function TroncosPage() {
             {isLoading && <TableRow><TableCell colSpan={8} className="text-center py-10">Carregando…</TableCell></TableRow>}
             {!isLoading && troncos.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Nenhum tronco.</TableCell></TableRow>}
             {troncos.map((t) => (
-              <TableRow key={t.id}>
+              <TableRow key={t.tronco_pjsip}>
                 <TableCell className="font-medium">{t.nome}</TableCell>
                 <TableCell className="font-mono text-xs">{t.ip ?? "-"}</TableCell>
                 <TableCell className="font-mono">{t.porta ?? "-"}</TableCell>
                 <TableCell><Badge variant="outline">{t.tipo}</Badge></TableCell>
                 <TableCell className="font-mono">{t.techprefix ?? "-"}</TableCell>
                 <TableCell>{t.registrar === "sim" ? "Sim" : "Não"}</TableCell>
-                <TableCell><OnlineBadge state={statusData?.endpoints?.[String(t.id)]} showLabel /></TableCell>
+                <TableCell><OnlineBadge state={statusData?.endpoints?.[t.tronco_pjsip]} showLabel /></TableCell>
                 {isAdmin && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -123,7 +123,7 @@ function TroncosPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => delMut.mutate(t.id)}>Remover</AlertDialogAction>
+                            <AlertDialogAction onClick={() => delMut.mutate(t.tronco_pjsip)}>Remover</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -201,7 +201,7 @@ function TroncoFormDialog({
         senha: form.registrar ? form.senha : "",
       };
       return editing
-        ? updateFn({ data: { id: tronco!.id, ...body } })
+        ? updateFn({ data: { tronco_pjsip: tronco!.tronco_pjsip, ...body } })
         : createFn({ data: body });
     },
     onSuccess: () => {
