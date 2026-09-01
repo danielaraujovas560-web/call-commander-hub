@@ -822,60 +822,12 @@ export const deleteFila = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ---------- Numeros CRUD ----------
-export interface NumeroItem { id: number; numero: string; descricao: string | null }
-
-export const listNumeros = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
-  .handler(async ({ data, context }) => {
-    const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ numeros: NumeroItem[] }>("/numeros", { tenantId });
-    return { numeros: res.numeros ?? [] };
-  });
-
-const NumeroInput = z.object({
-  tenant_id: z.number().int().positive().optional(),
-  numero: z.coerce.string().trim().min(1).max(20),
-  descricao: z.coerce.string().trim().max(255).optional().or(z.literal("")),
-});
-
-export const createNumero = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => NumeroInput.parse(d))
-  .handler(async ({ data, context }) => {
-    const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; id: number }>("/numeros", { method: "POST", tenantId, body });
-  });
-
-export const updateNumero = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => NumeroInput.partial().extend({ id: z.number().int().positive() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/numeros/${id}`, { method: "PUT", tenantId, body });
-  });
-
-export const deleteNumero = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/numeros/${data.id}`, { method: "DELETE", tenantId });
-    return { ok: true };
-  });
-
 // ---------- Roteamento ----------
 export interface RoteamentoItem {
-  id: number; numero_id: number; tipo_destino: string; destino: string;
-  numero: string; descricao: string | null;
+  numero: string;
+  tipo_destino: string;
+  destino: string;
+  descricao: string | null;
 }
 
 export const listRoteamento = createServerFn({ method: "GET" })
@@ -890,9 +842,10 @@ export const listRoteamento = createServerFn({ method: "GET" })
 
 const RoteamentoInput = z.object({
   tenant_id: z.number().int().positive().optional(),
-  numero_id: z.coerce.number().int().positive(),
+  numero: z.string().min(1),
   tipo_destino: z.enum(["RAMAL", "FILA", "URA", "EXTERNO", "REGRA_HORARIO", "AUDIO"]),
   destino: z.coerce.string().trim().min(1).max(50),
+  descricao: z.string().trim().max(100).optional(),
 });
 
 export const createRoteamento = createServerFn({ method: "POST" })
@@ -902,27 +855,27 @@ export const createRoteamento = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; id: number }>("/roteamento", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; numero: string }>("/roteamento", { method: "POST", tenantId, body });
   });
 
 export const updateRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => RoteamentoInput.partial().extend({ id: z.number().int().positive() }).parse(d))
+  .inputValidator((d: unknown) => RoteamentoInput.partial().extend({ numero: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/roteamento/${id}`, { method: "PUT", tenantId, body });
+    const { numero, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/roteamento/${numero}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z.object({ numero: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/roteamento/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/roteamento/${data.numero}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 

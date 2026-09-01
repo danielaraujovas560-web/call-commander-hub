@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Router as RouterIcon, RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
 import {
-  listRoteamento, createRoteamento, updateRoteamento, deleteRoteamento,
-  listNumeros, listUraDestinos,
+  listRoteamento, createRoteamento, updateRoteamento, deleteRoteamento, listUraDestinos,
   type RoteamentoItem,
 } from "@/lib/ramais.functions";
 import {
@@ -27,9 +26,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 // Roteamento pode apontar para qualquer ação (inclui HORARIO_ATENDIMENTO
 // para redirecionar a chamada pra regra que decide dentro/fora).
@@ -73,7 +70,7 @@ function RoteamentoPage() {
 
   const delFn = useServerFn(deleteRoteamento);
   const delMut = useMutation({
-    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
+    mutationFn: (numero: string) => delFn({ data: { numero, tenant_id: tenantId } }),
     onSuccess: () => { toast.success("Roteamento removido"); qc.invalidateQueries({ queryKey: ["roteamento", tenantId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -108,7 +105,7 @@ function RoteamentoPage() {
             {isLoading && <TableRow><TableCell colSpan={5} className="text-center py-10">Carregando…</TableCell></TableRow>}
             {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Sem roteamentos.</TableCell></TableRow>}
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.numero}>
                 <TableCell className="font-mono">{r.numero}</TableCell>
                 <TableCell>{r.descricao ?? "-"}</TableCell>
                 <TableCell><Badge variant="outline">{getAcaoLabel(r.tipo_destino)}</Badge></TableCell>
@@ -151,22 +148,17 @@ function RoteamentoFormDialog({
   const setOpen = (v: boolean) => onOpenChange ? onOpenChange(v) : setInternalOpen(v);
   const editing = !!item;
 
-  const numerosFn = useServerFn(listNumeros);
-  const { data: numData } = useQuery({
-    queryKey: ["numeros", tenantId],
-    queryFn: () => numerosFn({ data: { tenant_id: tenantId } }),
-    enabled: open,
-  });
-
-  const [numeroId, setNumeroId] = useState<string>(item?.numero_id ? String(item.numero_id) : "");
+  const [numero, setNumero] = useState<string>(item?.numero ? String(item.numero) : "");
   const [dest, setDest] = useState<DestinoValue>(
     item ? parseDestinoFromBackend(item.tipo_destino, item.destino) : { ...emptyDestino },
   );
+  const [descricao, setDescricao] = useState<string>(item?.descricao ?? "");
 
   useEffect(() => {
     if (open) {
-      setNumeroId(item?.numero_id ? String(item.numero_id) : "");
+      setNumero(item?.numero ? String(item.numero) : "");
       setDest(item ? parseDestinoFromBackend(item.tipo_destino, item.destino) : { ...emptyDestino });
+      setDescricao(item?.descricao ?? "");
     }
   }, [open, item]);
 
@@ -178,12 +170,13 @@ function RoteamentoFormDialog({
     mutationFn: () => {
       const body = {
         tenant_id: tenantId,
-        numero_id: Number(numeroId),
+        numero: numero,
         tipo_destino: dest.tipo as Exclude<DestinoTipo, "INTERNO">,
         destino: buildDestinoForBackend(dest),
+        descricao: descricao,
       };
       return editing
-        ? updateFn({ data: { id: item!.id, ...body } })
+        ? updateFn({ data: { numero: item!.numero, ...body } })
         : createFn({ data: body });
     },
     onSuccess: () => {
@@ -194,7 +187,7 @@ function RoteamentoFormDialog({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const disabled = !numeroId || isDestinoIncomplete(dest);
+  const disabled = !numero || isDestinoIncomplete(dest);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -205,15 +198,13 @@ function RoteamentoFormDialog({
           <DialogDescription>Cada número aponta para um único destino.</DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
-          <div className="space-y-1"><Label>Número *</Label>
-            <Select value={numeroId} onValueChange={setNumeroId} disabled={editing}>
-              <SelectTrigger><SelectValue placeholder="Selecione o número" /></SelectTrigger>
-              <SelectContent>
-                {(numData?.numeros ?? []).map((n) => (
-                  <SelectItem key={n.id} value={String(n.id)}>{n.numero} {n.descricao ? `— ${n.descricao}` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-1">
+            <Label>Número *</Label>
+            <Input
+               value={numero}
+               onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))} 
+               placeholder="Ex.: 2733334444"
+            />
           </div>
           <DestinoPicker
             tenantId={tenantId}
@@ -221,6 +212,14 @@ function RoteamentoFormDialog({
             onChange={setDest}
             allow={ACOES_ROTEAMENTO}
           />
+          <div className="space-y-1">
+            <Label>Descrição</Label>
+            <Input
+               value={descricao}
+               onChange={(e) => setDescricao(e.target.value)}
+               placeholder="Descrição opcional do número"
+            />
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={disabled || mut.isPending}>{mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}</Button>

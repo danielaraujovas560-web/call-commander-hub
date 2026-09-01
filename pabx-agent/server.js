@@ -724,7 +724,6 @@ app.delete("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
     await conn.query("DELETE FROM regra_horario WHERE tenant_id = ?", [tenant]);
 
     await conn.query("DELETE FROM roteamento WHERE tenant_id = ?", [tenant]);
-    await conn.query("DELETE FROM numeros WHERE tenant_id = ?", [tenant]);
     await conn.query("DELETE FROM blacklist WHERE tenant_id = ?", [tenant]);
     await conn.query("DELETE FROM musiconhold WHERE tenant_id = ?", [tenant]);
 
@@ -2520,89 +2519,17 @@ app.put("/uras/opcoes/:opcaoId", async (req, res) => {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
-// ---------- Numeros ----------
-app.get("/numeros", async (req, res) => {
-  const tenant = getTenant(req, res);
-  if (!tenant) return;
-  try {
-    const [rows] = await pool.query(`SELECT id, numero, descricao FROM numeros WHERE tenant_id = ? ORDER BY numero`, [
-      tenant,
-    ]);
-    res.json({ numeros: rows });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
-
-app.post("/numeros", async (req, res) => {
-  const tenant = getTenant(req, res);
-  if (!tenant) return;
-  const { numero, descricao } = req.body || {};
-  if (!numero) return res.status(400).json({ error: "numero obrigatório" });
-  try {
-    const [r] = await pool.query(`INSERT INTO numeros (tenant_id, numero, descricao) VALUES (?, ?, ?)`, [
-      tenant,
-      String(numero),
-      descricao || null,
-    ]);
-    res.json({ ok: true, id: r.insertId });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
-
-app.put("/numeros/:id", async (req, res) => {
-  const tenant = getTenant(req, res);
-  if (!tenant) return;
-  const { numero, descricao } = req.body || {};
-  const sets = [];
-  const vals = [];
-  if (numero !== undefined) {
-    sets.push("numero = ?");
-    vals.push(String(numero));
-  }
-  if (descricao !== undefined) {
-    sets.push("descricao = ?");
-    vals.push(descricao || null);
-  }
-  if (!sets.length) return res.json({ ok: true });
-  try {
-    await pool.query(`UPDATE numeros SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [
-      ...vals,
-      Number(req.params.id),
-      tenant,
-    ]);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
-
-app.delete("/numeros/:id", async (req, res) => {
-  const tenant = getTenant(req, res);
-  if (!tenant) return;
-  const id = Number(req.params.id);
-  try {
-    await pool.query(`DELETE FROM roteamento WHERE numero_id = ? AND tenant_id = ?`, [id, tenant]);
-    await pool.query(`DELETE FROM numeros WHERE id = ? AND tenant_id = ?`, [id, tenant]);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
-
 // ---------- Roteamento ----------
 app.get("/roteamento", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT r.id, r.numero_id, r.tipo_destino, r.destino,
-              n.numero, n.descricao
-         FROM roteamento r
-         JOIN numeros n ON n.id = r.numero_id
-        WHERE r.tenant_id = ?
-        ORDER BY n.numero`,
+      `SELECT numero, tipo_destino, destino,
+              descricao
+         FROM roteamento
+        WHERE tenant_id = ?
+        ORDER BY created_at ASC`,
       [tenant],
     );
     res.json({ roteamento: rows });
@@ -2630,40 +2557,48 @@ async function resolveRoteamentoDestino(tenant, tipo, destino) {
 app.post("/roteamento", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const { numero_id, tipo_destino, destino } = req.body || {};
-  if (!numero_id || !tipo_destino || !destino) {
-    return res.status(400).json({ error: "numero_id, tipo_destino e destino obrigatórios" });
+  const { numero, tipo_destino, destino, descricao } = req.body || {};
+  if (!numero || !tipo_destino || !destino) {
+    return res.status(400).json({ error: "numero, tipo_destino e destino obrigatórios" });
   }
   try {
-    const [own] = await pool.query(`SELECT id FROM numeros WHERE id = ? AND tenant_id = ?`, [
-      Number(numero_id),
-      tenant,
-    ]);
-    if (!own.length) return res.status(404).json({ error: "Número não pertence ao tenant" });
-    const [dup] = await pool.query(`SELECT id FROM roteamento WHERE numero_id = ? AND tenant_id = ?`, [
-      Number(numero_id),
-      tenant,
-    ]);
-    if (dup.length) return res.status(409).json({ error: "Número já possui roteamento (edite)." });
     const tipo = String(tipo_destino).toUpperCase();
-    const dest = await resolveRoteamentoDestino(tenant, tipo, destino);
+
+    const dest = await resolveRoteamentoDestino( tenant, tipo, destino, );
+
     const [r] = await pool.query(
-      `INSERT INTO roteamento (tenant_id, numero_id, tipo_destino, destino) VALUES (?, ?, ?, ?)`,
-      [tenant, Number(numero_id), tipo, dest],
+      `INSERT INTO roteamento (numero, tenant_id, tipo_destino, destino, descricao) VALUES (?, ?, ?, ?, ?)`,
+      [numero, tenant, tipo, dest, descricao ?? null],
     );
-    res.json({ ok: true, id: r.insertId });
+    res.json({ ok: true, numero: numero, });
   } catch (e) {
+    if (e.code === "ER_DUP_ENTRY") {return res.status(409).json({error: "Número já possui roteamento (edite)." });}
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-app.put("/roteamento/:id", async (req, res) => {
+app.put("/roteamento/:numero", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const { tipo_destino, destino } = req.body || {};
+  const numeroAtual = req.params.numero
+  const { numero, tipo_destino, destino, descricao } = req.body || {};
   const sets = [];
   const vals = [];
   const tipo = tipo_destino !== undefined ? String(tipo_destino).toUpperCase() : undefined;
+  if (numero !== undefined && numero !== numeroAtual) {
+    const [dup] = await pool.query(
+      `SELECT numero
+         FROM roteamento
+        WHERE numero = ?
+          AND tenant_id = ?`,
+      [numero, tenant],
+    );
+    if (dup.length) {
+      return res.status(409).json({ error: "O novo número já possui roteamento." });
+    }
+    sets.push("numero = ?");
+    vals.push(numero);
+  }
   if (tipo !== undefined) {
     sets.push("tipo_destino = ?");
     vals.push(tipo);
@@ -2677,11 +2612,15 @@ app.put("/roteamento/:id", async (req, res) => {
       return res.status(400).json({ error: String(e.message || e) });
     }
   }
+  if (descricao !== undefined) {
+    sets.push("descricao = ?");
+    vals.push(descricao);
+  }
   if (!sets.length) return res.json({ ok: true });
   try {
-    await pool.query(`UPDATE roteamento SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [
+    await pool.query(`UPDATE roteamento SET ${sets.join(", ")} WHERE numero = ? AND tenant_id = ?`, [
       ...vals,
-      Number(req.params.id),
+      numero,
       tenant,
     ]);
     res.json({ ok: true });
@@ -2690,7 +2629,7 @@ app.put("/roteamento/:id", async (req, res) => {
   }
 });
 
-app.delete("/roteamento/:id", async (req, res) => {
+app.delete("/roteamento/:numero", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
