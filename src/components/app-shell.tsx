@@ -172,14 +172,12 @@ function ClienteSidebar({
     { to: "/clientes/$tenantId/uras", label: "URAs", icon: Workflow, exact: false },
     { to: "/clientes/$tenantId/audios", label: "Áudios", icon: Music, exact: false },
     { to: "/clientes/$tenantId/blacklist", label: "Blacklist", icon: ShieldBan, exact: false },
-    { to: "/clientes/$tenantId/roteamento", label: "Roteamento", icon: RouterIcon, exact: false },
-    { to: "/clientes/$tenantId/numeros", label: "Números", icon: Hash, exact: false },
-    { to: "/clientes/$tenantId/troncos", label: "Troncos", icon: Cable, exact: false },
     { to: "/clientes/$tenantId/regra-horario", label: "Horário Atendimento", icon: Clock, exact: false },
     { to: "/clientes/$tenantId/horario-ramais", label: "Horário Ramais", icon: Users, exact: false },
     { to: "/clientes/$tenantId/pesquisa-satisfacao", label: "Pesquisa Satisfação", icon: ClipboardCheck, exact: false },
+    { to: "/clientes/$tenantId/roteamento", label: "Roteamento", icon: RouterIcon, exact: false },
+    { to: "/clientes/$tenantId/troncos", label: "Troncos", icon: Cable, exact: false },
   ] as const;
-
 
   const relatorios = [
     { to: "/clientes/$tenantId/relatorios/entrada", label: "Entrada geral", icon: PhoneIncoming },
