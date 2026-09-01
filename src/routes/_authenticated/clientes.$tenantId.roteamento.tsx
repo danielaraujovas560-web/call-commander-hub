@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useIsAdmin } from "@/hooks/use-role";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -55,6 +56,7 @@ function RoteamentoPage() {
   const tenantId = Number(p);
   const qc = useQueryClient();
   const fn = useServerFn(listRoteamento);
+  const { isAdmin } = useIsAdmin();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["roteamento", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
@@ -86,7 +88,7 @@ function RoteamentoPage() {
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <RoteamentoFormDialog tenantId={tenantId} />
+          {isAdmin && <RoteamentoFormDialog tenantId={tenantId} />}
         </div>
       </div>
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{(error as Error).message}</div>}
