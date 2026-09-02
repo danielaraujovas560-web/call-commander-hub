@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getClienteByTenant } from "@/lib/clientes.functions";
-import { listRamais } from "@/lib/ramais.functions";
+import { listRamais, listFilas, listUras } from "@/lib/ramais.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2 } from "lucide-react";
@@ -24,14 +24,34 @@ function ClienteOverview() {
   const cliente = data?.cliente;
 
   const ramaisFn = useServerFn(listRamais);
-  const { data: ramaisData } = useQuery({
+  const { data: ramaisData, isLoading: ramaisLoading, error: ramaisError, } = useQuery({
     queryKey: ["ramais", tenantId],
     queryFn: () => ramaisFn({ data: { tenant_id: tenantId } }),
   });
 
-  const cota = cliente?.quantidade_ramais ?? 0;
-  const criados = ramaisData?.ramais?.length ?? 0;
-  const vagos = Math.max(0, cota - criados);
+  const filasFn = useServerFn(listFilas);
+  const { data: filasData, isLoading: filasLoading, error: filasError, } = useQuery({
+    queryKey: ["filas", tenantId],
+    queryFn: () => filasFn({ data: { tenant_id: tenantId } }),
+  });
+
+  const urasFn = useServerFn(listUras);
+  const { data: urasData, isLoading: urasLoading, error: urasError, } = useQuery({
+    queryKey: ["uras", tenantId],
+    queryFn: () => urasFn({ data: { tenant_id: tenantId } }),
+  });
+
+  const cotaRamal = cliente?.quantidade_ramais ?? 0;
+  const criadosRamal = ramaisData?.ramais?.length ?? 0;
+  const vagosRamal = Math.max(0, cotaRamal - criadosRamal);
+
+  const cotaFila = cliente?.quantidade_filas ?? 0;
+  const criadosFila = filasData?.filas?.length ?? 0;
+  const vagosFila = Math.max(0, cotaFila - criadosFila);
+
+  const cotaUra = cliente?.quantidade_uras ?? 0;
+  const criadosUra = urasData?.uras?.length ?? 0;
+  const vagosUra = Math.max(0, cotaUra - criadosUra);
 
   return (
     <div className="space-y-6">
@@ -66,23 +86,25 @@ function ClienteOverview() {
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-sm text-muted-foreground">Cota de ramais</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold">{cota}</CardContent>
+          <CardContent className="text-2xl font-bold">{cotaRamal}</CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <RamaisChart criados={criados} vagos={vagos} cota={cota} />
+        <RamaisChart criadosRamal={criadosRamal} vagosRamal={vagosRamal} cotaRamal={cotaRamal} />
+        <FilasChart criadosFila={criadosFila} vagosFila={vagosFila} cotaFila={cotaFila} />
+        <UrasChart criadosUra={criadosUra} vagosUra={vagosUra} cotaUra={cotaUra} />
       </div>
     </div>
   );
 }
 
-function RamaisChart({ criados, vagos, cota }: { criados: number; vagos: number; cota: number }) {
+function RamaisChart({ criadosRamal, vagosRamal, cotaRamal }: { criadosRamal: number; vagosRamal: number; cotaRamal: number }) {
   const size = 140;
   const stroke = 18;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const pctCriado = cota > 0 ? criados / cota : 0;
+  const pctCriado = cotaRamal > 0 ? criadosRamal / cotaRamal : 0;
   const dash = c * pctCriado;
 
   return (
@@ -108,9 +130,8 @@ function RamaisChart({ criados, vagos, cota }: { criados: number; vagos: number;
             className="stroke-primary"
             strokeWidth={stroke}
             strokeDasharray={`${dash} ${c - dash}`}
-            strokeDashoffset={c / 4}
             strokeLinecap="round"
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            style={{ transform: "rotate(90deg) scaleX(-1)", transformOrigin: "center" }}
           />
           <text
             x="50%"
@@ -120,17 +141,137 @@ function RamaisChart({ criados, vagos, cota }: { criados: number; vagos: number;
             className="fill-foreground font-semibold"
             style={{ fontSize: 22 }}
           >
-            {criados}/{cota}
+            {criadosRamal}/{cotaRamal}
           </text>
         </svg>
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
-            <span>Ativos: <strong>{criados}</strong></span>
+            <span>Ativos: <strong>{criadosRamal}</strong></span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-muted" />
-            <span>Vagos: <strong>{vagos}</strong></span>
+            <span>Vagos: <strong>{vagosRamal}</strong></span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FilasChart({ criadosFila, vagosFila, cotaFila }: { criadosFila: number; vagosFila: number; cotaFila: number }) {
+  const size = 140;
+  const stroke = 18;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pctCriado = cotaFila > 0 ? criadosFila / cotaFila : 0;
+  const dash = c * pctCriado;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Filas criadas</CardTitle>
+      </CardHeader>
+      <CardContent className="flex items-center gap-4">
+        <svg width={size} height={size} className="shrink-0">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            className="stroke-muted"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            className="stroke-primary"
+            strokeWidth={stroke}
+            strokeDasharray={`${dash} ${c - dash}`}
+            strokeLinecap="round"
+            style={{ transform: "rotate(90deg) scaleX(-1)", transformOrigin: "center" }}
+          />
+          <text
+            x="50%"
+            y="50%"
+            dominantBaseline="middle"
+            textAnchor="middle"
+            className="fill-foreground font-semibold"
+            style={{ fontSize: 22 }}
+          >
+            {criadosFila}/{cotaFila}
+          </text>
+        </svg>
+        <div className="space-y-1 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
+            <span>Ativas: <strong>{criadosFila}</strong></span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-sm bg-muted" />
+            <span>Vagas: <strong>{vagosFila}</strong></span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UrasChart({ criadosUra, vagosUra, cotaUra }: { criadosUra: number; vagosUra: number; cotaUra: number }) {
+  const size = 140;
+  const stroke = 18;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pctCriado = cotaUra > 0 ? criadosUra / cotaUra : 0;
+  const dash = c * pctCriado;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Uras criadas</CardTitle>
+      </CardHeader>
+      <CardContent className="flex items-center gap-4">
+        <svg width={size} height={size} className="shrink-0">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            className="stroke-muted"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            className="stroke-primary"
+            strokeWidth={stroke}
+            strokeDasharray={`${dash} ${c - dash}`}
+            strokeLinecap="round"
+            style={{ transform: "rotate(90deg) scaleX(-1)", transformOrigin: "center" }}
+          />
+          <text
+            x="50%"
+            y="50%"
+            dominantBaseline="middle"
+            textAnchor="middle"
+            className="fill-foreground font-semibold"
+            style={{ fontSize: 22 }}
+          >
+            {criadosUra}/{cotaUra}
+          </text>
+        </svg>
+        <div className="space-y-1 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
+            <span>Ativas: <strong>{criadosUra}</strong></span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-sm bg-muted" />
+            <span>Vagas: <strong>{vagosUra}</strong></span>
           </div>
         </div>
       </CardContent>

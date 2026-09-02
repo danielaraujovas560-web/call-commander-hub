@@ -118,7 +118,7 @@ function RamaisPage() {
             <PhoneCall className="h-6 w-6" /> Ramais
           </h1>
           <p className="text-sm text-muted-foreground">
-            {count} {max > 0 ? `/ ${max}` : ""} ramais cadastrados
+            {count} {max > 0 ? `/ ${max}` : ""} ramais cadastrados.
           </p>
         </div>
         <div className="flex gap-2">
@@ -136,7 +136,7 @@ function RamaisPage() {
 
       {atLimit && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700">
-          Limite de {max} ramais atingido para este cliente.
+          Limite de {max} {max === 1 ? "ramal" : "ramais"} atingido para este cliente.
         </div>
       )}
 
@@ -352,13 +352,6 @@ function RamalLoginInfoDialog({ ramal }: { ramal: Ramal }) {
       </DialogContent>
     </Dialog>
   );
-}
-
-function genPassword() {
-  const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
 }
 
 function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: boolean }) {

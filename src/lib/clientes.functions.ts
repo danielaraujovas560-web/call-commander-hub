@@ -60,8 +60,14 @@ const updateSchema = z.object({
   cnpj: z.string().trim().min(11).max(20).optional(),
   razao_social: z.string().trim().min(1).max(180).optional(),
   email: z.string().trim().email().max(255).optional(),
-  quantidade_ramais: z.number().int().min(0).max(10000).optional(),
   ativo: z.boolean().optional(),
+});
+
+const updateClienteConfiguracoesSchema = z.object({
+  id: z.string().uuid(),
+  quantidade_ramais: z.number().nonnegative().optional(),
+  quantidade_filas: z.number().nonnegative().optional(),
+  quantidade_uras: z.number().nonnegative().optional(),
 });
 
 export const updateCliente = createServerFn({ method: "POST" })
@@ -76,6 +82,20 @@ export const updateCliente = createServerFn({ method: "POST" })
       body,
     });
   });
+
+export const updateClienteConfiguracoes = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => updateClienteConfiguracoesSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const { id, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/clientes/${id}/configuracoes`, {
+      method: "PUT",
+      bearerToken: context.token,
+      body,
+    });
+  });
+
 
 // ---------- DELETE ----------
 export const deleteCliente = createServerFn({ method: "POST" })

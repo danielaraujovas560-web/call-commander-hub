@@ -153,20 +153,35 @@ function MembrosDialog({ tenantId, regra, onClose }: { tenantId: number; regra: 
           <DialogTitle>{regra.nome} — Ramais</DialogTitle>
           <DialogDescription>Ramais vinculados a esta regra.</DialogDescription>
         </DialogHeader>
-        {isLoading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Carregando…</p>
-        ) : membros.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Sem ramais.</p>
-        ) : (
-          <ul className="space-y-1 max-h-80 overflow-auto">
+        {isLoading && (
+          <div className="py-6 text-center text-sm text-muted-foreground">Carregando…</div>
+        )} 
+        {!isLoading && (
+          <div className="rounded-md border max-h-80 overflow-auto">
+           <Table>
+            <TableHeader>
+             <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Ramal</TableHead>
+             </TableRow>
+            </TableHeader>
+
+            <TableBody>
             {membros.map((m) => (
-              <li key={m.id} className="flex items-center justify-between rounded border px-3 py-1.5 text-sm">
-                <span>{displayFromBackend(m.nome ?? "")}</span>
-                <span className="font-mono text-xs text-muted-foreground">{m.ramal}</span>
-              </li>
+              <TableRow key={m.id}>
+                <TableCell>{m.nome ?? ""}</TableCell>
+                <TableCell className="font-mono">{m.ramal ?? "-"}</TableCell>
+              </TableRow>
             ))}
-          </ul>
-        )}
+           {membros.length === 0 && (
+             <TableRow>
+              <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">Sem ramais.</TableCell>
+             </TableRow>
+            )}
+          </TableBody>
+         </Table>
+        </div>
+       )}
       </DialogContent>
     </Dialog>
   );

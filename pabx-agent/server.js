@@ -637,7 +637,7 @@ app.post("/clientes", requireJwt, requireAdmin, async (req, res) => {
 });
 
 app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
-  const { cnpj, razao_social, email, quantidade_ramais, ativo } = req.body || {};
+  const { cnpj, razao_social, email, ativo } = req.body || {};
   const sets = [];
   const vals = [];
   if (cnpj !== undefined) {
@@ -651,10 +651,6 @@ app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
   if (email !== undefined) {
     sets.push("email = ?");
     vals.push(email);
-  }
-  if (quantidade_ramais !== undefined) {
-    sets.push("quantidade_ramais = ?");
-    vals.push(Number(quantidade_ramais));
   }
   let mudouAtivo = false;
   if (ativo !== undefined) {
@@ -679,6 +675,32 @@ app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
     if (mudouAtivo) {
       amiPjsipReload();
      }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.put("/clientes/:id/configuracoes", requireJwt, requireAdmin, async (req, res) => {
+  const { quantidade_ramais, quantidade_filas, quantidade_uras } = req.body || {};
+  const sets = [];
+  const vals = [];
+  if (quantidade_ramais !== undefined) {
+    sets.push("quantidade_ramais = ?");
+    vals.push(quantidade_ramais);
+  }
+  if (quantidade_filas !== undefined) {
+    sets.push("quantidade_filas = ?");
+    vals.push(quantidade_filas);
+  }
+  if (quantidade_uras !== undefined) {
+    sets.push("quantidade_uras = ?");
+    vals.push(quantidade_uras);
+  }
+  if (!sets.length) return res.json({ ok: true });
+  try {
+    await pool.query(`UPDATE clientes SET ${sets.join(", ")} WHERE id = ?`, [...vals, req.params.id]);
 
     res.json({ ok: true });
   } catch (e) {
@@ -2812,11 +2834,11 @@ app.get("/horario-ramais/:regra/membros", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT g.regra, g.ramal, r.nome
+      `SELECT g.regra, r.ramal, r.nome
          FROM ramais_grupo_horario g
          LEFT JOIN ramais r ON r.endpoint_id = g.ramal AND r.tenant_id = g.tenant_id
         WHERE g.tenant_id = ? AND g.regra = ?
-        ORDER BY g.ramal`,
+        ORDER BY r.nome`,
       [tenant, req.params.regra],
     );
     res.json({ membros: rows });

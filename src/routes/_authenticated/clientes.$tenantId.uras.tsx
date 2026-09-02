@@ -17,6 +17,7 @@ import {
   type Ura,
 } from "@/lib/ramais.functions";
 import { displayFromBackend } from "@/lib/format";
+import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +67,14 @@ function UrasPage() {
   });
   const uras = data?.uras ?? [];
 
+  const clienteFn = useServerFn(getClienteByTenant);
+  const { data: clienteData } = useQuery({
+    queryKey: ["cliente", tenantId],
+    queryFn: () => clienteFn({ data: { tenant_id: tenantId } }),
+    retry: false,
+  });
+  const max = clienteData?.cliente?.quantidade_uras ?? 0;
+
   const [selected, setSelected] = useState<Ura | null>(null);
   const [editing, setEditing] = useState<Ura | null>(null);
 
@@ -79,6 +88,9 @@ function UrasPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const count = data?.uras.length ?? 0;
+  const atLimit = max > 0 && count >= max;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -86,15 +98,21 @@ function UrasPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Workflow className="h-6 w-6" /> URAs
           </h1>
-          <p className="text-sm text-muted-foreground">URAs configuradas para este cliente.</p>
+          <p className="text-sm text-muted-foreground">{count} {max > 0 ? `/ ${max}` : ""} uras cadastradas.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <UraFormDialog tenantId={tenantId} />
+          <UraFormDialog tenantId={tenantId} disabled={atLimit}/>
         </div>
       </div>
+
+      {atLimit && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700">
+          Limite de {max} {max === 1 ? "ura" : "uras"} atingido para este cliente.
+        </div>
+      )}
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -188,11 +206,13 @@ function UrasPage() {
 // ---------- Form (create/edit) ----------
 function UraFormDialog({
   tenantId,
+  disabled,
   ura,
   open: controlledOpen,
   onOpenChange,
 }: {
   tenantId: number;
+  disabled: boolean;
   ura?: Ura;
   open?: boolean;
   onOpenChange?: (v: boolean) => void;
@@ -259,7 +279,7 @@ function UraFormDialog({
     <Dialog open={open} onOpenChange={handleOpen}>
       {!editing && (
         <DialogTrigger asChild>
-          <Button>
+          <Button disabled={disabled}>
             <Plus className="mr-2 h-4 w-4" /> Adicionar URA
           </Button>
         </DialogTrigger>

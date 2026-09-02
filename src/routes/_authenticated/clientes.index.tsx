@@ -8,6 +8,7 @@ import {
   createCliente,
   updateCliente,
   deleteCliente,
+  updateClienteConfiguracoes,
   type Cliente,
 } from "@/lib/clientes.functions";
 import { useIsAdmin } from "@/hooks/use-role";
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Building2, LogIn, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, LogIn, Pencil, Plus, Trash2, Settings2 } from "lucide-react";
 import { ShapeConfirmDialog } from "@/components/shape-confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/clientes/")({
@@ -86,9 +87,9 @@ function ClientesPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Id</TableHead>
               <TableHead>Razão social</TableHead>
               <TableHead>CNPJ/CPF</TableHead>
-              <TableHead>Tenant</TableHead>
               <TableHead>Email</TableHead>
               <TableHead className="text-right">Ramais</TableHead>
               <TableHead>Status</TableHead>
@@ -120,9 +121,9 @@ function ClientesPage() {
 
             {clientes.map((c) => (
               <TableRow key={c.id} className={c.ativo ? "" : "opacity-60"}>
+                <TableCell>#{c.tenant_id}</TableCell>
                 <TableCell className="font-medium">{c.razao_social}</TableCell>
                 <TableCell className="font-mono text-xs">{c.cnpj}</TableCell>
-                <TableCell>#{c.tenant_id}</TableCell>
                 <TableCell className="font-mono text-xs">{c.email}</TableCell>
                 <TableCell className="text-right">{c.quantidade_ramais}</TableCell>
                 <TableCell>
@@ -148,6 +149,7 @@ function ClientesPage() {
                     {isAdmin && (
                       <>
                         <EditClienteDialog cliente={c} onDone={invalidate} />
+                        <SettingsClient cliente={c} onDone={invalidate} />
                         <DeleteButton cliente={c} onDone={invalidate} />
                       </>
                     )}
@@ -192,6 +194,123 @@ function ToggleAtivoBadge({
   );
 }
 
+function SettingsClient({
+  cliente,
+  onDone,
+}: {
+  cliente: Cliente;
+  onDone: () => void;
+}) {
+  const fn = useServerFn(updateClienteConfiguracoes);
+  const [open, setOpen] = useState(false);
+
+  const [form, setForm] = useState<{
+    quantidade_ramais: number | "";
+    quantidade_filas: number | "";
+    quantidade_uras: number | "";
+  }>({
+    quantidade_ramais: cliente.quantidade_ramais,
+    quantidade_filas: cliente.quantidade_filas,
+    quantidade_uras: cliente.quantidade_uras,
+  });
+
+  const mut = useMutation({
+    mutationFn: () => 
+      fn({ 
+        data: { 
+          id: cliente.id, 
+          quantidade_ramais: Number(form.quantidade_ramais),
+          quantidade_filas: Number(form.quantidade_filas),
+          quantidade_uras: Number(form.quantidade_uras),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Configurações atualizadas");
+      setOpen(false);
+      onDone();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => {
+        setOpen(o);
+
+        if (o) {
+          setForm({
+            quantidade_ramais: cliente.quantidade_ramais,
+            quantidade_filas: cliente.quantidade_filas,
+            quantidade_uras: cliente.quantidade_uras,
+          });
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Settings2 className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent
+         className="max-w-lg"
+         onKeyDown={(e) => {
+           if (e.key === "Enter") {
+             e.preventDefault();
+             mut.mutate();
+           } 
+         }}
+       >
+        <DialogHeader>
+          <DialogTitle>Configurações do cliente</DialogTitle>
+          <DialogDescription>Id #{cliente.tenant_id}</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <Label>Quantidade de ramais</Label>
+            <Input
+              type="number"
+              min="0"
+              value={form.quantidade_ramais}
+              onChange={(e) =>
+                setForm({ ...form, quantidade_ramais: e.target.value === "" ? "" : Number(e.target.value) })
+              }
+            />
+          </div>
+
+          <div>
+            <Label>Quantidade de filas</Label>
+            <Input
+              type="number"
+              min="0"
+              value={form.quantidade_filas}
+              onChange={(e) =>
+                setForm({ ...form, quantidade_filas: e.target.value === "" ? "" : Number(e.target.value) })
+              }
+            />
+          </div>
+
+          <div>
+            <Label>Quantidade de URAs</Label>
+            <Input
+              type="number"
+              min="0"
+              value={form.quantidade_uras}
+              onChange={(e) =>
+                setForm({ ...form, quantidade_uras: e.target.value === "" ? "" : Number(e.target.value) })
+              }
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button disabled={mut.isPending} onClick={() => mut.mutate()}>
+            Salvar alterações
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 function DeleteButton({
   cliente,
   onDone,
@@ -236,7 +355,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
     razao_social: "",
     email: "",
     tenant_id: "",
-    quantidade_ramais: "0",
   });
 
   const mut = useMutation({
@@ -247,7 +365,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
           razao_social: form.razao_social,
           email: form.email,
           tenant_id: Number(form.tenant_id),
-          quantidade_ramais: Number(form.quantidade_ramais) || 0,
         },
       }),
     onSuccess: () => {
@@ -257,7 +374,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
         razao_social: "",
         email: "",
         tenant_id: "",
-        quantidade_ramais: "0",
       });
       setOpen(false);
       onDone();
@@ -279,7 +395,15 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
           <Plus className="mr-2 h-4 w-4" /> Novo cliente
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent
+         className="max-w-lg"
+         onKeyDown={(e) => {
+           if (e.key === "Enter") {
+             e.preventDefault();
+             mut.mutate();
+           }
+         }}
+       >
         <DialogHeader>
           <DialogTitle>Cadastrar cliente</DialogTitle>
           <DialogDescription>
@@ -321,16 +445,6 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </div>
-          <div>
-            <Label>Qtd. de ramais</Label>
-            <Input
-              type="number"
-              value={form.quantidade_ramais}
-              onChange={(e) =>
-                setForm({ ...form, quantidade_ramais: e.target.value })
-              }
-            />
-          </div>
         </div>
         <DialogFooter>
           <Button disabled={disabled} onClick={() => mut.mutate()}>
@@ -355,7 +469,6 @@ function EditClienteDialog({
     cnpj: cliente.cnpj,
     razao_social: cliente.razao_social,
     email: cliente.email,
-    quantidade_ramais: String(cliente.quantidade_ramais),
     ativo: cliente.ativo ? 1 : 0,
   });
 
@@ -366,8 +479,6 @@ function EditClienteDialog({
       if (form.razao_social !== cliente.razao_social)
         patch.razao_social = form.razao_social;
       if (form.email !== cliente.email) patch.email = form.email;
-      if (Number(form.quantidade_ramais) !== cliente.quantidade_ramais)
-        patch.quantidade_ramais = Number(form.quantidade_ramais);
       const novoAtivoBool = form.ativo === 1;
       if (novoAtivoBool !== Boolean(cliente.ativo)) {
         patch.ativo = novoAtivoBool;
@@ -392,7 +503,6 @@ function EditClienteDialog({
             cnpj: cliente.cnpj,
             razao_social: cliente.razao_social,
             email: cliente.email,
-            quantidade_ramais: String(cliente.quantidade_ramais),
 	    ativo: cliente.ativo ? 1 : 0,
           });
         }
@@ -403,7 +513,15 @@ function EditClienteDialog({
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent
+         className="max-w-lg"
+         onKeyDown={(e) => {
+           if (e.key === "Enter") {
+             e.preventDefault();
+             mut.mutate();
+           }
+         }}
+       >
         <DialogHeader>
           <DialogTitle>Editar cliente</DialogTitle>
           <DialogDescription>Tenant #{cliente.tenant_id}</DialogDescription>
@@ -416,21 +534,11 @@ function EditClienteDialog({
               onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
             />
           </div>
-          <div>
+          <div className="col-span-2">
             <Label>CPF / CNPJ</Label>
             <Input
               value={form.cnpj}
               onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Qtd. de ramais</Label>
-            <Input
-              type="number"
-              value={form.quantidade_ramais}
-              onChange={(e) =>
-                setForm({ ...form, quantidade_ramais: e.target.value })
-              }
             />
           </div>
           <div className="col-span-2">

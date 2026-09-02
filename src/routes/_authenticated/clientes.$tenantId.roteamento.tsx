@@ -115,8 +115,11 @@ function RoteamentoPage() {
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setEditing(r)}><Pencil className="h-4 w-4" /></Button>
+                    {isAdmin && (
                     <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
+                      <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remover roteamento de {r.numero}?</AlertDialogTitle>
@@ -128,6 +131,7 @@ function RoteamentoPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -146,6 +150,7 @@ function RoteamentoFormDialog({
   tenantId, item, open: co, onOpenChange,
 }: { tenantId: number; item?: RoteamentoItem; open?: boolean; onOpenChange?: (v: boolean) => void }) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const { isAdmin } = useIsAdmin();
   const open = co ?? internalOpen;
   const setOpen = (v: boolean) => onOpenChange ? onOpenChange(v) : setInternalOpen(v);
   const editing = !!item;
@@ -206,6 +211,7 @@ function RoteamentoFormDialog({
                value={numero}
                onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))} 
                placeholder="Ex.: 2733334444"
+               disabled={editing && !isAdmin}
             />
           </div>
           <DestinoPicker

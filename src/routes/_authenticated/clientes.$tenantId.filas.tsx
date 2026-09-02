@@ -12,6 +12,7 @@ import {
   type Fila,
   listPesquisaSatisfacao,
 } from "@/lib/ramais.functions";
+import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,15 @@ function FilasPage() {
   const tenantId = Number(p);
   const qc = useQueryClient();
   const fn = useServerFn(listFilas);
+
+  const clienteFn = useServerFn(getClienteByTenant);
+  const { data: clienteData } = useQuery({
+    queryKey: ["cliente", tenantId],
+    queryFn: () => clienteFn({ data: { tenant_id: tenantId } }),
+    retry: false,
+  });
+  const max = clienteData?.cliente?.quantidade_filas ?? 0;
+
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["filas", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
@@ -63,20 +73,24 @@ function FilasPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const count = data?.filas.length ?? 0;
+  const atLimit = max > 0 && count >= max;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><ListOrdered className="h-6 w-6" /> Filas</h1>
-          <p className="text-sm text-muted-foreground">Gestão de filas de atendimento.</p>
+          <p className="text-sm text-muted-foreground">{count} {max > 0 ? `/ ${max}` : ""} filas cadastradas.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <FilaFormDialog tenantId={tenantId} />
+          <FilaFormDialog tenantId={tenantId} disabled={atLimit} />
         </div>
       </div>
+      {atLimit && ( <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700"> Limite de {max} {max === 1 ? "fila" : "filas" } atingido para este cliente.</div>)}
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{(error as Error).message}</div>}
       <div className="rounded-md border bg-card">
         <Table>
@@ -266,8 +280,8 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
 }
 
 function FilaFormDialog({
-  tenantId, fila, open: co, onOpenChange,
-}: { tenantId: number; fila?: Fila; open?: boolean; onOpenChange?: (v: boolean) => void }) {
+  tenantId, disabled, fila, open: co, onOpenChange,
+}: { tenantId: number; disabled?: boolean; fila?: Fila; open?: boolean; onOpenChange?: (v: boolean) => void }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = co ?? internalOpen;
   const setOpen = (v: boolean) => onOpenChange ? onOpenChange(v) : setInternalOpen(v);
@@ -346,7 +360,7 @@ function FilaFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {!editing && <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Nova fila</Button></DialogTrigger>}
+      {!editing && <DialogTrigger asChild><Button disabled={disabled}><Plus className="mr-2 h-4 w-4" /> Nova fila</Button></DialogTrigger>}
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? `Editar fila ${fila!.display_name}` : "Nova fila"}</DialogTitle>
