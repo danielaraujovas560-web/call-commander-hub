@@ -80,7 +80,7 @@ function UrasPage() {
 
   const delFn = useServerFn(deleteUra);
   const delMut = useMutation({
-    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
+    mutationFn: (ura_identifier: string) => delFn({ data: { ura_identifier, tenant_id: tenantId } }),
     onSuccess: () => {
       toast.success("URA removida");
       qc.invalidateQueries({ queryKey: ["uras", tenantId] });
@@ -149,7 +149,7 @@ function UrasPage() {
               </TableRow>
             )}
             {uras.map((u) => (
-              <TableRow key={u.id}>
+              <TableRow key={u.ura_identifier}>
                 <TableCell className={u.ativo ? "" : "text-muted-foreground"}>{u.nome}</TableCell>
                 <TableCell className="font-mono text-xs">{u.audio}</TableCell>
                 <TableCell>{u.max_digits ?? "-"}</TableCell>
@@ -179,7 +179,7 @@ function UrasPage() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => delMut.mutate(u.id)}>Remover</AlertDialogAction>
+                          <AlertDialogAction onClick={() => delMut.mutate(u.ura_identifier)}>Remover</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -194,7 +194,7 @@ function UrasPage() {
       {selected && (
         <UraOpcoesDialog
           tenantId={tenantId}
-          ura={uras.find((u) => u.id === selected.id) ?? selected}
+          ura={uras.find((u) => u.ura_identifier === selected.ura_identifier) ?? selected}
           onClose={() => setSelected(null)}
         />
       )}
@@ -262,7 +262,7 @@ function UraFormDialog({
     mutationFn: () =>
       editing
         ? updateFn({
-            data: { id: ura!.id, tenant_id: tenantId, ...form, timeout: Number(form.timeout) },
+            data: { ura_identifier: ura!.ura_identifier, tenant_id: tenantId, ...form, timeout: Number(form.timeout) },
           })
         : createFn({ data: { tenant_id: tenantId, ...form, timeout: Number(form.timeout) } }),
     onSuccess: () => {
@@ -389,7 +389,7 @@ type OpcaoForm = {
 };
 const emptyOpcao: OpcaoForm = { digito: "", tipo_destino: "", destino: "", externoNumero: "", externoTronco: "" };
 
-function opcaoToForm(o: { digito: string; tipo_destino: string; destino: string }): OpcaoForm {
+function opcaoToForm(o: { ura_identifier: string; digito: string; tipo_destino: string; destino: string }): OpcaoForm {
   const t = String(o.tipo_destino || "").toUpperCase() as TipoOpc;
   if (t === "EXTERNO" && o.destino.includes("/")) {
     const [n, tr] = o.destino.split("/");
@@ -410,12 +410,12 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
   const updateFn = useServerFn(updateUraOpcao);
   const delFn = useServerFn(deleteUraOpcao);
 
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingOpcao, setEditingOpcao] = useState<{ura_identifier: string; digito: string;} | null>(null);
   const [form, setForm] = useState<OpcaoForm>(emptyOpcao);
 
   function reset() {
     setForm(emptyOpcao);
-    setEditingId(null);
+    setEditingOpcao(null);
   }
 
   const saveMut = useMutation({
@@ -427,10 +427,10 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
         tipo_destino: form.tipo_destino as Exclude<TipoOpc, "">,
         destino,
       };
-      return editingId ? updateFn({ data: { id: editingId, ...body } }) : addFn({ data: { ura_id: ura.id, ...body } });
+      return editingOpcao ? updateFn({ data: { ura_identifier: editingOpcao.ura_identifier, digito_atual: editingOpcao.digito, ...body } }) : addFn({ data: { ura_identifier: ura.ura_identifier, ...body } });
     },
     onSuccess: () => {
-      toast.success(editingId ? "Opção atualizada" : "Opção adicionada");
+      toast.success(editingOpcao ? "Opção atualizada" : "Opção adicionada");
       qc.invalidateQueries({ queryKey: ["uras", tenantId] });
       reset();
     },
@@ -438,8 +438,11 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
   });
 
   const delMut = useMutation({
-    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["uras", tenantId] }),
+    mutationFn: ({ura_identifier, digito}: {ura_identifier: string, digito: string}) => delFn({ data: { ura_identifier, digito, tenant_id: tenantId } }),
+    onSuccess: () => {
+        toast.success("Opção removida");
+        qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -485,7 +488,7 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
             </TableHeader>
             <TableBody>
               {(ura.opcoes ?? []).map((o) => (
-                <TableRow key={o.id}>
+                <TableRow key={`${o.ura_identifier}-${o.digito}`}>
                   <TableCell className="font-mono">{o.digito || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{String(o.tipo_destino).toUpperCase()}</Badge>
@@ -497,13 +500,13 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                         size="icon"
                         variant="ghost"
                         onClick={() => {
-                          setEditingId(o.id);
+                          setEditingOpcao({ura_identifier: o.ura_identifier, digito: o.digito});
                           setForm(opcaoToForm(o));
                         }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => delMut.mutate(o.id)}>
+                      <Button size="icon" variant="ghost" onClick={() => delMut.mutate({ ura_identifier: o.ura_identifier, digito: o.digito })}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -522,7 +525,7 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
         </div>
 
         <div className="rounded-md border p-3 space-y-2">
-          <div className="text-sm font-medium">{editingId ? "Editar opção" : "Nova opção"}</div>
+          <div className="text-sm font-medium">{editingOpcao ? "Editar opção" : "Nova opção"}</div>
           <div className="grid grid-cols-4 gap-2">
             <div className="space-y-1">
               <Label>Dígito</Label>
@@ -574,7 +577,7 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                   </SelectTrigger>
                   <SelectContent>
                     {destinos?.uras
-                      .filter((u) => u.value !== ura.id)
+                      .filter((u) => u.value !== ura.ura_identifier)
                       .map((u) => (
                         <SelectItem key={u.value} value={String(u.value)}>
                           {displayFromBackend(u.label)}
@@ -589,7 +592,7 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                     <SelectValue placeholder="Selecione o ramal" />
                   </SelectTrigger>
                   <SelectContent>
-                    {destinos?.ramais.map((r) => (
+                    {destinos?.ramais .map((r) => (
                       <SelectItem key={r.value} value={String(r.value)}>
                         {displayFromBackend(r.label)}
                       </SelectItem>
@@ -636,13 +639,13 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            {editingId && (
+            {editingOpcao && (
               <Button type="button" variant="outline" onClick={reset}>
                 Cancelar edição
               </Button>
             )}
             <Button disabled={disabled || saveMut.isPending} onClick={() => saveMut.mutate()}>
-              {editingId ? (
+              {editingOpcao ? (
                 <>
                   <Pencil className="mr-1 h-4 w-4" /> Salvar
                 </>

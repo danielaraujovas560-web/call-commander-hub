@@ -1654,8 +1654,8 @@ app.get("/blacklist", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT id, regra, tipo, destino, ativo, motivo, data_hora_desbloqueio
-         FROM blacklist WHERE tenant_id = ? ORDER BY id DESC`,
+      `SELECT regra, tipo, destino, ativo, motivo, data_hora_desbloqueio
+         FROM blacklist WHERE tenant_id = ? ORDER BY created_at ASC`,
       [tenant],
     );
     res.json({ blacklist: rows.map((r) => ({ ...r, ativo: !!r.ativo })) });
@@ -1677,17 +1677,84 @@ app.post("/blacklist", async (req, res) => {
        VALUES (?, ?, ?, ?, 1, ?, ?)`,
       [tenant, regra, tipo, destino, motivo || null, data_hora_desbloqueio],
     );
-    res.json({ ok: true, id: r.insertId });
+    res.json({ ok: true, destino: r.destino });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-app.delete("/blacklist/:id", async (req, res) => {
+app.put("/blacklist/:destino/:regra/:tipo", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
+  const destinoAtual = req.params.destino;
+  const regraAtual = req.params.regra;
+  const tipoAtual = req.params.tipo
+  if (!destinoAtual || !regraAtual || !tipoAtual) return res.status(400).json({ error: "regra, tipo, destino obrigatórios" });
+  const { regra, tipo, destino, motivo, data_hora_desbloqueio, ativo } = req.body || {};
   try {
-    await pool.query(`DELETE FROM blacklist WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
+    const [b] = await pool.query(
+      `SELECT * FROM blacklist
+       WHERE destino = ? AND tenant_id = ? AND regra = ? AND tipo = ?`,
+       [destinoAtual, tenant, regraAtual, tipoAtual],
+    );
+
+  if (!b.length) return res.status(404).json({ error: "Regra de blacklist não encontrada." });
+
+  const sets = []
+  const vals = []
+
+  if (regra !== undefined) {
+    sets.push("regra = ?");
+    vals.push(regra);
+  }
+  if (tipo !== undefined) {
+    sets.push("tipo = ?");
+    vals.push(tipo);
+  }
+  if (destino !== undefined) {
+    sets.push("destino = ?");
+    vals.push(destino);
+  }
+  if (motivo !== undefined) {
+    sets.push("motivo = ?");
+    vals.push(motivo);
+  }
+  if (data_hora_desbloqueio !== undefined) {
+    sets.push("data_hora_desbloqueio = ?");
+    vals.push(data_hora_desbloqueio);
+  }
+  if (ativo !== undefined) {
+    sets.push("ativo = ?");
+    vals.push(ativo);
+  }
+  if (!sets.length) {
+    return res.json({ ok: true });
+  }
+
+  await pool.query(
+    `UPDATE blacklist
+        SET ${sets.join(", ")}
+      WHERE destino = ?
+        AND tenant_id = ?
+        AND regra = ?
+        AND tipo = ?`,
+     [ ...vals, destinoAtual, tenant, regraAtual, tipoAtual]);
+
+  res.json({ ok: true });
+
+  } catch (e) {
+    res.status(500).json({error: String(e.message || e) });
+  }
+});
+
+app.delete("/blacklist/:destino/:regra/:tipo", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const destino = req.params.destino;
+  const regra = req.params.regra;
+  const tipo = req.params.tipo;
+  try {
+    await pool.query(`DELETE FROM blacklist WHERE destino = ? AND tenant_id = ? AND regra = ? AND tipo = ?`, [destino, tenant, regra, tipo]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -1837,32 +1904,32 @@ app.get("/filas", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT f.id, f.name, f.display_name, f.fila_timeout, f.description, f.gravacao, f.active,
-              f.pesquisa, f.pesquisa_id,
+      `SELECT f.name, f.display_name, f.fila_timeout, f.description, f.gravacao,
+              f.pesquisa, f.pesquisa_id, f.ativo,
               q.strategy, q.timeout, q.ringinuse, q.retry, q.maxlen, q.musiconhold,
               (SELECT COUNT(*) FROM filas_agentes fa
                  WHERE fa.tenant_id = f.tenant_id AND fa.queue = f.name) AS membros
          FROM filas f
          LEFT JOIN queues q ON q.tenant_id = f.tenant_id AND q.name = f.name
         WHERE f.tenant_id = ?
-        ORDER BY f.display_name`,
+        ORDER BY f.created_at ASC`,
       [String(tenant)],
     );
-    res.json({ filas: rows.map((r) => ({ ...r, gravacao: !!r.gravacao, active: !!r.active, pesquisa: !!r.pesquisa })) });
+    res.json({ filas: rows.map((r) => ({ ...r, gravacao: !!r.gravacao, ativo: !!r.ativo, pesquisa: !!r.pesquisa })) });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-app.get("/filas/:id/agentes", async (req, res) => {
+app.get("/filas/:name/agentes", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const filaId = Number(req.params.id);
+  const filaName = req.params.name;
   try {
     const [filaRows] = await pool.query(
-      `SELECT id, name, display_name, description, gravacao, active
-         FROM filas WHERE tenant_id = ? AND id = ? LIMIT 1`,
-      [tenant, filaId],
+      `SELECT name, display_name, description, gravacao, ativo
+         FROM filas WHERE tenant_id = ? AND name = ? LIMIT 1`,
+      [tenant, filaName],
     );
     if (filaRows.length === 0) return res.status(404).json({ error: "Fila não encontrada" });
     const fila = filaRows[0];
@@ -1881,7 +1948,7 @@ app.get("/filas/:id/agentes", async (req, res) => {
     ]);
 
     res.json({
-      fila: { ...fila, active: !!fila.active },
+      fila: { ...fila, ativo: !!fila.ativo },
       agentes,
       queue: queueRows[0] ?? null,
     });
@@ -1890,16 +1957,16 @@ app.get("/filas/:id/agentes", async (req, res) => {
   }
 });
 
-app.post("/filas/:id/agentes", async (req, res) => {
+app.post("/filas/:name/agentes", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const filaId = Number(req.params.id);
+  const filaName = req.params.name;
   const { ramal, penalty } = req.body || {};
   if (!ramal) return res.status(400).json({ error: "ramal obrigatório" });
   try {
     const [[fila]] = await pool.query(
-      `SELECT name FROM filas WHERE id = ? AND tenant_id = ? LIMIT 1`,
-      [filaId, tenant],
+      `SELECT name FROM filas WHERE name = ? AND tenant_id = ? LIMIT 1`,
+      [filaName, tenant],
     );
     if (!fila) return res.status(404).json({ error: "Fila não encontrada" });
 
@@ -2001,7 +2068,7 @@ app.post("/filas", async (req, res) => {
     ringinuse = "no",
     fila_timeout,
     gravacao = false,
-    active = true,
+    ativo = true,
     pesquisa = false,
     pesquisa_id,
   } = req.body || {};
@@ -2037,9 +2104,9 @@ app.post("/filas", async (req, res) => {
     await ensureMoh(conn, tenant);
 
     await conn.query(
-      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, gravacao, active, pesquisa, pesquisa_id)
+      `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, gravacao, ativo, pesquisa, pesquisa_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [String(tenant), name, display_name, fila_timeout || null, description || null, gravacao ? 1 : 0 , active ? 1 : 0, pesquisaInt, pesquisaIdVal],
+      [String(tenant), name, display_name, fila_timeout || null, description || null, gravacao ? 1 : 0 , ativo ? 1 : 0, pesquisaInt, pesquisaIdVal],
     );
 
     await conn.query(
@@ -2060,18 +2127,18 @@ app.post("/filas", async (req, res) => {
   }
 });
 
-app.put("/filas/:id", async (req, res) => {
+app.put("/filas/:name", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
-  const { display_name, description, strategy, timeout, fila_timeout, retry, ringinuse, gravacao, active, pesquisa, pesquisa_id } = req.body || {};
+  const name =req.params.name;
+  const { display_name, description, strategy, timeout, fila_timeout, retry, ringinuse, gravacao, ativo, pesquisa, pesquisa_id } = req.body || {};
   if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
     return res.status(400).json({ error: "Estratégia inválida" });
   }
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT * FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
+    const [rows] = await conn.query(`SELECT * FROM filas WHERE name = ? AND tenant_id = ?`, [name, String(tenant)]);
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Fila não encontrada" });
@@ -2085,8 +2152,8 @@ app.put("/filas/:id", async (req, res) => {
 
     if (nameChanged) {
       const [dupF] = await conn.query(
-        `SELECT 1 FROM filas WHERE tenant_id = ? AND name = ? AND id <> ? LIMIT 1`,
-        [String(tenant), newName, id],
+        `SELECT 1 FROM filas WHERE tenant_id = ? AND name = ? LIMIT 1`,
+        [String(tenant), newName],
       );
       if (dupF.length) {
         await conn.rollback();
@@ -2109,19 +2176,19 @@ app.put("/filas/:id", async (req, res) => {
     }
 
     await conn.query(
-      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, gravacao = ?, active = ?, name = ?,
+      `UPDATE filas SET display_name = ?, fila_timeout = ?, description = ?, gravacao = ?, ativo = ?, name = ?,
                         pesquisa = ?, pesquisa_id = ?
-        WHERE id = ? AND tenant_id = ?`,
+        WHERE name = ? AND tenant_id = ?`,
       [
         newDisplay,
         fila_timeout !== undefined ? Number(fila_timeout) : f.fila_timeout,
         description ?? f.description,
         gravacao === undefined ? f.gravacao : gravacao ? 1 : 0,
-        active === undefined ? f.active : active ? 1 : 0,
+        ativo === undefined ? f.ativo : ativo ? 1 : 0,
         newName,
         pesquisaIntUpdate,
         pesquisaIdUpdate,
-        id,
+        oldName,
         String(tenant),
       ],
     );
@@ -2167,14 +2234,14 @@ app.put("/filas/:id", async (req, res) => {
   }
 });
 
-app.delete("/filas/:id", async (req, res) => {
+app.delete("/filas/:name", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
+  const name = req.params.name;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT * FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
+    const [rows] = await conn.query(`SELECT * FROM filas WHERE name = ? AND tenant_id = ?`, [name, String(tenant)]);
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Fila não encontrada" });
@@ -2185,7 +2252,7 @@ app.delete("/filas/:id", async (req, res) => {
     // banco), para não deixar membros "fantasma" na memória.
     const [agentes] = await conn.query(
       `SELECT interface FROM filas_agentes WHERE tenant_id = ? AND queue = ?`,
-      [tenant, f.name],
+      [tenant, name],
     );
     for (const a of agentes) {
       try {
@@ -2195,12 +2262,12 @@ app.delete("/filas/:id", async (req, res) => {
       }
     }
 
-    await conn.query(`DELETE FROM filas_agentes WHERE tenant_id = ? AND queue = ?`, [tenant, f.name]);
-    await conn.query(`DELETE FROM queues WHERE tenant_id = ? AND name = ?`, [String(tenant), f.name]);
-    await conn.query(`DELETE FROM filas WHERE id = ? AND tenant_id = ?`, [id, String(tenant)]);
+    await conn.query(`DELETE FROM filas_agentes WHERE tenant_id = ? AND queue = ?`, [tenant, name]);
+    await conn.query(`DELETE FROM queues WHERE tenant_id = ? AND name = ?`, [String(tenant), name]);
+    await conn.query(`DELETE FROM filas WHERE id = ? AND tenant_id = ?`, [name, String(tenant)]);
 
     await conn.commit();
-    await amiQueueReloadParameters(f.name);
+    await amiQueueReloadParameters(name);
     res.json({ ok: true });
   } catch (e) {
     await conn.rollback();
@@ -2210,21 +2277,56 @@ app.delete("/filas/:id", async (req, res) => {
   }
 });
 
+app.put("/filas/:name/ativo", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+
+  const name = req.params.name;
+  const { ativo } = req.body || {};
+
+  if (typeof ativo !== "boolean") {
+    return res.status(400).json({
+      error: "O campo ativo deve ser booleano.",
+    });
+  }
+
+  try {
+    const [result] = await pool.query(
+      `UPDATE filas
+          SET ativo = ?
+        WHERE name = ? AND tenant_id = ?`,
+      [ativo ? 1 : 0, name, String(tenant)],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: "Fila não encontrada",
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({
+      error: String(e.message || e),
+    });
+  }
+});
+
 // ---------- URAs (gestão) ----------
 app.get("/uras", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT id, nome, audio, max_digits, tentativas, timeout, ativo
-         FROM uras WHERE tenant_id = ? ORDER BY id`,
+      `SELECT ura_identifier, nome, audio, max_digits, tentativas, timeout, ativo
+         FROM uras WHERE tenant_id = ? ORDER BY created_at ASC`,
       [tenant],
     );
     const uras = rows.map((r) => ({ ...r, ativo: !!r.ativo }));
     for (const u of uras) {
       const [opts] = await pool.query(
-        `SELECT id, digito, tipo_destino, destino FROM ura_opcoes WHERE ura_id = ? ORDER BY digito`,
-        [u.id],
+        `SELECT ura_identifier, digito, tipo_destino, destino FROM ura_opcoes WHERE ura_identifier = ? ORDER BY digito`,
+        [u.ura_identifier],
       );
       u.opcoes = opts.map((o) => ({ ...o, tipo_destino: String(o.tipo_destino || "").toUpperCase() }));
     }
@@ -2347,7 +2449,7 @@ app.delete("/uras/audios/:nome", async (req, res) => {
   if (!validAudioName(nome)) return res.status(400).json({ error: "Nome de áudio inválido." });
   try {
     const [usos] = await pool.query(
-      "SELECT id, nome FROM uras WHERE tenant_id = ? AND audio = ? ORDER BY nome",
+      "SELECT ura_identifier, nome FROM uras WHERE tenant_id = ? AND audio = ? ORDER BY nome",
       [tenant, nome],
     );
     if (usos.length) {
@@ -2368,18 +2470,18 @@ app.get("/uras/destinos", async (req, res) => {
   if (!tenant) return;
   try {
     const [filas] = await pool.query(
-      `SELECT id AS value, display_name AS label FROM filas WHERE tenant_id = ? ORDER BY display_name`,
+      `SELECT name AS value, display_name AS label FROM filas WHERE tenant_id = ? ORDER BY display_name`,
       [String(tenant)],
     );
-    const [uras] = await pool.query(`SELECT id AS value, nome AS label FROM uras WHERE tenant_id = ? ORDER BY nome`, [
+    const [uras] = await pool.query(`SELECT ura_identifier AS value, nome AS label FROM uras WHERE tenant_id = ? ORDER BY nome`, [
       tenant,
     ]);
     const [ramais] = await pool.query(
-      `SELECT ramal AS value, nome AS label FROM ramais WHERE tenant_id = ? ORDER BY ramal`,
+      `SELECT endpoint_id AS value, nome AS label FROM ramais WHERE tenant_id = ? ORDER BY endpoint_id`,
       [tenant],
     );
     const [troncos] = await pool.query(
-      `SELECT nome AS value, nome AS label FROM troncos WHERE tenant_id = ? ORDER BY nome`,
+      `SELECT tronco_pjsip AS value, nome AS label FROM troncos WHERE tenant_id = ? ORDER BY nome`,
       [tenant],
     );
     const [regras] = await pool.query(
@@ -2406,24 +2508,26 @@ app.post("/uras", async (req, res) => {
   if (!nome || !audio || max_digits == null || tentativas == null || timeout == null) {
     return res.status(400).json({ error: "nome, audio, max_digits, tentativas, timeout obrigatórios" });
   }
+  const slug = slugName(nome);
+  const uraIdentifier = `u${tenant}-${slug}`;
   try {
-    const [dup] = await pool.query(`SELECT id FROM uras WHERE tenant_id = ? AND nome = ? LIMIT 1`, [tenant, nome]);
+    const [dup] = await pool.query(`SELECT ura_identifier FROM uras WHERE tenant_id = ? AND nome = ? LIMIT 1`, [tenant, nome]);
     if (dup.length) return res.status(409).json({ error: "Já existe uma URA com esse nome neste tenant" });
     const [r] = await pool.query(
-      `INSERT INTO uras (tenant_id, nome, audio, max_digits, tentativas, timeout, ativo)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [tenant, nome, audio, Number(max_digits), Number(tentativas), Number(timeout), ativo ? 1 : 0],
+      `INSERT INTO uras (ura_identifier, tenant_id, nome, audio, max_digits, tentativas, timeout, ativo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [uraIdentifier, tenant, nome, audio, Number(max_digits), Number(tentativas), Number(timeout), ativo ? 1 : 0],
     );
-    res.json({ ok: true, id: r.insertId });
+    res.json({ ok: true, ura_identifier: r.ura_identifier });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-app.put("/uras/:id", async (req, res) => {
+app.put("/uras/:ura_identifier", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
+  const uraIdentifier = req.params.ura_identifier;
   const { nome, audio, max_digits, tentativas, timeout, ativo } = req.body || {};
   const sets = [];
   const vals = [];
@@ -2444,64 +2548,75 @@ app.put("/uras/:id", async (req, res) => {
   }
   if (!sets.length) return res.json({ ok: true });
   try {
-    if (nome !== undefined) {
-      const [dup] = await pool.query(`SELECT id FROM uras WHERE tenant_id = ? AND nome = ? AND id <> ? LIMIT 1`, [
-        tenant,
-        nome,
-        id,
-      ]);
-      if (dup.length) return res.status(409).json({ error: "Já existe uma URA com esse nome neste tenant" });
-    }
-    await pool.query(`UPDATE uras SET ${sets.join(", ")} WHERE id = ? AND tenant_id = ?`, [...vals, id, tenant]);
-    res.json({ ok: true });
+    const [current] = await pool.query(`SELECT nome FROM uras WHERE tenant_id = ? AND ura_identifier = ? LIMIT 1`, [tenant, uraIdentifier]);
+    if (!current.length) return res.status(404).json({ error: "URA não encontrada" });
+
+    const nomeAtual = current[0].nome;
+    const nomeNovo = nome ?? nomeAtual;
+    const nomeMudou = nomeNovo !== nomeAtual;
+
+    const newIdentifier = nomeMudou ? `u${tenant}-${slugName(nomeNovo)}` : uraIdentifier;
+
+    if(nomeMudou) {
+      const [dup] = await pool.query(`SELECT ura_identifier FROM uras WHERE tenant_id = ? AND nome = ? AND ura_identifier <> ? LIMIT 1`, [tenant, nome, uraIdentifier]);
+      if (!dup.length) return res.status(409).json({ error: "" });
+
+    sets.push("ura_identifier = ?");
+    vals.push(newIdentifier);
+   }
+    await pool.query(`UPDATE uras SET ${sets.join(", ")} WHERE ura_identifier = ? AND tenant_id = ?`, [...vals, uraIdentifier, tenant]);
+    await pool.query(`UPDATE ura_opcoes SET ura_identifier = ? WHERE ura_identifier = ?`, [newIdentifier, uraIdentifier]);
+    res.json({ ok: true, ura_identifier: newIdentifier });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-app.delete("/uras/:id", async (req, res) => {
+app.delete("/uras/:ura_identifier", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const id = Number(req.params.id);
+  const uraIdentifier = req.params.ura_identifier;
   try {
-    await pool.query(`DELETE FROM ura_opcoes WHERE ura_id = ?`, [id]);
-    await pool.query(`DELETE FROM uras WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    await pool.query(`DELETE FROM ura_opcoes WHERE ura_identifier = ?`, [uraIdentifier]);
+    await pool.query(`DELETE FROM uras WHERE ura_identifier = ? AND tenant_id = ?`, [uraIdentifier, tenant]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-app.post("/uras/:id/opcoes", async (req, res) => {
+app.post("/uras/:ura_identifier/opcoes", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const uraId = Number(req.params.id);
+  const uraIdentifier = req.params.ura_identifier;
   const { digito, tipo_destino, destino } = req.body || {};
   if (!tipo_destino || !destino) return res.status(400).json({ error: "tipo_destino e destino obrigatórios" });
   try {
-    const [own] = await pool.query(`SELECT id FROM uras WHERE id = ? AND tenant_id = ?`, [uraId, tenant]);
+    const [own] = await pool.query(`SELECT ura_identifier FROM uras WHERE ura_identifier = ? AND tenant_id = ?`, [uraIdentifier, tenant]);
     if (!own.length) return res.status(404).json({ error: "URA não encontrada" });
-    const [r] = await pool.query(`INSERT INTO ura_opcoes (ura_id, digito, tipo_destino, destino) VALUES (?, ?, ?, ?)`, [
-      uraId,
-      String(digito ?? ""),
+    const digitoValor = String(digito ?? "");
+    const [r] = await pool.query(`INSERT INTO ura_opcoes (ura_identifier, digito, tipo_destino, destino) VALUES (?, ?, ?, ?)`, [
+      uraIdentifier,
+      digitoValor,
       String(tipo_destino).toUpperCase(),
       String(destino),
     ]);
-    res.json({ ok: true, id: r.insertId });
+    res.json({ ok: true, ura_identifier: uraIdentifier, digito: digitoValor });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-app.delete("/uras/opcoes/:opcaoId", async (req, res) => {
+app.delete("/uras/:ura_identifier/opcoes/:opcao", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const opcaoId = Number(req.params.opcaoId);
+  const uraIdentifier = req.params.ura_identifier;
+  const digito = req.params.opcao;
   try {
     await pool.query(
-      `DELETE o FROM ura_opcoes o JOIN uras u ON u.id = o.ura_id
-        WHERE o.id = ? AND u.tenant_id = ?`,
-      [opcaoId, tenant],
+      `DELETE o FROM ura_opcoes o JOIN uras u ON u.ura_identifier = o.ura_identifier
+        WHERE o.ura_identifier = ? AND o.digito = ? AND u.tenant_id = ?`,
+      [uraIdentifier, digito, tenant],
     );
     res.json({ ok: true });
   } catch (e) {
@@ -2509,10 +2624,11 @@ app.delete("/uras/opcoes/:opcaoId", async (req, res) => {
   }
 });
 
-app.put("/uras/opcoes/:opcaoId", async (req, res) => {
+app.put("/uras/:ura_identifier/opcoes/:opcao", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const opcaoId = Number(req.params.opcaoId);
+  const uraIdentifier = req.params.ura_identifier;
+  const oldDigito = req.params.opcao;
   const { digito, tipo_destino, destino } = req.body || {};
   const sets = [];
   const vals = [];
@@ -2531,10 +2647,10 @@ app.put("/uras/opcoes/:opcaoId", async (req, res) => {
   if (!sets.length) return res.json({ ok: true });
   try {
     await pool.query(
-      `UPDATE ura_opcoes o JOIN uras u ON u.id = o.ura_id
+      `UPDATE ura_opcoes o JOIN uras u ON u.ura_identifier = o.ura_identifier
           SET ${sets.join(", ")}
-        WHERE o.id = ? AND u.tenant_id = ?`,
-      [...vals, opcaoId, tenant],
+        WHERE o.ura_identifier = ? AND o.digito = ? AND u.tenant_id = ?`,
+      [...vals, uraIdentifier, oldDigito, tenant],
     );
     res.json({ ok: true });
   } catch (e) {
@@ -2642,7 +2758,7 @@ app.put("/roteamento/:numero", async (req, res) => {
   try {
     await pool.query(`UPDATE roteamento SET ${sets.join(", ")} WHERE numero = ? AND tenant_id = ?`, [
       ...vals,
-      numero,
+      numeroAtual,
       tenant,
     ]);
     res.json({ ok: true });

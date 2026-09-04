@@ -48,16 +48,6 @@ export interface Tronco {
   porta?: string | null;
 }
 
-export interface BlacklistItem {
-  id: number;
-  regra: "Entrada" | "Saida";
-  tipo: "Prefixo" | "Numero";
-  destino: string;
-  ativo: boolean;
-  motivo: string | null;
-  data_hora_desbloqueio: string;
-}
-
 const RamalInput = z.object({
   nome: z.coerce.string().trim().max(80).optional().or(z.literal("")),
   ramal: z.coerce.string().trim().regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
@@ -316,6 +306,15 @@ export const listCdrCidadesSaida = createServerFn({ method: "GET" })
 
 
 // ---------- Blacklist ----------
+export interface BlacklistItem {
+  destino: string;
+  regra: "Entrada" | "Saida";
+  tipo: "Prefixo" | "Numero";
+  ativo: boolean;
+  motivo: string | null;
+  data_hora_desbloqueio: string;
+}
+
 export const listBlacklist = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
@@ -331,10 +330,10 @@ export const createBlacklist = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
+        destino: z.string().min(1).max(64),
         tenant_id: z.number().int().positive().optional(),
         regra: z.enum(["Entrada", "Saida"]),
         tipo: z.enum(["Prefixo", "Numero"]),
-        destino: z.string().min(1).max(64),
         motivo: z.string().max(100).optional(),
         data_hora_desbloqueio: z.string().min(1),
       })
@@ -348,25 +347,71 @@ export const createBlacklist = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const deleteBlacklist = createServerFn({ method: "POST" })
+export const updateBlacklist = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
+    z.object({
+      destinoAtual: z.string().min(1).max(64),
+      regraAtual: z.enum(["Entrada", "Saida"]),
+      tipoAtual: z.enum(["Prefixo", "Numero"]),
+
+      destino: z.string().min(1).max(64), 
+      tenant_id: z.number().int().positive().optional(), 
+      regra: z.enum(["Entrada", "Saida"]), 
+      tipo: z.enum(["Prefixo", "Numero"]),
+      motivo: z.string().max(255).optional(),
+      data_hora_desbloqueio: z.string().optional(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/blacklist/${data.id}`, { method: "DELETE", tenantId });
+    const { destinoAtual, regraAtual, tipoAtual, tenant_id: _i, ...body } = data;
+    await agentFetch(`/blacklist/${destinoAtual}/${regraAtual}/${tipoAtual}`, { method: "PUT", tenantId, body });
+    return { ok: true };
+  });
+
+export const deleteBlacklist = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ 
+      destino: z.string().min(1).max(64),
+      tenant_id: z.number().int().positive().optional(),
+      regra: z.enum(["Entrada", "Saida"]),
+      tipo: z.enum(["Prefixo", "Numero"]),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    await agentFetch(`/blacklist/${data.destino}/${data.regra}/${data.tipo}`, { method: "DELETE", tenantId });
+    return { ok: true };
+  });
+
+const ToggleBlacklistAtivoInput = z.object({
+  destino: z.string().min(1).max(64),
+  tenant_id: z.number().int().positive().optional(),
+  regra: z.enum(["Entrada", "Saida"]),
+  tipo: z.enum(["Prefixo", "Numero"]),
+  ativo: z.boolean(),
+});
+
+export const toggleBlacklistAtivo = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => ToggleBlacklistAtivoInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    await agentFetch(`/blacklist/${data.destino}/${data.regra}/${data.tipo}`, { method: "PUT", tenantId, body: {ativo: data.ativo} });
     return { ok: true };
   });
 
 // ---------- Filas (gestão) ----------
 export interface Fila {
-  id: number;
   name: string;
   display_name: string;
   description: string | null;
-  active: boolean;
+  ativo: boolean;
   strategy: string | null;
   ringinuse: "yes" | "no" | null;
   timeout: number | null;
@@ -410,7 +455,7 @@ export const getFilaAgentes = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) =>
     z.object({
       tenant_id: z.number().int().positive().optional(),
-      fila_id: z.number().int().positive(),
+      name: z.string().min(1),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -418,7 +463,7 @@ export const getFilaAgentes = createServerFn({ method: "GET" })
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{
       fila: Fila; agentes: FilaAgente[]; queue: FilaQueueConfig | null;
-    }>(`/filas/${data.fila_id}/agentes`, { tenantId });
+    }>(`/filas/${data.name}/agentes`, { tenantId });
     return res;
   });
 
@@ -427,7 +472,7 @@ export const addFilaAgente = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({
       tenant_id: z.number().int().positive().optional(),
-      fila_id: z.number().int().positive(),
+      name: z.string().min(1),
       ramal: z.string().min(1),
       penalty: z.coerce.number().int().min(0).max(100).optional(),
     }).parse(d),
@@ -435,7 +480,7 @@ export const addFilaAgente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    return await agentFetch<{ ok: true; id: string }>(`/filas/${data.fila_id}/agentes`, {
+    return await agentFetch<{ ok: true; name: string }>(`/filas/${data.name}/agentes`, {
       method: "POST",
       tenantId,
       body: { ramal: data.ramal, penalty: data.penalty },
@@ -479,14 +524,14 @@ export const setFilaAgentePenalty = createServerFn({ method: "POST" })
 
 // ---------- URAs (gestão) ----------
 export interface Ura {
-  id: number;
+  ura_identifier: string;
   nome: string;
   audio: string;
   max_digits: number | null;
   tentativas: number | null;
   timeout: number | null;
   ativo: boolean;
-  opcoes: { id: number; digito: string; tipo_destino: string; destino: string }[];
+  opcoes: { ura_identifier: string; digito: string; tipo_destino: string; destino: string }[];
 }
 
 export const listUras = createServerFn({ method: "GET" })
@@ -599,13 +644,13 @@ export const createUra = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; id: number }>("/uras", {
+    return await agentFetch<{ ok: true; ura_identifier: string }>("/uras", {
       method: "POST", tenantId, body,
     });
   });
 
 const UraUpdateInput = z.object({
-  id: z.number().int().positive(),
+  ura_identifier: z.string().min(1),
   tenant_id: z.number().int().positive().optional(),
   nome: z.coerce.string().trim().min(1).max(80).optional(),
   audio: z.coerce.string().trim().min(1).max(120).optional(),
@@ -621,8 +666,8 @@ export const updateUra = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...patch } = data;
-    return await agentFetch<{ ok: true }>(`/uras/${id}`, {
+    const { ura_identifier, tenant_id: _i, ...patch } = data;
+    return await agentFetch<{ ok: true }>(`/uras/${ura_identifier}`, {
       method: "PUT", tenantId, body: patch,
     });
   });
@@ -630,12 +675,12 @@ export const updateUra = createServerFn({ method: "POST" })
 export const deleteUra = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
+    z.object({ ura_identifier: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/uras/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/uras/${data.ura_identifier}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 
@@ -643,7 +688,7 @@ export const addUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({
-      ura_id: z.number().int().positive(),
+      ura_identifier: z.string().min(1),
       tenant_id: z.number().int().positive().optional(),
       digito: z.coerce.string().max(4),
       tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]),
@@ -653,8 +698,8 @@ export const addUraOpcao = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { ura_id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; id: number }>(`/uras/${ura_id}/opcoes`, {
+    const { ura_identifier, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true; ura_identifier: string }>(`/uras/${ura_identifier}/opcoes`, {
       method: "POST", tenantId, body,
     });
   });
@@ -663,8 +708,9 @@ export const updateUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
     z.object({
-      id: z.number().int().positive(),
+      ura_identifier: z.string().min(1),
       tenant_id: z.number().int().positive().optional(),
+      digito_atual: z.coerce.string().max(4),
       digito: z.coerce.string().max(4).optional(),
       tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]).optional(),
       destino: z.coerce.string().min(1).max(120).optional(),
@@ -673,8 +719,8 @@ export const updateUraOpcao = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/uras/opcoes/${id}`, {
+    const { ura_identifier, digito_atual, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/uras/${ura_identifier}/opcoes/${encodeURIComponent(digito_atual)}`, {
       method: "PUT", tenantId, body,
     });
   });
@@ -682,12 +728,12 @@ export const updateUraOpcao = createServerFn({ method: "POST" })
 export const deleteUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d),
+    z.object({ ura_identifier: z.string().min(1), digito: z.coerce.string().max(4), tenant_id: z.number().int().positive().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/uras/opcoes/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/uras/${data.ura_identifier}/opcoes/${encodeURIComponent(data.digito)}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 
@@ -782,13 +828,18 @@ const FilaInput = z.object({
   fila_timeout: z.coerce.number().int().min(0).max(3600).default(0),
   retry: z.coerce.number().int().min(0).max(3600).default(5),
   gravacao: z.boolean().default(false),
-  active: z.boolean().default(true),
+  ativo: z.boolean().default(true),
   pesquisa: z.boolean().default(false),
   pesquisa_id: z.number().int().positive().optional(),
 });
 const FilaUpdate = FilaInput.partial().extend({
-  id: z.number().int().positive(),
+  name: z.string().min(1),
   tenant_id: z.number().int().positive().optional(),
+});
+const ToggleFilaAtivoInput = z.object({
+  name: z.string().trim().min(1),
+  tenant_id: z.number().int().positive().optional(),
+  ativo: z.boolean(),
 });
 
 export const createFila = createServerFn({ method: "POST" })
@@ -807,18 +858,28 @@ export const updateFila = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/filas/${id}`, { method: "PUT", tenantId, body });
+    const { name, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/filas/${name}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteFila = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z.object({ name: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/filas/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/filas/${data.name}`, { method: "DELETE", tenantId });
+    return { ok: true };
+  });
+
+export const toggleFilaAtivo = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => ToggleFilaAtivoInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    await agentFetch(`/filas/${data.name}/ativo`, { method: "PUT", tenantId, body: {ativo: data.ativo} });
     return { ok: true };
   });
 

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
 import {
   listClientes,
   createCliente,
@@ -59,6 +60,19 @@ function ClientesPage() {
   });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["clientes"] });
 
+  const updateClienteFn = useServerFn(updateCliente);
+
+  const toggleAtivoMut = useMutation({
+    mutationFn: ({ id, ativo }: { id: string; ativo: boolean; }) =>
+      updateClienteFn({ data: { id, ativo }}),
+    onSuccess: () => {
+       toast.success("Cliente atualizado");
+       invalidate();
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+   }});
+
   const clientes = data?.clientes ?? [];
 
   return (
@@ -91,7 +105,6 @@ function ClientesPage() {
               <TableHead>Razão social</TableHead>
               <TableHead>CNPJ/CPF</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead className="text-right">Ramais</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -125,15 +138,17 @@ function ClientesPage() {
                 <TableCell className="font-medium">{c.razao_social}</TableCell>
                 <TableCell className="font-mono text-xs">{c.cnpj}</TableCell>
                 <TableCell className="font-mono text-xs">{c.email}</TableCell>
-                <TableCell className="text-right">{c.quantidade_ramais}</TableCell>
                 <TableCell>
                   {isAdmin ? (
-                    <ToggleAtivoBadge cliente={c} onDone={invalidate} />
-                  ) : (
-                    <Badge variant={c.ativo ? "default" : "secondary"}>
-                      {c.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
-                  )}
+                    <ToggleAtivoBadge 
+                        ativo={c.ativo}
+                        isPending={toggleAtivoMut.isPending}
+                        onToggle={() => toggleAtivoMut.mutate({ id: c.id, ativo: !c.ativo })} />
+                     ) : (
+                       <Badge variant={c.ativo ? "default" : "secondary"}>
+                          {c.ativo ? "Ativo" : "Inativo"}
+                       </Badge>
+                    )}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -161,36 +176,6 @@ function ClientesPage() {
         </Table>
       </div>
     </div>
-  );
-}
-
-function ToggleAtivoBadge({
-  cliente,
-  onDone,
-}: {
-  cliente: Cliente;
-  onDone: () => void;
-}) {
-  const fn = useServerFn(updateCliente);
-  const mut = useMutation({
-    mutationFn: () => fn({ data: { id: cliente.id, ativo: !cliente.ativo } }),
-    onSuccess: () => {
-      toast.success(cliente.ativo ? "Cliente inativado" : "Cliente ativado");
-      onDone();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  return (
-    <button
-      type="button"
-      onClick={() => mut.mutate()}
-      disabled={mut.isPending}
-      className="cursor-pointer disabled:opacity-50"
-    >
-      <Badge variant={cliente.ativo ? "default" : "secondary"}>
-        {mut.isPending ? "..." : cliente.ativo ? "Ativo" : "Inativo"}
-      </Badge>
-    </button>
   );
 }
 

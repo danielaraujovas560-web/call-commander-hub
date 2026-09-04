@@ -3,14 +3,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/use-role";
 import { ListOrdered, RefreshCw, Plus, Pencil, Trash2, Users } from "lucide-react";
 import { RecordingBadge } from "@/components/recording-badge";
+import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
 import {
   listFilas, createFila, updateFila, deleteFila,
   getFilaAgentes, addFilaAgente, removeFilaAgente, setFilaAgentePenalty,
   listRamais,
   type Fila,
   listPesquisaSatisfacao,
+  toggleFilaAtivo,
 } from "@/lib/ramais.functions";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
@@ -50,6 +53,7 @@ function FilasPage() {
   const tenantId = Number(p);
   const qc = useQueryClient();
   const fn = useServerFn(listFilas);
+  const { isAdmin } = useIsAdmin();
 
   const clienteFn = useServerFn(getClienteByTenant);
   const { data: clienteData } = useQuery({
@@ -68,10 +72,24 @@ function FilasPage() {
   const [editing, setEditing] = useState<Fila | null>(null);
   const delFn = useServerFn(deleteFila);
   const delMut = useMutation({
-    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
+    mutationFn: (name: string) => delFn({ data: { name, tenant_id: tenantId } }),
     onSuccess: () => { toast.success("Fila removida"); qc.invalidateQueries({ queryKey: ["filas", tenantId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const toggleFilaAtivoFn = useServerFn(toggleFilaAtivo);
+  const toggleAtivoMut = useMutation({
+    mutationFn: ({ name, ativo }: { name: string; ativo: boolean; }) =>
+      toggleFilaAtivoFn({ data: { name, ativo, tenant_id: tenantId }}),
+    onSuccess: () => {
+       toast.success("Fila atualizada");
+       qc.invalidateQueries({
+         queryKey: ["filas", tenantId],
+      });
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+   }});
 
   const count = data?.filas.length ?? 0;
   const atLimit = max > 0 && count >= max;
@@ -103,7 +121,7 @@ function FilasPage() {
               <TableHead>Timeout Fila</TableHead>
               <TableHead>Agentes</TableHead>
               <TableHead>Gravação</TableHead>
-              <TableHead>Ativa</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -111,7 +129,7 @@ function FilasPage() {
             {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-10">Carregando…</TableCell></TableRow>}
             {!isLoading && filas.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Nenhuma fila.</TableCell></TableRow>}
             {filas.map((f) => (
-              <TableRow key={f.id}>
+              <TableRow key={f.name} className={f.ativo ? "" : "opacity-60"}>
                 <TableCell className="font-medium">{f.display_name}</TableCell>
                 <TableCell>{f.description ?? "-"}</TableCell>
                 <TableCell>{f.strategy ? (STRATEGY_LABELS[f.strategy] || f.strategy) : "-"}</TableCell>
@@ -119,7 +137,18 @@ function FilasPage() {
                 <TableCell>{f.fila_timeout ?? "-"}</TableCell>
                 <TableCell>{f.membros}</TableCell>
                 <TableCell><RecordingBadge state={f.gravacao} showLabel /></TableCell>
-                <TableCell><Badge variant={f.active ? "default" : "secondary"}>{f.active ? "Sim" : "Não"}</Badge></TableCell>
+                <TableCell>
+                  {isAdmin ? (
+                    <ToggleAtivoBadge
+                        ativo={f.ativo}
+                        isPending={toggleAtivoMut.isPending}
+                        onToggle={() => { toggleAtivoMut.mutate({ name: f.name, ativo: !f.ativo })}} />
+                     ) : (
+                       <Badge variant={f.ativo ? "default" : "secondary"}>
+                          {f.ativo ? "Ativo" : "Inativo"}
+                       </Badge>
+                    )}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="sm" onClick={() => setAgentesDe(f)}>
@@ -156,8 +185,8 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
   const qc = useQueryClient();
   const fn = useServerFn(getFilaAgentes);
   const { data, isLoading } = useQuery({
-    queryKey: ["fila-agentes", tenantId, fila.id],
-    queryFn: () => fn({ data: { tenant_id: tenantId, fila_id: fila.id } }),
+    queryKey: ["fila-agentes", tenantId, fila.name],
+    queryFn: () => fn({ data: { tenant_id: tenantId, name: fila.name } }),
   });
 
   const ramaisFn = useServerFn(listRamais);
@@ -171,13 +200,13 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
   const [novaPrioridade, setNovaPrioridade] = useState(0);
 
   function invalidateAll() {
-    qc.invalidateQueries({ queryKey: ["fila-agentes", tenantId, fila.id] });
+    qc.invalidateQueries({ queryKey: ["fila-agentes", tenantId, fila.name] });
     qc.invalidateQueries({ queryKey: ["filas", tenantId] });
   }
 
   const addFn = useServerFn(addFilaAgente);
   const addMut = useMutation({
-    mutationFn: () => addFn({ data: { tenant_id: tenantId, fila_id: fila.id, ramal: novoRamal, penalty: novaPrioridade } }),
+    mutationFn: () => addFn({ data: { tenant_id: tenantId, name: fila.name, ramal: novoRamal, penalty: novaPrioridade } }),
     onSuccess: () => {
       toast.success("Agente adicionado");
       invalidateAll();
@@ -308,7 +337,7 @@ function FilaFormDialog({
     gravacao: fila?.gravacao ?? false,
     pesquisa: fila?.pesquisa ?? false,
     pesquisa_id: fila?.pesquisa_id ?? null,
-    active: fila?.active ?? true,
+    ativo: fila?.ativo ?? true,
   });
 
   useEffect(() => {
@@ -324,7 +353,7 @@ function FilaFormDialog({
         gravacao: fila?.gravacao ?? false,
         pesquisa: fila?.pesquisa ?? false,
         pesquisa_id: fila?.pesquisa_id ?? null,
-        active: fila?.active ?? true,
+        ativo: fila?.ativo ?? true,
       });
     }
   }, [open, fila]);
@@ -346,7 +375,7 @@ function FilaFormDialog({
         gravacao: form.gravacao,
         pesquisa: form.pesquisa,
         pesquisa_id: form.pesquisa ? form.pesquisa_id : undefined,
-        active: form.active,
+        ativo: form.ativo,
       };
       return editing ? updateFn({ data: { id: fila!.id, ...body } }) : createFn({ data: body });
     },
@@ -404,7 +433,7 @@ function FilaFormDialog({
               </div>
              </div>
              <div className="w-full flex items-center gap-2 rounded-md border p-3">
-               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+               <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
              <div>
               <p className="font-medium text-sm">Fila Ativa</p>
               <p className="text-xs text-muted-foreground">
