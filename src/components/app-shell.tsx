@@ -180,8 +180,7 @@ function ClienteSidebar({
   ] as const;
 
   const relatorios = [
-    { to: "/clientes/$tenantId/relatorios/entrada", label: "Entrada geral", icon: PhoneIncoming },
-    { to: "/clientes/$tenantId/relatorios/ramais", label: "Ramais", icon: PhoneCall },
+    { to: "/clientes/$tenantId/relatorios/geral", label: "Geral", icon: PhoneCall },
     { to: "/clientes/$tenantId/relatorios/filas", label: "Filas", icon: ListOrdered },
     { to: "/clientes/$tenantId/relatorios/uras", label: "URAs", icon: Workflow },
     { to: "/clientes/$tenantId/relatorios/ddd", label: "Por DDD", icon: MapPin },

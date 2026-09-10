@@ -14,6 +14,7 @@ import {
   deleteUraOpcao,
   listUraAudios,
   listUraDestinos,
+  toggleUraAtivo,
   type Ura,
 } from "@/lib/ramais.functions";
 import { displayFromBackend } from "@/lib/format";
@@ -45,6 +46,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
+
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/uras")({
   head: () => ({ meta: [{ title: "URAs — Cliente — Painel PABX" }] }),
@@ -87,6 +90,20 @@ function UrasPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const toggleUraAtivoFn = useServerFn(toggleUraAtivo);
+  const toggleAtivoMut = useMutation({
+    mutationFn: ({ ura_identifier, ativo }: { ura_identifier: string; ativo: boolean; }) =>
+      toggleUraAtivoFn({ data: { ura_identifier, ativo, tenant_id: tenantId }}),
+    onSuccess: () => {
+       toast.success("Ura atualizada");
+       qc.invalidateQueries({
+         queryKey: ["uras", tenantId],
+      });
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+   }});
 
   const count = data?.uras.length ?? 0;
   const atLimit = max > 0 && count >= max;
@@ -149,14 +166,17 @@ function UrasPage() {
               </TableRow>
             )}
             {uras.map((u) => (
-              <TableRow key={u.ura_identifier}>
+              <TableRow key={u.ura_identifier} className={u.ativo ? "" : "opacity-60"}>
                 <TableCell className={u.ativo ? "" : "text-muted-foreground"}>{u.nome}</TableCell>
                 <TableCell className="font-mono text-xs">{u.audio}</TableCell>
                 <TableCell>{u.max_digits ?? "-"}</TableCell>
                 <TableCell>{u.tentativas ?? "-"}</TableCell>
                 <TableCell>{u.timeout ?? "-"}</TableCell>
                 <TableCell>
-                  <Badge variant={u.ativo ? "default" : "secondary"}>{u.ativo ? "Sim" : "Não"}</Badge>
+                  <ToggleAtivoBadge
+                     ativo={u.ativo}
+                     isPending={toggleAtivoMut.isPending}
+                     onToggle={() => { toggleAtivoMut.mutate({ ura_identifier: u.ura_identifier, ativo: !u.ativo })}}/>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -360,10 +380,6 @@ function UraFormDialog({
               />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
-            Ativo
-          </label>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar

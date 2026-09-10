@@ -30,10 +30,9 @@ import { Route as AuthenticatedClientesTenantIdFilasRouteImport } from './routes
 import { Route as AuthenticatedClientesTenantIdBlacklistRouteImport } from './routes/_authenticated/clientes.$tenantId.blacklist'
 import { Route as AuthenticatedClientesTenantIdAudiosRouteImport } from './routes/_authenticated/clientes.$tenantId.audios'
 import { Route as AuthenticatedClientesTenantIdRelatoriosUrasRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.uras'
-import { Route as AuthenticatedClientesTenantIdRelatoriosRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.ramais'
 import { Route as AuthenticatedClientesTenantIdRelatoriosPesquisaRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.pesquisa'
+import { Route as AuthenticatedClientesTenantIdRelatoriosGeralRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.geral'
 import { Route as AuthenticatedClientesTenantIdRelatoriosFilasRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.filas'
-import { Route as AuthenticatedClientesTenantIdRelatoriosEntradaRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.entrada'
 import { Route as AuthenticatedClientesTenantIdRelatoriosDddRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.ddd'
 
 const RamalRoute = RamalRouteImport.update({
@@ -156,28 +155,22 @@ const AuthenticatedClientesTenantIdRelatoriosUrasRoute =
     path: '/relatorios/uras',
     getParentRoute: () => AuthenticatedClientesTenantIdRoute,
   } as any)
-const AuthenticatedClientesTenantIdRelatoriosRamaisRoute =
-  AuthenticatedClientesTenantIdRelatoriosRamaisRouteImport.update({
-    id: '/relatorios/ramais',
-    path: '/relatorios/ramais',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
 const AuthenticatedClientesTenantIdRelatoriosPesquisaRoute =
   AuthenticatedClientesTenantIdRelatoriosPesquisaRouteImport.update({
     id: '/relatorios/pesquisa',
     path: '/relatorios/pesquisa',
     getParentRoute: () => AuthenticatedClientesTenantIdRoute,
   } as any)
+const AuthenticatedClientesTenantIdRelatoriosGeralRoute =
+  AuthenticatedClientesTenantIdRelatoriosGeralRouteImport.update({
+    id: '/relatorios/geral',
+    path: '/relatorios/geral',
+    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+  } as any)
 const AuthenticatedClientesTenantIdRelatoriosFilasRoute =
   AuthenticatedClientesTenantIdRelatoriosFilasRouteImport.update({
     id: '/relatorios/filas',
     path: '/relatorios/filas',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdRelatoriosEntradaRoute =
-  AuthenticatedClientesTenantIdRelatoriosEntradaRouteImport.update({
-    id: '/relatorios/entrada',
-    path: '/relatorios/entrada',
     getParentRoute: () => AuthenticatedClientesTenantIdRoute,
   } as any)
 const AuthenticatedClientesTenantIdRelatoriosDddRoute =
@@ -208,10 +201,9 @@ export interface FileRoutesByFullPath {
   '/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
   '/clientes/$tenantId/': typeof AuthenticatedClientesTenantIdIndexRoute
   '/clientes/$tenantId/relatorios/ddd': typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  '/clientes/$tenantId/relatorios/entrada': typeof AuthenticatedClientesTenantIdRelatoriosEntradaRoute
   '/clientes/$tenantId/relatorios/filas': typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
+  '/clientes/$tenantId/relatorios/geral': typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
   '/clientes/$tenantId/relatorios/pesquisa': typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  '/clientes/$tenantId/relatorios/ramais': typeof AuthenticatedClientesTenantIdRelatoriosRamaisRoute
   '/clientes/$tenantId/relatorios/uras': typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
 }
 export interface FileRoutesByTo {
@@ -234,10 +226,9 @@ export interface FileRoutesByTo {
   '/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
   '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdIndexRoute
   '/clientes/$tenantId/relatorios/ddd': typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  '/clientes/$tenantId/relatorios/entrada': typeof AuthenticatedClientesTenantIdRelatoriosEntradaRoute
   '/clientes/$tenantId/relatorios/filas': typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
+  '/clientes/$tenantId/relatorios/geral': typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
   '/clientes/$tenantId/relatorios/pesquisa': typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  '/clientes/$tenantId/relatorios/ramais': typeof AuthenticatedClientesTenantIdRelatoriosRamaisRoute
   '/clientes/$tenantId/relatorios/uras': typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
 }
 export interface FileRoutesById {
@@ -263,10 +254,9 @@ export interface FileRoutesById {
   '/_authenticated/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
   '/_authenticated/clientes/$tenantId/': typeof AuthenticatedClientesTenantIdIndexRoute
   '/_authenticated/clientes/$tenantId/relatorios/ddd': typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  '/_authenticated/clientes/$tenantId/relatorios/entrada': typeof AuthenticatedClientesTenantIdRelatoriosEntradaRoute
   '/_authenticated/clientes/$tenantId/relatorios/filas': typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
+  '/_authenticated/clientes/$tenantId/relatorios/geral': typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
   '/_authenticated/clientes/$tenantId/relatorios/pesquisa': typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  '/_authenticated/clientes/$tenantId/relatorios/ramais': typeof AuthenticatedClientesTenantIdRelatoriosRamaisRoute
   '/_authenticated/clientes/$tenantId/relatorios/uras': typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
 }
 export interface FileRouteTypes {
@@ -292,10 +282,9 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/uras'
     | '/clientes/$tenantId/'
     | '/clientes/$tenantId/relatorios/ddd'
-    | '/clientes/$tenantId/relatorios/entrada'
     | '/clientes/$tenantId/relatorios/filas'
+    | '/clientes/$tenantId/relatorios/geral'
     | '/clientes/$tenantId/relatorios/pesquisa'
-    | '/clientes/$tenantId/relatorios/ramais'
     | '/clientes/$tenantId/relatorios/uras'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -318,10 +307,9 @@ export interface FileRouteTypes {
     | '/clientes/$tenantId/uras'
     | '/clientes/$tenantId'
     | '/clientes/$tenantId/relatorios/ddd'
-    | '/clientes/$tenantId/relatorios/entrada'
     | '/clientes/$tenantId/relatorios/filas'
+    | '/clientes/$tenantId/relatorios/geral'
     | '/clientes/$tenantId/relatorios/pesquisa'
-    | '/clientes/$tenantId/relatorios/ramais'
     | '/clientes/$tenantId/relatorios/uras'
   id:
     | '__root__'
@@ -346,10 +334,9 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes/$tenantId/uras'
     | '/_authenticated/clientes/$tenantId/'
     | '/_authenticated/clientes/$tenantId/relatorios/ddd'
-    | '/_authenticated/clientes/$tenantId/relatorios/entrada'
     | '/_authenticated/clientes/$tenantId/relatorios/filas'
+    | '/_authenticated/clientes/$tenantId/relatorios/geral'
     | '/_authenticated/clientes/$tenantId/relatorios/pesquisa'
-    | '/_authenticated/clientes/$tenantId/relatorios/ramais'
     | '/_authenticated/clientes/$tenantId/relatorios/uras'
   fileRoutesById: FileRoutesById
 }
@@ -509,13 +496,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosUrasRouteImport
       parentRoute: typeof AuthenticatedClientesTenantIdRoute
     }
-    '/_authenticated/clientes/$tenantId/relatorios/ramais': {
-      id: '/_authenticated/clientes/$tenantId/relatorios/ramais'
-      path: '/relatorios/ramais'
-      fullPath: '/clientes/$tenantId/relatorios/ramais'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosRamaisRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
     '/_authenticated/clientes/$tenantId/relatorios/pesquisa': {
       id: '/_authenticated/clientes/$tenantId/relatorios/pesquisa'
       path: '/relatorios/pesquisa'
@@ -523,18 +503,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRouteImport
       parentRoute: typeof AuthenticatedClientesTenantIdRoute
     }
+    '/_authenticated/clientes/$tenantId/relatorios/geral': {
+      id: '/_authenticated/clientes/$tenantId/relatorios/geral'
+      path: '/relatorios/geral'
+      fullPath: '/clientes/$tenantId/relatorios/geral'
+      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosGeralRouteImport
+      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+    }
     '/_authenticated/clientes/$tenantId/relatorios/filas': {
       id: '/_authenticated/clientes/$tenantId/relatorios/filas'
       path: '/relatorios/filas'
       fullPath: '/clientes/$tenantId/relatorios/filas'
       preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosFilasRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/relatorios/entrada': {
-      id: '/_authenticated/clientes/$tenantId/relatorios/entrada'
-      path: '/relatorios/entrada'
-      fullPath: '/clientes/$tenantId/relatorios/entrada'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosEntradaRouteImport
       parentRoute: typeof AuthenticatedClientesTenantIdRoute
     }
     '/_authenticated/clientes/$tenantId/relatorios/ddd': {
@@ -560,10 +540,9 @@ interface AuthenticatedClientesTenantIdRouteChildren {
   AuthenticatedClientesTenantIdUrasRoute: typeof AuthenticatedClientesTenantIdUrasRoute
   AuthenticatedClientesTenantIdIndexRoute: typeof AuthenticatedClientesTenantIdIndexRoute
   AuthenticatedClientesTenantIdRelatoriosDddRoute: typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  AuthenticatedClientesTenantIdRelatoriosEntradaRoute: typeof AuthenticatedClientesTenantIdRelatoriosEntradaRoute
   AuthenticatedClientesTenantIdRelatoriosFilasRoute: typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
+  AuthenticatedClientesTenantIdRelatoriosGeralRoute: typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
   AuthenticatedClientesTenantIdRelatoriosPesquisaRoute: typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  AuthenticatedClientesTenantIdRelatoriosRamaisRoute: typeof AuthenticatedClientesTenantIdRelatoriosRamaisRoute
   AuthenticatedClientesTenantIdRelatoriosUrasRoute: typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
 }
 
@@ -593,14 +572,12 @@ const AuthenticatedClientesTenantIdRouteChildren: AuthenticatedClientesTenantIdR
       AuthenticatedClientesTenantIdIndexRoute,
     AuthenticatedClientesTenantIdRelatoriosDddRoute:
       AuthenticatedClientesTenantIdRelatoriosDddRoute,
-    AuthenticatedClientesTenantIdRelatoriosEntradaRoute:
-      AuthenticatedClientesTenantIdRelatoriosEntradaRoute,
     AuthenticatedClientesTenantIdRelatoriosFilasRoute:
       AuthenticatedClientesTenantIdRelatoriosFilasRoute,
+    AuthenticatedClientesTenantIdRelatoriosGeralRoute:
+      AuthenticatedClientesTenantIdRelatoriosGeralRoute,
     AuthenticatedClientesTenantIdRelatoriosPesquisaRoute:
       AuthenticatedClientesTenantIdRelatoriosPesquisaRoute,
-    AuthenticatedClientesTenantIdRelatoriosRamaisRoute:
-      AuthenticatedClientesTenantIdRelatoriosRamaisRoute,
     AuthenticatedClientesTenantIdRelatoriosUrasRoute:
       AuthenticatedClientesTenantIdRelatoriosUrasRoute,
   }

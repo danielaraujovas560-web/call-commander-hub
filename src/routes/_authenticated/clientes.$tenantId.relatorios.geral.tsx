@@ -28,8 +28,8 @@ function getTodayFilters(): ReportFilterValues {
   };
 }
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/ramais")({
-  head: () => ({ meta: [{ title: "Relatório ramais — Painel PABX" }] }),
+export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/geral")({
+  head: () => ({ meta: [{ title: "Relatório geral — Painel PABX" }] }),
   component: Page,
 });
 
@@ -52,17 +52,17 @@ function Page() {
 
 const fnDownload = useServerFn(downloadGravacao);
 
-const executarDownload = async (id: number) => {
+const executarDownload = async (linkedid: string) => {
   try {
     const response = await fnDownload({ 
       data: { 
-        id: Number(id),
+        linkedid: linkedid,
         tipo: "ramal",
         tenant_id: tenantId 
       } 
     });
 
-    let nomeArquivo = `call-${id}.wav`;
+    let nomeArquivo = `call-${linkedid}.wav`;
     let blob: Blob;
 
     if (response instanceof Response) {
@@ -97,7 +97,7 @@ const executarDownload = async (id: number) => {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold flex items-center gap-2">
-        <PhoneCall className="h-6 w-6" /> Relatório — Ramais
+        <PhoneCall className="h-6 w-6" /> Relatório — Geral
       </h1>
       <ReportFilters
         storageKey="fRamais"
@@ -131,7 +131,7 @@ const executarDownload = async (id: number) => {
             </TableHeader>
             <TableBody>
               {rows.map((r: any) => (
-                <TableRow key={r.id} className="h-10">
+                <TableRow key={r.linkedid} className="h-10">
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
                   <TableCell className="font-mono">{r.agente}</TableCell>
                   <TableCell className="font-mono">{r.destino}</TableCell>
@@ -147,7 +147,7 @@ const executarDownload = async (id: number) => {
                         variant="ghost" 
                         size="icon" 
                         className="h-7 w-7 p-0" 
-                        onClick={() => executarDownload(r.id)} 
+                        onClick={() => executarDownload(r.linkedid)} 
                         title="Baixar gravação"
                       >
                         <Headset className="h-4 w-4" />

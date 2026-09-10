@@ -138,16 +138,10 @@ function FilasPage() {
                 <TableCell>{f.membros}</TableCell>
                 <TableCell><RecordingBadge state={f.gravacao} showLabel /></TableCell>
                 <TableCell>
-                  {isAdmin ? (
                     <ToggleAtivoBadge
                         ativo={f.ativo}
                         isPending={toggleAtivoMut.isPending}
                         onToggle={() => { toggleAtivoMut.mutate({ name: f.name, ativo: !f.ativo })}} />
-                     ) : (
-                       <Badge variant={f.ativo ? "default" : "secondary"}>
-                          {f.ativo ? "Ativo" : "Inativo"}
-                       </Badge>
-                    )}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
