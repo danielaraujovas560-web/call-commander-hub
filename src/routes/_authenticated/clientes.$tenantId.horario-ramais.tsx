@@ -7,6 +7,7 @@ import { Users, RefreshCw, Plus, Pencil, Trash2, ListTree } from "lucide-react";
 import {
   listHorarioRamais, createHorarioRamal, updateHorarioRamal,
   deleteHorarioRamal, getHorarioRamalMembros, listRamais,
+  updateHorarioRamalMembros,
   type HorarioRamal,
 } from "@/lib/ramais.functions";
 import { displayFromBackend } from "@/lib/format";
@@ -168,7 +169,7 @@ function MembrosDialog({ tenantId, regra, onClose }: { tenantId: number; regra: 
 
             <TableBody>
             {membros.map((m) => (
-              <TableRow key={m.id}>
+              <TableRow key={m.endpoint_id}>
                 <TableCell>{m.nome ?? ""}</TableCell>
                 <TableCell className="font-mono">{m.ramal ?? "-"}</TableCell>
               </TableRow>
@@ -227,25 +228,54 @@ function HorarioRamalDialog({
 
   useEffect(() => {
     if (open && editing && membrosData) {
-      setRamaisSel(membrosData.membros.map((m) => m.ramal));
+    console.log("MEMBROS DO BANCO:", membrosData.membros);
+    console.log(
+      "ENDPOINTS DOS MEMBROS:",
+      membrosData.membros.map((m) => m.endpoint_id),
+    );
+      setRamaisSel(membrosData.membros.map((m) => m.endpoint_id));
     }
   }, [open, editing, membrosData]);
 
   const qc = useQueryClient();
   const createFn = useServerFn(createHorarioRamal);
   const updateFn = useServerFn(updateHorarioRamal);
+  const updateMembrosFn = useServerFn(updateHorarioRamalMembros);
   const mut = useMutation({
-    mutationFn: () => {
-      const body = {
-        tenant_id: tenantId,
-        nome, dias: dias.join("&"),
-        hora_inicial: horaIni, hora_final: horaFim,
-        ramais: ramaisSel,
-      };
-      return editing
-        ? updateFn({ data: { regra: regra!.regra, ...body } })
-        : createFn({ data: body });
+    mutationFn: async () => {
+      if (!editing) {
+        return createFn({
+          data: {
+            tenant_id: tenantId,
+            nome,
+            dias: dias.join("&"),
+            hora_inicial: horaIni,
+            hora_final: horaFim,
+            ramais: ramaisSel,
+          },
+        });
+      }
+
+      await updateMembrosFn({
+        data: {
+          tenant_id: tenantId,
+          regra: regra!.regra,
+          ramais: ramaisSel,
+        },
+      });
+
+      return updateFn({
+        data: {
+          tenant_id: tenantId,
+          regra: regra!.regra,
+          nome,
+          dias: dias.join("&"),
+          hora_inicial: horaIni,
+          hora_final: horaFim,
+        },
+      });
     },
+
     onSuccess: () => {
       toast.success(editing ? "Regra atualizada" : "Regra criada");
       qc.invalidateQueries({ queryKey: ["horario-ramais", tenantId] });

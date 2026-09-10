@@ -2836,7 +2836,7 @@ app.get("/horario-ramais/:regra/membros", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT g.regra, r.ramal, r.nome
+      `SELECT g.regra, r.ramal, r.endpoint_id, r.nome
          FROM ramais_grupo_horario g
          LEFT JOIN ramais r ON r.endpoint_id = g.ramal AND r.tenant_id = g.tenant_id
         WHERE g.tenant_id = ? AND g.regra = ?
@@ -2909,7 +2909,6 @@ app.put("/horario-ramais/:regra", async (req, res) => {
   const slug = slugName(String(b.nome));
   if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
   const regraHoraRamalName = `r${tenant}-${slug}`
-  const ramais = Array.isArray(b.ramais) ? b.ramais : null;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -2927,17 +2926,32 @@ app.put("/horario-ramais/:regra", async (req, res) => {
         tenant,
       ],
     );
-    if (ramais) {
-      await conn.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [tenant, regra]);
-      for (const ramal of ramais) {
-        if (!ramal) continue;
-        await conn.query(`INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`, [
-          regraHoraRamalName,
-          tenant,
-          String(ramal),
-        ]);
-      }
-    }
+    await conn.query(`UPDATE ramais_grupo_horario SET regra = ? WHERE tenant_id = ? AND regra = ?`, [regraHoraRamalName, tenant, regra]);
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/horario-ramais/:regra/membros", async (req, res) => {
+  const tenant = getTenant(req, res);
+  if (!tenant) return;
+  const regra = req.params.regra;
+  if (!regra) return res.status(400).json({ error: "Regra inválida" });
+
+  const ramais = Array.isArray(req.body?.ramais) ? req.body.ramais : null;
+  const conn = await pool.getConnection();
+  try {
+     await conn.beginTransaction();
+     await conn.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [tenant, regra]);
+     for (const ramal of ramais) {
+      if (!ramal) continue;
+      await conn.query(`INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`, [regra, tenant, String(ramal)]);
+     }
     await conn.commit();
     res.json({ ok: true });
   } catch (e) {

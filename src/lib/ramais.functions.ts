@@ -1043,6 +1043,20 @@ const HorarioRamalInput = z.object({
   ramais: z.array(z.coerce.string().min(1)).default([]),
 });
 
+const UpdateHorarioRamalInput = z.object({
+  tenant_id: z.number().int().positive().optional(),
+  regra: z.string().min(1),
+  nome: z.coerce.string().trim().min(1).max(100),
+  dias: z.coerce.string().trim().min(1).max(100),
+  hora_inicial: z.coerce.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  hora_final: z.coerce.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+});
+
+const MembrosHorarioRamal = z.object({
+  tenant_id: z.number().int().positive().optional(),
+  ramais: z.array(z.coerce.string().min(1)).default([]),
+});
+
 export const listHorarioRamais = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) => TenantOnly.parse(d))
@@ -1076,12 +1090,22 @@ export const createHorarioRamal = createServerFn({ method: "POST" })
 
 export const updateHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => HorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d))
+  .inputValidator((d: unknown) => UpdateHorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { regra, tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true }>(`/horario-ramais/${regra}`, { method: "PUT", tenantId, body });
+  });
+
+export const updateHorarioRamalMembros = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => MembrosHorarioRamal.extend({ regra: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    const { regra, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/horario-ramais/${regra}/membros`, { method: "PUT", tenantId, body });
   });
 
 export const deleteHorarioRamal = createServerFn({ method: "POST" })
