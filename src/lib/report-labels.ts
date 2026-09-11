@@ -9,6 +9,8 @@ export const statusOptions = [
   { value: "INVALIDARGS", label: "Argumento Inválido" },
   { value: "FORBIDDEN(PERM)", label: "Proibido (Sem permissão)" },
   { value: "FORBIDDEN(BLACK)", label: "Proibido (Blacklist)" },
+  { value: "FORBIDDEN(TIME)", label: "Proibido (Regra Horário)" },
+  { value: "FORBIDDEN(CHANNELEXC)", label: "Proibido (Simultanea excedida)" },
 ] as const;
 
 export const tipoOptions = [

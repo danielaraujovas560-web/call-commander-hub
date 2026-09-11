@@ -958,7 +958,7 @@ export const deleteRoteamento = createServerFn({ method: "POST" })
 // ---------- Regra Horário (horário de atendimento personalizado) ----------
 export type AcaoHorario = "RAMAL" | "FILA" | "URA" | "EXTERNO" | "INTERNO" | "AUDIO";
 export interface RegraHorario {
-  id: number;
+  regra_identifier: string;
   nome: string;
   dias: string;
   hora_inicial: string;
@@ -999,27 +999,27 @@ export const createRegraHorario = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; id: number }>("/regra-horario", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; regra_identifier: string }>("/regra-horario", { method: "POST", tenantId, body });
   });
 
 export const updateRegraHorario = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => RegraHorarioInput.extend({ id: z.number().int().positive() }).parse(d))
+  .inputValidator((d: unknown) => RegraHorarioInput.extend({ regra_identifier: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { id, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/regra-horario/${id}`, { method: "PUT", tenantId, body });
+    const { regra_identifier, tenant_id: _i, ...body } = data;
+    return await agentFetch<{ ok: true }>(`/regra-horario/${regra_identifier}`, { method: "PUT", tenantId, body });
   });
 
 export const deleteRegraHorario = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z.object({ regra_identifier: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/regra-horario/${data.id}`, { method: "DELETE", tenantId });
+    await agentFetch(`/regra-horario/${data.regra_identifier}`, { method: "DELETE", tenantId });
     return { ok: true };
   });
 

@@ -13,7 +13,7 @@ const path = require("path");
 const { exec, execFile } = require("child_process");
 const { promisify } = require("util");
 const rateLimit = require("express-rate-limit");
-const { getEndpointsDeviceState, amiCommand, amiReady, queueAdd, queueRemove, queuePenalty, onAmiConnect, getQueueStatus } = require("./ami");
+const { getEndpointsDeviceState, amiCommand, amiReady, queueAdd, queueRemove, queuePenalty, queueRefresh, onAmiConnect, getQueueStatus } = require("./ami");
 const execFileAsync = promisify(execFile);
 
 // Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
@@ -64,16 +64,7 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
   process.exit(1);
 }
 
-const pool = mysql.createPool({
-  host: DB_HOST,
-  port: Number(DB_PORT),
-  user: DB_USER,
-  password: DB_PASSWORD,
-  database: DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  dateStrings: true,
-});
+const pool = require("./db");
 
 // Função auxiliar para mapear o status atual das filas via AMI
 async function getActiveQueueMembers() {
@@ -118,7 +109,7 @@ async function getActiveQueueMembers() {
   });
 }
 
-async function restoreQueueMembers() {
+async function restoreQueueMembers(queueName = null) {
   console.log("[queue-restore] verificando membros ativos no Asterisk...");
 
   const activeMembers = await getQueueStatus();
@@ -128,16 +119,21 @@ async function restoreQueueMembers() {
   try {
     const [agentes] = await pool.query(`
       SELECT
-        id,
-        tenant_id,
-        queue,
-        interface,
-        penalty,
-        membername,
-        ramal
-      FROM filas_agentes
-      ORDER BY queue, penalty, id
-    `);
+        fa.id,
+        fa.tenant_id,
+        fa.queue,
+        fa.interface,
+        fa.penalty,
+        fa.membername,
+        fa.ramal
+      FROM filas_agentes fa
+      INNER JOIN filas f
+      ON f.name = fa.queue
+      AND f.tenant_id = fa.tenant_id
+      WHERE f.ativo = 1
+      ${queueName ? "AND fa.queue = ?" : ""}
+      ORDER BY fa.queue, fa.penalty, fa.id
+    `, queueName ? [queueName] : []);
 
     console.log(
       `[queue-restore] ${agentes.length} membros registrados no banco.`
@@ -146,13 +142,7 @@ async function restoreQueueMembers() {
     for (const agente of agentes) {
       const chaveUnica = `${agente.queue.toLowerCase()}|${agente.interface.toLowerCase()}`;
 
-      if (activeMembers.has(chaveUnica)) {
-        console.log(
-          `[queue-restore] pulado (já está ativo): ${agente.queue} <- ${agente.interface}`
-        );
-        continue;
-      }
-
+      if (activeMembers.has(chaveUnica)) continue;
       try {
         await queueAdd({
           queue: agente.queue,
@@ -161,9 +151,6 @@ async function restoreQueueMembers() {
           memberName: agente.membername,
         });
 
-        console.log(
-          `[queue-restore] restaurado: ${agente.queue} <- ${agente.interface}`
-        );
       } catch (err) {
         console.error(
           `[queue-restore] falha ao restaurar ${agente.interface} ` +
@@ -2264,7 +2251,7 @@ app.delete("/filas/:name", async (req, res) => {
 
     await conn.query(`DELETE FROM filas_agentes WHERE tenant_id = ? AND queue = ?`, [tenant, name]);
     await conn.query(`DELETE FROM queues WHERE tenant_id = ? AND name = ?`, [String(tenant), name]);
-    await conn.query(`DELETE FROM filas WHERE id = ? AND tenant_id = ?`, [name, String(tenant)]);
+    await conn.query(`DELETE FROM filas WHERE name = ? AND tenant_id = ?`, [name, String(tenant)]);
 
     await conn.commit();
     await amiQueueReloadParameters(name);
@@ -2304,6 +2291,12 @@ app.put("/filas/:name/ativo", async (req, res) => {
       });
     }
 
+    if (ativo) {
+      await restoreQueueMembers(name);
+    } else {
+      await queueRefresh(name);
+    }
+
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({
@@ -2318,8 +2311,8 @@ app.get("/uras", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT ura_identifier, nome, audio, max_digits, tentativas, timeout, ativo
-         FROM uras WHERE tenant_id = ? ORDER BY created_at ASC`,
+      `SELECT u.ura_identifier, u.nome, u.audio, a.display_name, u.max_digits, u.tentativas, u.timeout, u.ativo
+         FROM uras u LEFT JOIN audios a ON u.tenant_id = a.tenant_id AND u.audio = a.audio_identifier WHERE u.tenant_id = ? ORDER BY u.created_at ASC`,
       [tenant],
     );
     const uras = rows.map((r) => ({ ...r, ativo: !!r.ativo }));
@@ -2356,7 +2349,7 @@ app.get("/uras/destinos", async (req, res) => {
       [tenant],
     );
     const [regras] = await pool.query(
-      `SELECT id AS value, nome AS label FROM regra_horario WHERE tenant_id = ? ORDER BY nome`,
+      `SELECT regra_identifier AS value, nome AS label FROM regra_horario WHERE tenant_id = ? ORDER BY nome`,
       [tenant],
     );
     let audios = [];
@@ -2563,20 +2556,6 @@ app.get("/roteamento", async (req, res) => {
 });
 
 // If tipo_destino is HORARIO_ATENDIMENTO and destino is a name, look up regra id.
-async function resolveRoteamentoDestino(tenant, tipo, destino) {
-  const t = String(tipo || "").toUpperCase();
-  if ( t === "REGRA_HORARIO") {
-    // If already numeric, keep as-is; else resolve by name.
-    if (/^\d+$/.test(String(destino))) return String(destino);
-    const [rows] = await pool.query(`SELECT id FROM regra_horario WHERE tenant_id = ? AND nome = ? LIMIT 1`, [
-      tenant,
-      slugName(destino),
-    ]);
-    if (!rows.length) throw new Error("Regra de horário não encontrada");
-    return String(rows[0].id);
-  }
-  return String(destino);
-}
 
 app.post("/roteamento", async (req, res) => {
   const tenant = getTenant(req, res);
@@ -2587,8 +2566,6 @@ app.post("/roteamento", async (req, res) => {
   }
   try {
     const tipo = String(tipo_destino).toUpperCase();
-
-    const dest = await resolveRoteamentoDestino( tenant, tipo, destino, );
 
     const [r] = await pool.query(
       `INSERT INTO roteamento (numero, tenant_id, tipo_destino, destino, descricao) VALUES (?, ?, ?, ?, ?)`,
@@ -2629,9 +2606,8 @@ app.put("/roteamento/:numero", async (req, res) => {
   }
   if (destino !== undefined) {
     try {
-      const resolved = await resolveRoteamentoDestino(tenant, tipo ?? "", destino);
       sets.push("destino = ?");
-      vals.push(resolved);
+      vals.push(destino);
     } catch (e) {
       return res.status(400).json({ error: String(e.message || e) });
     }
@@ -2720,7 +2696,7 @@ app.get("/regra-horario", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora
+      `SELECT regra_identifier, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora
          FROM regra_horario WHERE tenant_id = ? ORDER BY nome`,
       [tenant],
     );
@@ -2745,13 +2721,17 @@ app.post("/regra-horario", async (req, res) => {
   const err = validateRegra(req.body);
   if (err) return res.status(400).json({ error: err });
   const b = req.body;
+  const slug = slugName(String(b.nome));
+  if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
+  const regraHorario = `rh${tenant}-${slug}`;
   try {
     const [r] = await pool.query(
-      `INSERT INTO regra_horario (tenant_id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO regra_horario (regra_horario, tenant_id, nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        regraHorario,
         tenant,
-        slugName(String(b.nome).slice(0, 100)),
+        String(b.nome),
         String(b.dias).slice(0, 100),
         String(b.hora_inicial),
         String(b.hora_final),
@@ -2767,18 +2747,24 @@ app.post("/regra-horario", async (req, res) => {
   }
 });
 
-app.put("/regra-horario/:id", async (req, res) => {
+app.put("/regra-horario/:regra_identifier", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const err = validateRegra(req.body);
   if (err) return res.status(400).json({ error: err });
+  const regraIdentifier = req.params.regra_identifier;
+  if (!regraIdentifier) return res.status(400).json({ error: "É obrigatório enviar a regra" });
   const b = req.body;
+  const slug = slugName(String(b.nome));
+  if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
+  const newRegraIdentifier = `rh${tenant}-${slug}`;
   try {
     await pool.query(
-      `UPDATE regra_horario SET nome=?, dias=?, hora_inicial=?, hora_final=?, acao_dentro=?, destino_dentro=?, acao_fora=?, destino_fora=?
-       WHERE id = ? AND tenant_id = ?`,
+      `UPDATE regra_horario SET regra_identifier=?, nome=?, dias=?, hora_inicial=?, hora_final=?, acao_dentro=?, destino_dentro=?, acao_fora=?, destino_fora=?
+       WHERE regra_identifier = ? AND tenant_id = ?`,
       [
-        slugName(String(b.nome).slice(0, 100)),
+        newRegraIdentifier,
+        String(b.nome),
         String(b.dias).slice(0, 100),
         String(b.hora_inicial),
         String(b.hora_final),
@@ -2786,7 +2772,7 @@ app.put("/regra-horario/:id", async (req, res) => {
         String(b.destino_dentro).slice(0, 100),
         String(b.acao_fora).toUpperCase(),
         String(b.destino_fora).slice(0, 100),
-        Number(req.params.id),
+        regraIdentifier,
         tenant,
       ],
     );
@@ -2796,11 +2782,13 @@ app.put("/regra-horario/:id", async (req, res) => {
   }
 });
 
-app.delete("/regra-horario/:id", async (req, res) => {
+app.delete("/regra-horario/:regra_identifier", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
+  const regraHorario = req.params.regra_identifier;
+  if (!regraHorario) return res.status(400).json({ error: "É obrigatório enviar a regra" });
   try {
-    await pool.query(`DELETE FROM regra_horario WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
+    await pool.query(`DELETE FROM regra_horario WHERE regra_identifier = ? AND tenant_id = ?`, [regraHorario, tenant]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });

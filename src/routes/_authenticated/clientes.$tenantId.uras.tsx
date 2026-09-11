@@ -12,7 +12,7 @@ import {
   addUraOpcao,
   updateUraOpcao,
   deleteUraOpcao,
-  listUraAudios,
+  listAudios,
   listUraDestinos,
   toggleUraAtivo,
   type Ura,
@@ -168,7 +168,7 @@ function UrasPage() {
             {uras.map((u) => (
               <TableRow key={u.ura_identifier} className={u.ativo ? "" : "opacity-60"}>
                 <TableCell className={u.ativo ? "" : "text-muted-foreground"}>{u.nome}</TableCell>
-                <TableCell className="font-mono text-xs">{u.audio}</TableCell>
+                <TableCell className="font-mono text-xs">{u.display_name}</TableCell>
                 <TableCell>{u.max_digits ?? "-"}</TableCell>
                 <TableCell>{u.tentativas ?? "-"}</TableCell>
                 <TableCell>{u.timeout ?? "-"}</TableCell>
@@ -245,7 +245,7 @@ function UraFormDialog({
   };
   const editing = !!ura;
 
-  const audiosFn = useServerFn(listUraAudios);
+  const audiosFn = useServerFn(listAudios);
   const { data: audiosData } = useQuery({
     queryKey: ["ura-audios", tenantId],
     queryFn: () => audiosFn({ data: { tenant_id: tenantId } }),
@@ -337,8 +337,8 @@ function UraFormDialog({
               </SelectTrigger>
               <SelectContent>
                 {audios.map((a) => (
-                  <SelectItem key={a} value={a}>
-                    {a}
+                  <SelectItem key={a.audio_identifier} value={a.audio_identifier}>
+                    {a.display_name}
                   </SelectItem>
                 ))}
                 {audios.length === 0 && (

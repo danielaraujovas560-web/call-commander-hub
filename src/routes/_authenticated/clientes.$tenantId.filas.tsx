@@ -158,7 +158,7 @@ function FilasPage() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => delMut.mutate(f.id)}>Remover</AlertDialogAction>
+                          <AlertDialogAction onClick={() => delMut.mutate(f.name)}>Remover</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -331,7 +331,6 @@ function FilaFormDialog({
     gravacao: fila?.gravacao ?? false,
     pesquisa: fila?.pesquisa ?? false,
     pesquisa_id: fila?.pesquisa_id ?? null,
-    ativo: fila?.ativo ?? true,
   });
 
   useEffect(() => {
@@ -347,7 +346,6 @@ function FilaFormDialog({
         gravacao: fila?.gravacao ?? false,
         pesquisa: fila?.pesquisa ?? false,
         pesquisa_id: fila?.pesquisa_id ?? null,
-        ativo: fila?.ativo ?? true,
       });
     }
   }, [open, fila]);
@@ -369,7 +367,6 @@ function FilaFormDialog({
         gravacao: form.gravacao,
         pesquisa: form.pesquisa,
         pesquisa_id: form.pesquisa ? form.pesquisa_id : undefined,
-        ativo: form.ativo,
       };
       return editing ? updateFn({ data: { id: fila!.id, ...body } }) : createFn({ data: body });
     },
@@ -426,15 +423,6 @@ function FilaFormDialog({
                </p>
               </div>
              </div>
-             <div className="w-full flex items-center gap-2 rounded-md border p-3">
-               <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
-             <div>
-              <p className="font-medium text-sm">Fila Ativa</p>
-              <p className="text-xs text-muted-foreground">
-                Define se a fila está habilitada para receber ligações no momento.
-               </p>
-              </div>
-            </div>
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch

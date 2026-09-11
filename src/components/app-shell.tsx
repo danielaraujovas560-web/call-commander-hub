@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
 
         <main className="flex-1 h-full overflow-auto">
-          <div className="mx-auto max-w-6xl p-6">{children}</div>
+          <div className="mx-auto max-w-7xl p-6">{children}</div>
         </main>
       </div>
     </TooltipProvider>

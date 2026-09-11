@@ -77,7 +77,7 @@ function Page() {
   const [editing, setEditing] = useState<RegraHorario | null>(null);
   const delFn = useServerFn(deleteRegraHorario);
   const delMut = useMutation({
-    mutationFn: (id: number) => delFn({ data: { id, tenant_id: tenantId } }),
+    mutationFn: (regra_identifier: string) => delFn({ data: { regra_identifier, tenant_id: tenantId } }),
     onSuccess: () => { toast.success("Regra removida"); qc.invalidateQueries({ queryKey: ["regra_horario", tenantId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -122,7 +122,7 @@ function Page() {
             {isLoading && <TableRow><TableCell colSpan={6} className="text-center py-10">Carregando…</TableCell></TableRow>}
             {!isLoading && regras.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhuma regra.</TableCell></TableRow>}
             {regras.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.regra_identifier}>
                 <TableCell className="font-medium">{r.nome}</TableCell>
                 <TableCell className="text-xs">{formatDias(r.dias)}</TableCell>
                 <TableCell className="font-mono text-xs">{r.hora_inicial} → {r.hora_final}</TableCell>
@@ -141,7 +141,7 @@ function Page() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => delMut.mutate(r.id)}>Remover</AlertDialogAction>
+                          <AlertDialogAction onClick={() => delMut.mutate(r.regra_identifier)}>Remover</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -154,7 +154,7 @@ function Page() {
       </div>
 
       {editing && (
-        <RegraFormDialog key={editing.id} tenantId={tenantId} regra={editing} open onOpenChange={(v) => !v && setEditing(null)} />
+        <RegraFormDialog key={editing.regra_identifier} tenantId={tenantId} regra={editing} open onOpenChange={(v) => !v && setEditing(null)} />
       )}
     </div>
   );
@@ -216,7 +216,7 @@ function RegraFormDialog({
         destino_fora: buildDestinoForBackend(fora),
       };
       return editing
-        ? updateFn({ data: { id: regra!.id, ...body } })
+        ? updateFn({ data: { regra_identifier: regra!.regra_identifier, ...body } })
         : createFn({ data: body });
     },
     onSuccess: () => {
@@ -290,5 +290,4 @@ function RegraFormDialog({
       </DialogContent>
     </Dialog>
   );
-
 }

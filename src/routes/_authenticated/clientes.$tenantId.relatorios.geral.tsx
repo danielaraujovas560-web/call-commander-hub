@@ -125,7 +125,7 @@ const executarDownload = async (linkedid: string) => {
               <TableRow>
                 <TableHead>Linked ID</TableHead><TableHead>Origem</TableHead><TableHead>Destino</TableHead>
                 <TableHead>Tronco</TableHead><TableHead>Contexto</TableHead><TableHead>Tipo</TableHead>
-                <TableHead>Duração</TableHead><TableHead className="w-40">Status</TableHead><TableHead>Data/Hora</TableHead>
+                <TableHead className="w-24">Duração</TableHead><TableHead className="w-40">Status</TableHead><TableHead>Data/Hora</TableHead>
                 <TableHead className="w-16 text-center pr-4"><Headset className="mx-auto h-4 w-4 text-muted-foreground" /></TableHead>
               </TableRow>
             </TableHeader>
@@ -138,8 +138,8 @@ const executarDownload = async (linkedid: string) => {
                   <TableCell>{r.tronco || "-"}</TableCell>
                   <TableCell>{r.context}</TableCell>
                   <TableCell>{r.tipo_chamada}</TableCell>
-                  <TableCell className="font-mono">{r.duracao}</TableCell>
-                  <TableCell className="w-40"><Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>{getStatusLabel(r.status)}</Badge></TableCell> 
+                  <TableCell className="w-24 font-mono whitespace-nowrap">{r.duracao}</TableCell>
+                  <TableCell className="w-40 whitespace-nowrap"><Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>{getStatusLabel(r.status)}</Badge></TableCell> 
                   <TableCell className="text-xs">{formatarDataHora(r.date_time)}</TableCell>
                   <TableCell className="w-14 text-center pr-4">
                     {r.nome_gravacao && r.status === "ANSWER" ? (

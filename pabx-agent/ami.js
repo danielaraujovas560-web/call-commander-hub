@@ -2,6 +2,7 @@
 // Substitui "asterisk -rx pjsip show endpoints" por uma conexão AMI persistente.
 
 const AsteriskManager = require("asterisk-manager");
+const { ensureChain, restoreBlacklist, handleAuthFailure, resetAuthFailures, normalizeIp } = require("./firewall");
 
 const {
   AMI_HOST = "127.0.0.1",
@@ -19,10 +20,18 @@ ami.keepConnected(); // reconecta sozinho se a conexão cair
 
 let _amiConnected = false;
 let _onConnect = null;
-ami.on("connect", () => {
+ami.on("connect", async () => {
   _amiConnected = true;
   console.log("[ami] conectado");
-
+  try {
+    await ensureChain();
+    await restoreBlacklist();
+  } catch (err) {
+    console.error(
+      "[firewall] erro inicializando firewall:",
+      err.message || err
+    );
+  }
   if (_onConnect) {
     Promise.resolve()
       .then(() => _onConnect())
@@ -153,6 +162,10 @@ function queuePenalty({ queue, interface: iface, penalty }) {
   return amiAction(action);
 }
 
+function queueRefresh(queue) {
+  return amiCommand(`queue show ${queue}`);
+}
+
 function getQueueStatus(timeoutMs = 4000) {
   return new Promise((resolve) => {
     const activeMembers = new Set();
@@ -199,6 +212,155 @@ function getQueueStatus(timeoutMs = 4000) {
   });
 }
 
+// Aqui será a regra para o firewall
+
+ami.on("managerevent", async (event) => {
+  const nome = event.event || event.Event;
+  if (nome === "ContactStatus") {
+    const status = event.contactstatus || event.ContactStatus;
+
+    if (status === "Reachable") {
+      const endpoint =
+        event.endpointname ||
+        event.EndpointName ||
+        event.aor ||
+        event.AOR;
+
+      const uri = event.uri || event.URI;
+
+      const match = String(uri || "").match(
+        /^sip:[^@]+@([^:;]+)/
+      );
+
+      const ip = match ? match[1] : null;
+
+      if (endpoint && ip) {
+        registerReachableContact(endpoint, ip);
+      }
+    }
+
+    return;
+  }
+
+  if (nome === "PeerStatus") {
+    const status = event.peerstatus || event.PeerStatus;
+
+    if (status === "Reachable") {
+      const channelType =
+        event.channeltype ||
+        event.ChannelType;
+
+      if (channelType && String(channelType).toUpperCase() !== "PJSIP") {
+        return;
+      }
+
+      const peer = event.peer || event.Peer;
+      const match = String(peer || "").match(/^PJSIP\/(.+)$/);
+
+      if (match) {
+        const endpoint = match[1];
+        registerReachablePeer(endpoint);
+      }
+    }
+
+    return;
+  }
+  if (
+    nome !== "ChallengeResponseFailed" &&
+    nome !== "InvalidAccountID" &&
+    nome !== "InvalidPassword"
+  ) {
+    return;
+  }
+
+  const service =
+    event.service ||
+    event.Service;
+
+  if (service && String(service).toUpperCase() !== "PJSIP") {
+    return;
+  }
+
+  const remoteAddress =
+    event.remoteaddress ||
+    event.RemoteAddress;
+
+  const ip = normalizeIp(remoteAddress);
+
+  if (!ip) {
+    console.warn(
+      `[firewall] evento ${nome} sem RemoteAddress`
+    );
+    return;
+  }
+
+  try {
+    await handleAuthFailure(ip, nome);
+  } catch (err) {
+    console.error(
+      `[firewall] erro processando ${nome} de ${ip}:`,
+      err.message || err
+    );
+  }
+});
+
+const reachableContacts = new Map();
+
+const REACHABLE_WINDOW = 5000;
+
+function registerReachableContact(endpoint, ip) {
+  if (!endpoint || !ip) return;
+
+  const now = Date.now();
+
+  const existing = reachableContacts.get(endpoint) || {};
+
+  reachableContacts.set(endpoint, {
+    ...existing,
+    ip,
+    contactReachable: true,
+    contactAt: now,
+  });
+
+  checkReachable(endpoint);
+}
+
+function registerReachablePeer(endpoint) {
+  if (!endpoint) return;
+
+  const now = Date.now();
+
+  const existing = reachableContacts.get(endpoint) || {};
+
+  reachableContacts.set(endpoint, {
+    ...existing,
+    peerReachable: true,
+    peerAt: now,
+  });
+
+  checkReachable(endpoint);
+}
+
+function checkReachable(endpoint) {
+  const data = reachableContacts.get(endpoint);
+
+  if (!data) return;
+
+  const now = Date.now();
+
+  if (
+    data.contactReachable &&
+    data.peerReachable &&
+    data.ip &&
+    now - data.contactAt <= REACHABLE_WINDOW &&
+    now - data.peerAt <= REACHABLE_WINDOW
+  ) {
+    resetAuthFailures(data.ip);
+
+    reachableContacts.delete(endpoint);
+  }
+}
+
 module.exports = {
   getEndpointsDeviceState,
   amiCommand,
@@ -206,6 +368,7 @@ module.exports = {
   queueAdd,
   queueRemove,
   queuePenalty,
+  queueRefresh,
   onAmiConnect,
   getQueueStatus,
 };
