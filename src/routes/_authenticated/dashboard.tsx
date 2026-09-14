@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { listClientes } from "@/lib/clientes.functions";
+import { listClientes} from "@/lib/clientes.functions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useIsAdmin } from "@/hooks/use-role";
-import { Mail, Phone, User } from "lucide-react";
+import { Mail, Phone, User, Clock, Star, GitBranch, PhoneCall, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { DailyCallSummary } from "@/components/dashboard/DailyCallSummary";
+import { enterprise, formatPhone } from "@/config";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Painel PABX" }] }),
@@ -144,43 +146,75 @@ function Dashboard() {
       </div>
 
       <div className={isAdmin ? "grid gap-4 md:grid-cols-2" : "grid gap-4 md:grid-cols-2"}>
-        <Card className="h-70">
+        <Card className="h-90">
           <CardHeader>
             <CardTitle>Funções do PABX</CardTitle>
-            <CardDescription>Funções que estão ativas no pabx</CardDescription>
+            <CardDescription>Recursos atualmente disponíveis no sistema</CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center gap-2">
-              <span>
-                <strong>Criação de ramais, filas e uras.</strong>
-              </span>
-            </div>
+  <CardContent>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+        <div className="rounded-md bg-primary/10 p-2 text-primary">
+          <Phone className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Ramais, filas e URAs</p>
+          <p className="text-xs text-muted-foreground">
+            Criação e gerenciamento dos recursos de telefonia.
+          </p>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <span>
-                <strong>Modelo personalizado para horário de atendimento.</strong>
-              </span>
-            </div>
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+        <div className="rounded-md bg-primary/10 p-2 text-primary">
+          <Clock className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Horário de atendimento</p>
+          <p className="text-xs text-muted-foreground">
+            Modelo personalizado para regras de atendimento.
+          </p>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <span>
-                <strong>Pesquisa de satisfação ativa e receptiva.</strong>
-              </span>
-            </div>
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+        <div className="rounded-md bg-primary/10 p-2 text-primary">
+          <Star className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Pesquisa de satisfação</p>
+          <p className="text-xs text-muted-foreground">
+            Pesquisas de satisfação ativas e receptivas.
+          </p>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <span>
-                <strong>Roteamento inteligente e personalizado.</strong>
-              </span>
-            </div>
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+        <div className="rounded-md bg-primary/10 p-2 text-primary">
+          <GitBranch className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Roteamento inteligente</p>
+          <p className="text-xs text-muted-foreground">
+            Regras de roteamento personalizadas para cada cenário.
+          </p>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <span>
-                <strong>Trânsferencia entre ramais.</strong>
-              </span>
-            </div>
-          </CardContent>
+      <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3 sm:col-span-2">
+        <div className="rounded-md bg-primary/10 p-2 text-primary">
+          <PhoneCall className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Transferência entre ramais</p>
+          <p className="text-xs text-muted-foreground">
+            Permite transferências de chamadas entre os ramais do PABX.
+          </p>
+        </div>
+      </div>
+    </div>
+  </CardContent>
         </Card>
 
         {/* CONTATO / SUPORTE */}
@@ -190,44 +224,66 @@ function Dashboard() {
             <CardDescription>Fale com quem cuida desse painel</CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>
-                Feito por: <strong>Daniel Araujo</strong>
-              </span>
-            </div>
+  <CardContent className="space-y-3">
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+      <div className="rounded-md bg-primary/10 p-2 text-primary">
+        <User className="h-4 w-4" />
+      </div>
 
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>
-                Email para chamados: <strong>danielaraujovas560@gmail.com</strong>
-              </span>
-            </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">Desenvolvedor</p>
+        <p className="truncate text-sm font-medium">
+          {isAdmin ? "Daniel Araujo" : enterprise.name}
+        </p>
+      </div>
+    </div>
 
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>
-                Telefone para chamados: <strong>(27) 99293-0238</strong>
-              </span>
-            </div>
-          </CardContent>
+    <a
+      href="mailto:danielaraujovas560@gmail.com"
+      className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted"
+    >
+      <div className="rounded-md bg-primary/10 p-2 text-primary">
+        <Mail className="h-4 w-4" />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">Email para chamados</p>
+        <p className="truncate text-sm font-medium">
+          {enterprise.email}
+        </p>
+      </div>
+    </a>
+
+<a
+  href={`https://wa.me/${enterprise.whatsapp}?text=${encodeURIComponent(
+    "Olá Daniel! Preciso de suporte com o PABX.\n\n" +
+    "Razão Social: \n" + 
+    "CPF/CNPJ: \n" +
+    "Descrição do problema: "
+  )}`}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted"
+>
+      <div className="rounded-md bg-primary/10 p-2 text-primary">
+        <MessageCircle className="h-4 w-4" />
+      </div>
+
+      <div>
+        <p className="text-xs text-muted-foreground">WhatsApp para chamados</p>
+        <p className="text-sm font-medium">
+          {formatPhone(enterprise.whatsapp)}
+        </p>
+      </div>
+    </a>
+  </CardContent>
         </Card>
 
         {/* GRÁFICO DE CLIENTES */}
         {isAdmin && <ClientesChart ativos={ativos} inativos={inativos} />}
 
         {/* CARD VAZIO 2 */}
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações</CardTitle>
-              <CardDescription>Espaço reservado para novos recursos.</CardDescription>
-            </CardHeader>
-
-            <CardContent className="min-h-[220px]">{/* conteúdo futuro */}</CardContent>
-          </Card>
-        )}
+        {isAdmin && <DailyCallSummary />}
       </div>
       <a
         href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"

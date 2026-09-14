@@ -504,7 +504,7 @@ function FilaFormDialog({
         pesquisa: form.pesquisa,
         pesquisa_id: form.pesquisa ? form.pesquisa_id : undefined,
       };
-      return editing ? updateFn({ data: { id: fila!.id, ...body } }) : createFn({ data: body });
+      return editing ? updateFn({ data: { name: fila!.name, ...body } }) : createFn({ data: body });
     },
     onSuccess: () => {
       toast.success(editing ? "Fila atualizada" : "Fila criada");
@@ -523,7 +523,15 @@ function FilaFormDialog({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-lg">
+      <DialogContent
+        className="max-w-lg"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            mut.mutate();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{editing ? `Editar fila ${fila!.display_name}` : "Nova fila"}</DialogTitle>
           <DialogDescription>
@@ -532,13 +540,7 @@ function FilaFormDialog({
               : 'Depois de criar, adicione os agentes pelo botão "Agentes".'}
           </DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mut.mutate();
-          }}
-          className="space-y-3"
-        >
+        <div className="space-y-3">
           <div className="space-y-1">
             <Label>Nome *</Label>
             <Input
@@ -698,7 +700,7 @@ function FilaFormDialog({
               {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
             </Button>
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

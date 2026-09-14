@@ -75,8 +75,7 @@ function ClienteOverview() {
             {isLoading ? "Carregando…" : (cliente?.razao_social ?? "Cliente não encontrado")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            ID/Tenant: <span className="font-mono">{tenantId}</span>
-            {cliente?.cnpj ? ` · CNPJ ${cliente.cnpj}` : ""}
+            ID: <span className="font-mono">{tenantId}</span>
           </p>
         </div>
         <Badge variant="outline" className="font-mono">

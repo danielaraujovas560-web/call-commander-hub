@@ -11,6 +11,7 @@ import {
   setRole,
   addTenantLink,
   removeTenantLink,
+  listTenants,
 } from "@/lib/admin.functions";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,7 @@ function UsersTable({
             <TableHead>Email</TableHead>
             <TableHead>Nome</TableHead>
             <TableHead>Perfil</TableHead>
-            {showTenants && <TableHead>Tenants</TableHead>}
+            {showTenants && <TableHead>Clientes / Tenants</TableHead>}
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -345,6 +346,20 @@ function TenantCell({
   const [label, setLabel] = useState("");
   const [isDefault, setIsDefault] = useState(false);
 
+  const fetchTenants = useServerFn(listTenants);
+
+  const { data: tenantsData, isLoading: tenantsLoading } = useQuery({
+    queryKey: ["admin-tenants"],
+    queryFn: () => fetchTenants({}),
+  });
+
+  const availableTenants = (tenantsData?.tenants ?? []).filter(
+    (tenant) =>
+      !tenants.some(
+        (linkedTenant) => linkedTenant.tenant_id === Number(tenant.tenant_id)
+      )
+  );
+
   const addMut = useMutation({
     mutationFn: () =>
       addFn({
@@ -398,37 +413,39 @@ function TenantCell({
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Vincular tenant</DialogTitle>
+            <DialogTitle>Vincular usuário a um cliente</DialogTitle>
             <DialogDescription>
-              Associa este usuário a um tenant_id existente no PABX.
+              Associa este usuário a um cliente existente no PABX.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Tenant ID</Label>
-              <Input
-                type="number"
+              <Label>Cliente</Label>
+              <Select
                 value={tenantId}
-                onChange={(e) => setTenantId(e.target.value)}
-                placeholder="ex: 7"
-              />
+                onValueChange={(value) => {
+                  setTenantId(value);
+                  const tenant = availableTenants.find((t) => String(t.tenant_id) === value);
+
+                  setLabel(tenant?.razao_social ?? "");
+                }}
+                disabled={tenantsLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={tenantsLoading ? "Carregando clientes..." : "Selecione um cliente"}
+                  />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {availableTenants.map((tenant) => (
+                    <SelectItem key={tenant.tenant_id} value={String(tenant.tenant_id)}>
+                      {tenant.razao_social ?? `Tenant #${tenant.tenant_id}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label>Rótulo (opcional)</Label>
-              <Input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Empresa X"
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={isDefault}
-                onChange={(e) => setIsDefault(e.target.checked)}
-              />
-              Definir como padrão
-            </label>
           </div>
           <DialogFooter>
             <Button disabled={!tenantId || addMut.isPending} onClick={() => addMut.mutate()}>
@@ -449,8 +466,6 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
     password: "",
     nome: "",
     role: "cliente" as "admin" | "cliente",
-    tenant_id: "",
-    tenant_label: "",
   });
 
   const mut = useMutation({
@@ -461,8 +476,6 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
           password: form.password,
           nome: form.nome,
           role: form.role,
-          tenant_id: form.role === "cliente" && form.tenant_id ? Number(form.tenant_id) : undefined,
-          tenant_label: form.role === "cliente" ? form.tenant_label || undefined : undefined,
         },
       }),
     onSuccess: () => {
@@ -472,8 +485,6 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
         password: "",
         nome: "",
         role: "cliente",
-        tenant_id: "",
-        tenant_label: "",
       });
       setOpen(false);
       onDone();
@@ -488,7 +499,14 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
           <UserPlus className="mr-2 h-4 w-4" /> Novo usuário
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            mut.mutate();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Criar usuário</DialogTitle>
           <DialogDescription>
@@ -533,27 +551,6 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
               </SelectContent>
             </Select>
           </div>
-          {form.role === "cliente" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Tenant ID</Label>
-                <Input
-                  type="number"
-                  value={form.tenant_id}
-                  onChange={(e) => setForm({ ...form, tenant_id: e.target.value })}
-                  placeholder="ex: 7"
-                />
-              </div>
-              <div>
-                <Label>Rótulo</Label>
-                <Input
-                  value={form.tenant_label}
-                  onChange={(e) => setForm({ ...form, tenant_label: e.target.value })}
-                  placeholder="Empresa X"
-                />
-              </div>
-            </div>
-          )}
         </div>
         <DialogFooter>
           <Button

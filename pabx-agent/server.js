@@ -409,7 +409,7 @@ async function requireAdmin(req, res, next) {
 app.get("/admin/users", requireJwt, requireAdmin, async (req, res) => {
   try {
     const [profiles] = await pool.query(
-      "SELECT id, nome, email, created_at FROM profiles ORDER BY created_at DESC LIMIT 500",
+      "SELECT id, nome, email, created_at FROM profiles ORDER BY created_at ASC LIMIT 500",
     );
     const ids = profiles.map((p) => p.id);
     if (!ids.length) return res.json({ users: [] });
@@ -565,6 +565,16 @@ app.put("/admin/users/:id", requireJwt, requireAdmin, async (req, res) => {
   }
 });
 
+// ---------- Admin: Get para puxar o tenant + razão social (select para post abaixo) ----------
+app.get("/admin/tenants", requireJwt, requireAdmin, async (req, res) => {
+  try {
+     const [rows] = await pool.query(`SELECT c.tenant_id, c.razao_social FROM clientes c JOIN tenants t ON c.tenant_id = t.id`)
+    res.json({ ok: true, tenants: rows });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
 // ---------- Admin: vínculos usuário↔tenant ----------
 app.post("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
   const { user_id, tenant_id, label, is_default } = req.body || {};
@@ -602,6 +612,63 @@ app.delete("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => 
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---------- Endpoint para cdr diário (admin) ----------
+app.get("/dashboard/call-summary", requireJwt, requireAdmin, async (req, res) => {
+  try {
+    const [summaryRows] = await pool.query(`
+      SELECT
+        COUNT(*) AS total,
+        COALESCE(SUM(duracao), 0) AS duracao_total,
+        COALESCE(
+          SUM(duracao) / NULLIF(
+            SUM(CASE WHEN status = 'ANSWER' THEN 1 ELSE 0 END),
+            0
+          ),
+          0
+        ) AS duracao_media
+      FROM cdr_ramal
+      WHERE date_time >= CURDATE()
+        AND date_time < CURDATE() + INTERVAL 1 DAY
+    `);
+
+    const [rows] = await pool.query(`
+      SELECT
+        tipo_chamada,
+        status,
+        COUNT(*) AS quantidade
+      FROM cdr_ramal
+      WHERE date_time >= CURDATE()
+        AND date_time < CURDATE() + INTERVAL 1 DAY
+      GROUP BY tipo_chamada, status
+      ORDER BY tipo_chamada, status
+    `);
+
+    const [yesterdayRows] = await pool.query(`
+      SELECT
+        COUNT(*) AS total
+      FROM cdr_ramal
+      WHERE date_time >= CURDATE() - INTERVAL 1 DAY
+        AND date_time < CURDATE()
+    `);
+
+    res.json({
+      ok: true,
+      today: summaryRows[0],
+      yesterday: yesterdayRows[0],
+      calls: rows,
+    });
+  } catch (e) {
+    console.error(
+      "[dashboard] erro ao buscar resumo de chamadas:",
+      e
+    );
+
+    res.status(500).json({
+      error: String(e.message || e),
+    });
   }
 });
 
@@ -1975,14 +2042,6 @@ function cdrFilteredEndpoint(p, cfg) {
   });
 }
 
-cdrFilteredEndpoint("/cdr/entrada", {
-  select: "id, linkedid, date_time, origem, num_destino, dest_interno, duracao, status",
-  from: "cdr_entrada",
-  order: "date_time",
-  dateCol: "date_time",
-  exactFilters: ["status"],
-  filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
-});
 cdrFilteredEndpoint("/cdr/ramal", {
   select:
     "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, COALESCE(rd.nome, c.destino) AS destino, COALESCE(ro.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.nome_gravacao, c.duracao, c.date_time",
@@ -2004,9 +2063,8 @@ cdrFilteredEndpoint("/cdr/ramal", {
 });
 cdrFilteredEndpoint("/cdr/fila", {
   select:
-    "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.nome_gravacao, c.time_data",
-  from: `cdr_fila c LEFT JOIN filas f ON c.tenant_id = f.tenant_id AND c.nome_fila = f.id
-  LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.ramal`,
+    "c.id, c.linkedid, c.fila, c.nome_fila AS display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.nome_gravacao, c.time_data",
+  from: `cdr_fila c LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.ramal`,
   order: "c.time_data",
   dateCol: "c.time_data",
   tenantCol: "c.tenant_id",

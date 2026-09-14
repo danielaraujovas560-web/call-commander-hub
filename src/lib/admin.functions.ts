@@ -134,3 +134,17 @@ export const updateUser = createServerFn({ method: "POST" })
       body,
     });
   });
+
+// ----------- LIST TENANTS AND CLIENTES -------------
+
+export const listTenants = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .handler(async ({ context }) => {
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{
+      tenants: {
+        tenant_id: string;
+        razao_social: string | null;
+      }[];
+    }>("/admin/tenants", { bearerToken: context.token });
+  });

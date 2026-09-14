@@ -120,3 +120,32 @@ export const getClienteByTenant = createServerFn({ method: "GET" })
     );
     return { cliente: res.cliente };
   });
+
+// ----------- CDR DASHBOARD -------------
+
+export const getDailyCallSummary = createServerFn({
+  method: "GET",
+})
+  .middleware([requireAuth])
+  .handler(async ({ context }) => {
+    const { agentFetch } = await import("./agent.server");
+
+    return await agentFetch<{
+      ok: boolean;
+      summary: {
+        total: number | string;
+        duracao_total: number | string;
+        duracao_media: number | string;
+      };
+      rows: {
+        tipo_chamada: string;
+        status: string;
+        quantidade: number | string;
+      }[];
+      yesterday: {
+        total: number | string;
+      };
+    }>("/dashboard/call-summary", {
+      bearerToken: context.token,
+    });
+  });
