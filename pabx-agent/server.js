@@ -13,7 +13,18 @@ const path = require("path");
 const { exec, execFile } = require("child_process");
 const { promisify } = require("util");
 const rateLimit = require("express-rate-limit");
-const { getEndpointsDeviceState, amiCommand, amiReady, queueAdd, queueRemove, queuePenalty, queueRefresh, onAmiConnect, getQueueStatus } = require("./ami");
+const {
+  getEndpointsDeviceState,
+  amiCommand,
+  amiReady,
+  queueAdd,
+  queueRemove,
+  queuePenalty,
+  queueRefresh,
+  onAmiConnect,
+  getQueueStatus,
+} = require("./ami");
+const { bloquearIp, liberarIp } = require("./firewall");
 const execFileAsync = promisify(execFile);
 
 // Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
@@ -117,7 +128,8 @@ async function restoreQueueMembers(queueName = null) {
   console.log("[queue-restore] consultando banco de dados...");
 
   try {
-    const [agentes] = await pool.query(`
+    const [agentes] = await pool.query(
+      `
       SELECT
         fa.id,
         fa.tenant_id,
@@ -133,11 +145,11 @@ async function restoreQueueMembers(queueName = null) {
       WHERE f.ativo = 1
       ${queueName ? "AND fa.queue = ?" : ""}
       ORDER BY fa.queue, fa.penalty, fa.id
-    `, queueName ? [queueName] : []);
-
-    console.log(
-      `[queue-restore] ${agentes.length} membros registrados no banco.`
+    `,
+      queueName ? [queueName] : [],
     );
+
+    console.log(`[queue-restore] ${agentes.length} membros registrados no banco.`);
 
     for (const agente of agentes) {
       const chaveUnica = `${agente.queue.toLowerCase()}|${agente.interface.toLowerCase()}`;
@@ -150,22 +162,17 @@ async function restoreQueueMembers(queueName = null) {
           penalty: agente.penalty,
           memberName: agente.membername,
         });
-
       } catch (err) {
         console.error(
-          `[queue-restore] falha ao restaurar ${agente.interface} ` +
-          `na fila ${agente.queue}:`,
-          err.message || err
+          `[queue-restore] falha ao restaurar ${agente.interface} ` + `na fila ${agente.queue}:`,
+          err.message || err,
         );
       }
     }
 
     console.log("[queue-restore] sincronização inteligente concluída.");
   } catch (err) {
-    console.error(
-      "[queue-restore] erro consultando filas_agentes:",
-      err.message || err
-    );
+    console.error("[queue-restore] erro consultando filas_agentes:", err.message || err);
   }
 }
 
@@ -198,10 +205,18 @@ app.use(
 
 // ---------- HMAC verification ----------
 app.use((req, res, next) => {
- if (req.path.startsWith("/auth/") || req.path.startsWith("/tenant/") || req.path.startsWith("/admin/") || req.path.startsWith("/clientes") ||
-     req.path.startsWith("/my/") || req.path.startsWith("/audit-log/") || req.path.startsWith("/gravacoes/") || req.path.startsWith("/ramal-auth/") ||
-     req.path.startsWith("/config/"))
-  return next();
+  if (
+    req.path.startsWith("/auth/") ||
+    req.path.startsWith("/tenant/") ||
+    req.path.startsWith("/admin/") ||
+    req.path.startsWith("/clientes") ||
+    req.path.startsWith("/my/") ||
+    req.path.startsWith("/audit-log/") ||
+    req.path.startsWith("/gravacoes/") ||
+    req.path.startsWith("/ramal-auth/") ||
+    req.path.startsWith("/config/")
+  )
+    return next();
   const ts = req.header("X-Timestamp");
   const sig = req.header("X-Signature");
   if (!ts || !sig) return res.status(401).json({ error: "Missing signature headers" });
@@ -269,7 +284,9 @@ app.post("/auth/login", async (req, res) => {
 
 app.get("/auth/me", requireJwt, async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT id, nome, email FROM profiles WHERE id = ?", [req.userId]);
+    const [rows] = await pool.query("SELECT id, nome, email FROM profiles WHERE id = ?", [
+      req.userId,
+    ]);
     if (!rows.length) return res.status(404).json({ error: "usuário não encontrado" });
     res.json({ user: { ...rows[0], role: req.role }, role: req.role });
   } catch (e) {
@@ -320,10 +337,14 @@ async function resolveTenantId(userId, role, override) {
       "SELECT tenant_id FROM tenants_link ORDER BY created_at ASC LIMIT 1",
     );
     if (anyLink) return Number(anyLink.tenant_id);
-    throw new Error("Nenhum tenant cadastrado no sistema. Crie um usuário cliente vinculado a um tenant_id primeiro.");
+    throw new Error(
+      "Nenhum tenant cadastrado no sistema. Crie um usuário cliente vinculado a um tenant_id primeiro.",
+    );
   }
 
-  throw new Error("Nenhum tenant vinculado ao seu usuário. Peça a um administrador para vincular seu acesso.");
+  throw new Error(
+    "Nenhum tenant vinculado ao seu usuário. Peça a um administrador para vincular seu acesso.",
+  );
 }
 
 // Endpoint que o frontend chama em vez de resolveTenantId/resolveScopedTenant (Supabase).
@@ -356,7 +377,13 @@ app.post("/audit-log", requireJwt, async (req, res) => {
   try {
     await pool.query(
       "INSERT INTO audit_log (id, user_id, tenant_id, action, payload) VALUES (?, ?, ?, ?, ?)",
-      [crypto.randomUUID(), req.userId, tenant_id ?? null, String(action), payload ? JSON.stringify(payload) : null],
+      [
+        crypto.randomUUID(),
+        req.userId,
+        tenant_id ?? null,
+        String(action),
+        payload ? JSON.stringify(payload) : null,
+      ],
     );
     res.json({ ok: true });
   } catch (e) {
@@ -369,7 +396,8 @@ app.post("/audit-log", requireJwt, async (req, res) => {
 async function requireAdmin(req, res, next) {
   try {
     const role = await getUserRole(req.userId);
-    if (role !== "admin") return res.status(403).json({ error: "Acesso restrito a administradores." });
+    if (role !== "admin")
+      return res.status(403).json({ error: "Acesso restrito a administradores." });
     req.role = role;
     next();
   } catch (e) {
@@ -417,7 +445,8 @@ app.post("/admin/users", requireJwt, requireAdmin, async (req, res) => {
   if (!email || !password || !nome) {
     return res.status(400).json({ error: "email, password e nome obrigatórios" });
   }
-  if (password.length < 8) return res.status(400).json({ error: "senha deve ter ao menos 8 caracteres" });
+  if (password.length < 8)
+    return res.status(400).json({ error: "senha deve ter ao menos 8 caracteres" });
   if (!["admin", "cliente"].includes(role)) return res.status(400).json({ error: "role inválida" });
 
   const conn = await pool.getConnection();
@@ -539,7 +568,8 @@ app.put("/admin/users/:id", requireJwt, requireAdmin, async (req, res) => {
 // ---------- Admin: vínculos usuário↔tenant ----------
 app.post("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
   const { user_id, tenant_id, label, is_default } = req.body || {};
-  if (!user_id || !tenant_id) return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });
+  if (!user_id || !tenant_id)
+    return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -562,7 +592,8 @@ app.post("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
 
 app.delete("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
   const { user_id, tenant_id } = req.body || {};
-  if (!user_id || !tenant_id) return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });
+  if (!user_id || !tenant_id)
+    return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });
   try {
     await pool.query("DELETE FROM tenants_link WHERE user_id = ? AND tenant_id = ?", [
       user_id,
@@ -614,7 +645,10 @@ app.post("/clientes", requireJwt, requireAdmin, async (req, res) => {
       [Number(tenant_id), String(razao_social).slice(0, 50)],
     );
     await conn.commit();
-    res.json({ ok: true, cliente: { id, tenant_id: Number(tenant_id), cnpj, razao_social, email, quantidade_ramais } });
+    res.json({
+      ok: true,
+      cliente: { id, tenant_id: Number(tenant_id), cnpj, razao_social, email, quantidade_ramais },
+    });
   } catch (e) {
     await conn.rollback();
     res.status(500).json({ error: String(e.message || e) });
@@ -641,7 +675,6 @@ app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
   }
   let mudouAtivo = false;
   if (ativo !== undefined) {
-
     const novoAtivo = ativo ? 1 : 0;
 
     const [rows] = await pool.query("SELECT ativo FROM clientes WHERE id = ?", [req.params.id]);
@@ -657,11 +690,14 @@ app.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
   }
   if (!sets.length) return res.json({ ok: true });
   try {
-    await pool.query(`UPDATE clientes SET ${sets.join(", ")} WHERE id = ?`, [...vals, req.params.id]);
+    await pool.query(`UPDATE clientes SET ${sets.join(", ")} WHERE id = ?`, [
+      ...vals,
+      req.params.id,
+    ]);
 
     if (mudouAtivo) {
       amiPjsipReload();
-     }
+    }
 
     res.json({ ok: true });
   } catch (e) {
@@ -687,7 +723,10 @@ app.put("/clientes/:id/configuracoes", requireJwt, requireAdmin, async (req, res
   }
   if (!sets.length) return res.json({ ok: true });
   try {
-    await pool.query(`UPDATE clientes SET ${sets.join(", ")} WHERE id = ?`, [...vals, req.params.id]);
+    await pool.query(`UPDATE clientes SET ${sets.join(", ")} WHERE id = ?`, [
+      ...vals,
+      req.params.id,
+    ]);
 
     res.json({ ok: true });
   } catch (e) {
@@ -699,28 +738,33 @@ app.delete("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
   const clienteId = req.params.id;
   const conn = await pool.getConnection();
   try {
-    const [[cliente]] = await conn.query("SELECT tenant_id FROM clientes WHERE id = ? LIMIT 1", [clienteId]);
+    const [[cliente]] = await conn.query("SELECT tenant_id FROM clientes WHERE id = ? LIMIT 1", [
+      clienteId,
+    ]);
     if (!cliente) return res.status(404).json({ error: "Cliente não encontrado" });
     const tenant = cliente.tenant_id;
 
     await conn.beginTransaction();
 
     // --- Fase 1: coletar tudo que precisa de limpeza no Asterisk ANTES de apagar ---
-    const [ramaisRows] = await conn.query(
-      "SELECT endpoint_id FROM ramais WHERE tenant_id = ?", [tenant],
-    );
+    const [ramaisRows] = await conn.query("SELECT endpoint_id FROM ramais WHERE tenant_id = ?", [
+      tenant,
+    ]);
     const [troncosRows] = await conn.query(
-      "SELECT tronco_pjsip, registrar FROM troncos WHERE tenant_id = ?", [tenant],
+      "SELECT tronco_pjsip, registrar FROM troncos WHERE tenant_id = ?",
+      [tenant],
     );
-    const [filasRows] = await conn.query(
-      "SELECT name FROM filas WHERE tenant_id = ?", [tenant],
-    );
+    const [filasRows] = await conn.query("SELECT name FROM filas WHERE tenant_id = ?", [tenant]);
     const [agentesRows] = await conn.query(
-      "SELECT queue, interface FROM filas_agentes WHERE tenant_id = ?", [tenant],
+      "SELECT queue, interface FROM filas_agentes WHERE tenant_id = ?",
+      [tenant],
     );
 
     // --- Fase 2: apagar do banco (ordem respeita dependências) ---
-    await conn.query("DELETE FROM ura_opcoes WHERE ura_id IN (SELECT id FROM uras WHERE tenant_id = ?)",[tenant],);
+    await conn.query(
+      "DELETE FROM ura_opcoes WHERE ura_id IN (SELECT id FROM uras WHERE tenant_id = ?)",
+      [tenant],
+    );
     await conn.query("DELETE FROM uras WHERE tenant_id = ?", [tenant]);
 
     await conn.query("DELETE FROM filas_agentes WHERE tenant_id = ?", [tenant]);
@@ -776,8 +820,14 @@ app.delete("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
 
     // --- Fase 3: limpeza no Asterisk via AMI (best-effort, já com o banco consistente) ---
     for (const a of agentesRows) {
-      try { await queueRemove({ queue: a.queue, interface: a.interface }); }
-      catch (e) { console.error(`[ami] remover agente ${a.interface} da fila ${a.queue} falhou:`, e.message || e); }
+      try {
+        await queueRemove({ queue: a.queue, interface: a.interface });
+      } catch (e) {
+        console.error(
+          `[ami] remover agente ${a.interface} da fila ${a.queue} falhou:`,
+          e.message || e,
+        );
+      }
     }
     for (const f of filasRows) {
       await amiQueueReloadParameters(f.name);
@@ -803,7 +853,9 @@ app.get("/clientes/by-tenant/:tenantId", requireJwt, async (req, res) => {
       );
       if (!linked) return res.status(403).json({ error: "Sem permissão para este tenant." });
     }
-    const [rows] = await pool.query("SELECT * FROM clientes WHERE tenant_id = ? LIMIT 1", [tenantId]);
+    const [rows] = await pool.query("SELECT * FROM clientes WHERE tenant_id = ? LIMIT 1", [
+      tenantId,
+    ]);
     const cliente = rows[0] ? { ...rows[0], ativo: !!rows[0].ativo } : null;
     res.json({ cliente });
   } catch (e) {
@@ -847,10 +899,14 @@ function slugName(s) {
 
 function asteriskRx(cmd) {
   return new Promise((resolve) => {
-    exec(`${ASTERISK_BIN} -rx "${cmd.replace(/"/g, '\\"')}"`, { timeout: 5000 }, (err, stdout, stderr) => {
-      if (err) return resolve({ ok: false, error: String(err.message || err), stderr });
-      resolve({ ok: true, stdout: String(stdout || "") });
-    });
+    exec(
+      `${ASTERISK_BIN} -rx "${cmd.replace(/"/g, '\\"')}"`,
+      { timeout: 5000 },
+      (err, stdout, stderr) => {
+        if (err) return resolve({ ok: false, error: String(err.message || err), stderr });
+        resolve({ ok: true, stdout: String(stdout || "") });
+      },
+    );
   });
 }
 
@@ -867,7 +923,8 @@ app.get("/health", async (_req, res) => {
 // ---------- Login do ramal (painel WebRTC) ----------
 app.post("/ramal-auth/login", async (req, res) => {
   const { endpoint_id, senha } = req.body || {};
-  if (!endpoint_id || !senha) return res.status(400).json({ error: "endpoint_id e senha obrigatórios" });
+  if (!endpoint_id || !senha)
+    return res.status(400).json({ error: "endpoint_id e senha obrigatórios" });
   try {
     const [rows] = await pool.query(
       `SELECT tenant_id, ramal, nome, endpoint_id, senha FROM ramais WHERE endpoint_id = ? LIMIT 1`,
@@ -882,11 +939,14 @@ app.post("/ramal-auth/login", async (req, res) => {
       ramal: r.ramal,
       nome: r.nome,
       sip_username: `${r.endpoint_id}-web`,
-     // sip_username: `${r.endpoint_id}`,
+      // sip_username: `${r.endpoint_id}`,
       sip_password: r.senha,
       tenant_id: r.tenant_id,
       wss_url: WSS_URL,
-      sip_domain: String(WSS_URL).replace(/^wss?:\/\//, "").split(":")[0].split("/")[0],
+      sip_domain: String(WSS_URL)
+        .replace(/^wss?:\/\//, "")
+        .split(":")[0]
+        .split("/")[0],
     });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -896,7 +956,10 @@ app.post("/ramal-auth/login", async (req, res) => {
 // Dados de conexão SIP padrão (softphone comum — Zoiper, Grandstream, etc),
 // não confundir com o WSS do painel WebRTC. Porta fixa configurável via env.
 app.get("/config/sip", (req, res) => {
-  const host = String(WSS_URL).replace(/^wss?:\/\//, "").split(":")[0].split("/")[0];
+  const host = String(WSS_URL)
+    .replace(/^wss?:\/\//, "")
+    .split(":")[0]
+    .split("/")[0];
   res.json({ host, port: SIP_PORT });
 });
 
@@ -971,7 +1034,7 @@ async function validatePesquisaId(conn, tenant, pesquisaAtivo, pesquisaId) {
        FROM pesquisa_satisfacao
       WHERE id = ? AND tenant_id = ?
       LIMIT 1`,
-    [pid, tenant]
+    [pid, tenant],
   );
 
   if (!rows.length) {
@@ -984,8 +1047,24 @@ async function validatePesquisaId(conn, tenant, pesquisaAtivo, pesquisaId) {
 app.post("/ramais", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  let { nome, ramal, senha, tronco, ddd, callerid, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco, pesquisa, pesquisa_id } =
-    req.body || {};
+  let {
+    nome,
+    ramal,
+    senha,
+    tronco,
+    ddd,
+    callerid,
+    fixo,
+    movel,
+    ddi,
+    especial,
+    cng,
+    gravacao,
+    transbordo,
+    transbordo_tronco,
+    pesquisa,
+    pesquisa_id,
+  } = req.body || {};
   if (!ramal || !tronco || !ddd) {
     return res.status(400).json({ error: "Campos obrigatórios: ramal, tronco, ddd" });
   }
@@ -1009,9 +1088,16 @@ app.post("/ramais", async (req, res) => {
       return res.status(400).json({ error: pesquisaErr });
     }
 
-    await conn.query(`INSERT IGNORE INTO tenants (id, nome) VALUES (?, ?)`, [tenant, `tenant-${tenant}`]);
+    await conn.query(`INSERT IGNORE INTO tenants (id, nome) VALUES (?, ?)`, [
+      tenant,
+      `tenant-${tenant}`,
+    ]);
 
-    await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [authId, endpointId, senha]);
+    await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [
+      authId,
+      endpointId,
+      senha,
+    ]);
     await conn.query(`INSERT INTO ps_aors (id) VALUES (?)`, [endpointId]);
     await conn.query(
       `INSERT INTO ps_endpoints (id, aors, auth, context, call_group, pickup_group)
@@ -1036,7 +1122,7 @@ app.post("/ramais", async (req, res) => {
         ddi ? 1 : 0,
         especial ? 1 : 0,
         cng ? 1 : 0,
-        gravacao ? 1: 0,
+        gravacao ? 1 : 0,
         transbordoInt,
         transbordoTroncoVal,
         pesquisaInt,
@@ -1047,27 +1133,19 @@ app.post("/ramais", async (req, res) => {
     const webEndpointId = `${endpointId}-web`;
     const webAuthId = `auth-${webEndpointId}`;
 
-    await conn.query(
-      `INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`,
-      [webAuthId, webEndpointId, senha]
-    );
+    await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [
+      webAuthId,
+      webEndpointId,
+      senha,
+    ]);
 
-    await conn.query(
-      `INSERT INTO ps_aors (id) VALUES (?)`,
-      [webEndpointId]
-    );
+    await conn.query(`INSERT INTO ps_aors (id) VALUES (?)`, [webEndpointId]);
 
     await conn.query(
       `INSERT INTO ps_endpoints (
           id, transport, aors, auth, context, call_group, pickup_group, webrtc, media_encryption, dtls_auto_generate_cert, ice_support, use_avpf, rtcp_mux
       ) VALUES (?, 'transport-wss', ?, ?, 'Internal-default', ?, ?, 'yes', 'dtls', 'yes', 'yes', 'yes', 'yes')`,
-      [
-        webEndpointId,
-        webEndpointId,
-        webAuthId,
-        String(tenant),
-        String(tenant),
-      ]
+      [webEndpointId, webEndpointId, webAuthId, String(tenant), String(tenant)],
     );
 
     await conn.commit();
@@ -1108,8 +1186,23 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
   if (!endpointId) {
     return res.status(400).json({ error: "endpoint inválido" });
   }
-  const { nome, tronco, ddd, callerid, senha, fixo, movel, ddi, especial, cng, gravacao, transbordo, transbordo_tronco, pesquisa, pesquisa_id } =
-    req.body || {};
+  const {
+    nome,
+    tronco,
+    ddd,
+    callerid,
+    senha,
+    fixo,
+    movel,
+    ddi,
+    especial,
+    cng,
+    gravacao,
+    transbordo,
+    transbordo_tronco,
+    pesquisa,
+    pesquisa_id,
+  } = req.body || {};
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -1170,7 +1263,12 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
     if (pesquisa !== undefined) {
       const pesquisaIntUpdate = pesquisa ? 1 : 0;
       const pesquisaIdUpdate = pesquisaIntUpdate && pesquisa_id ? Number(pesquisa_id) : null;
-      const pesquisaErr = await validatePesquisaId(conn, tenant, pesquisaIntUpdate, pesquisaIdUpdate);
+      const pesquisaErr = await validatePesquisaId(
+        conn,
+        tenant,
+        pesquisaIntUpdate,
+        pesquisaIdUpdate,
+      );
       if (pesquisaErr) {
         await conn.rollback();
         return res.status(400).json({ error: pesquisaErr });
@@ -1184,11 +1282,17 @@ app.put("/ramais/:endpoint_id", async (req, res) => {
       vals.push(pesquisa_id || null);
     }
     if (sets.length > 0) {
-      await conn.query(`UPDATE ramais SET ${sets.join(", ")} WHERE endpoint_id = ? AND tenant_id = ?`, [...vals, endpointId, tenant]);
+      await conn.query(
+        `UPDATE ramais SET ${sets.join(", ")} WHERE endpoint_id = ? AND tenant_id = ?`,
+        [...vals, endpointId, tenant],
+      );
     }
     if (senha !== undefined) {
       await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, authId]);
-      await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [senha, `auth-${endpointId}-web`]);
+      await conn.query(`UPDATE ps_auths SET password = ? WHERE id = ?`, [
+        senha,
+        `auth-${endpointId}-web`,
+      ]);
     }
     await conn.commit();
     res.json({ ok: true });
@@ -1205,7 +1309,7 @@ app.delete("/ramais/:endpoint_id", async (req, res) => {
   if (!tenant) return;
   const endpointId = req.params.endpoint_id;
   if (!endpointId) {
-    return res.status(400).json({ error: "endpoint inválido"});
+    return res.status(400).json({ error: "endpoint inválido" });
   }
   const conn = await pool.getConnection();
   try {
@@ -1217,7 +1321,10 @@ app.delete("/ramais/:endpoint_id", async (req, res) => {
     await conn.query(`DELETE FROM ps_endpoints WHERE id = ?`, [webEndpointId]);
     await conn.query(`DELETE FROM ps_auths     WHERE id = ?`, [`auth-${webEndpointId}`]);
     await conn.query(`DELETE FROM ps_aors      WHERE id = ?`, [webEndpointId]);
-    await conn.query(`DELETE FROM ramais       WHERE endpoint_id = ? AND tenant_id = ?`, [endpointId, tenant]);
+    await conn.query(`DELETE FROM ramais       WHERE endpoint_id = ? AND tenant_id = ?`, [
+      endpointId,
+      tenant,
+    ]);
     await conn.commit();
     amiPjsipReload();
     res.json({ ok: true });
@@ -1233,17 +1340,17 @@ app.post("/ramais/generate-password", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   const endpointId = req.body.endpoint_id;
-  if (!endpointId) return res.status(400).json({ error: "endpoint inválido"});
+  if (!endpointId) return res.status(400).json({ error: "endpoint inválido" });
   const crypto = require("crypto");
 
   function genPassword() {
-      const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      const bytes = crypto.randomBytes(12);
-      let senha = "";
-      for (let i = 0; i < 12; i++) {
-          senha += chars[bytes[i] % chars.length];
-      }
-      return senha;
+    const chars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const bytes = crypto.randomBytes(12);
+    let senha = "";
+    for (let i = 0; i < 12; i++) {
+      senha += chars[bytes[i] % chars.length];
+    }
+    return senha;
   }
 
   const senha = genPassword();
@@ -1251,16 +1358,27 @@ app.post("/ramais/generate-password", async (req, res) => {
   try {
     await conn.beginTransaction();
     const webEndpointId = `${endpointId}-web`;
-    await conn.query(`UPDATE ramais SET senha = ? WHERE tenant_id = ? AND endpoint_id = ?`, [senha, tenant, endpointId]);
-    await conn.query(`UPDATE ps_auths SET password = ? WHERE username = ? AND id = ?`, [senha, endpointId, `auth-${endpointId}`]);
-    await conn.query(`UPDATE ps_auths SET password = ? WHERE username = ? AND id = ?`, [senha, webEndpointId, `auth-${webEndpointId}`]);
+    await conn.query(`UPDATE ramais SET senha = ? WHERE tenant_id = ? AND endpoint_id = ?`, [
+      senha,
+      tenant,
+      endpointId,
+    ]);
+    await conn.query(`UPDATE ps_auths SET password = ? WHERE username = ? AND id = ?`, [
+      senha,
+      endpointId,
+      `auth-${endpointId}`,
+    ]);
+    await conn.query(`UPDATE ps_auths SET password = ? WHERE username = ? AND id = ?`, [
+      senha,
+      webEndpointId,
+      `auth-${webEndpointId}`,
+    ]);
     await conn.commit();
 
-   return res.json({ ok: true });
-
-  } catch(e) {
+    return res.json({ ok: true });
+  } catch (e) {
     await conn.rollback();
-    console.error(e)
+    console.error(e);
     res.status(500).json({ error: String(e.message || e) });
   } finally {
     conn.release();
@@ -1289,7 +1407,10 @@ app.get("/troncos/:pjsip/status", async (req, res) => {
   if (!tenant) return;
   const pjsip = req.params.pjsip;
   try {
-    const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ? LIMIT 1`, [tenant, pjsip]);
+    const [rows] = await pool.query(
+      `SELECT tronco_pjsip FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ? LIMIT 1`,
+      [tenant, pjsip],
+    );
     if (!rows.length) return res.status(404).json({ error: "Tronco não encontrado" });
     const endpointName = rows[0].tronco_pjsip;
     // usa o cache do AMI (PJSIPShowEndpoints) — mesma fonte do /troncos/status
@@ -1306,8 +1427,8 @@ app.get("/troncos/:pjsip/status", async (req, res) => {
 // ---------- Status em lote (ramais/troncos) via `pjsip show endpoints` ----------
 // Faz um único CLI e distribui pros endpoints do tenant. Ver ASTERISK-STATUS.md.
 let _endpointsCache = { at: 0, lastOk: 0, map: {} };
-const ENDPOINTS_CACHE_MS = 3000;         // reusa se muito recente
-const ENDPOINTS_STALE_MS = 15000;        // além disso, se AMI falhar, marca tudo como UNKNOWN
+const ENDPOINTS_CACHE_MS = 3000; // reusa se muito recente
+const ENDPOINTS_STALE_MS = 15000; // além disso, se AMI falhar, marca tudo como UNKNOWN
 async function fetchEndpointsMap() {
   const now = Date.now();
   if (now - _endpointsCache.at < ENDPOINTS_CACHE_MS) return _endpointsCache.map;
@@ -1331,10 +1452,9 @@ app.get("/ramais/status", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
-    const [rows] = await pool.query(
-      `SELECT ramal, endpoint_id FROM ramais WHERE tenant_id = ?`,
-      [tenant],
-    );
+    const [rows] = await pool.query(`SELECT ramal, endpoint_id FROM ramais WHERE tenant_id = ?`, [
+      tenant,
+    ]);
     const map = await fetchEndpointsMap();
     const endpoints = {};
     for (const row of rows) {
@@ -1351,10 +1471,9 @@ app.get("/troncos/status", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
-    const [rows] = await pool.query(
-      `SELECT tronco_pjsip FROM troncos WHERE tenant_id = ?`,
-      [tenant],
-    );
+    const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE tenant_id = ?`, [
+      tenant,
+    ]);
     const map = await fetchEndpointsMap();
     const endpoints = {};
     for (const row of rows) {
@@ -1365,8 +1484,6 @@ app.get("/troncos/status", async (req, res) => {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
-
-
 
 app.post("/troncos", async (req, res) => {
   const tenant = getTenant(req, res);
@@ -1394,10 +1511,17 @@ app.post("/troncos", async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    await conn.query(`INSERT INTO ps_aors (id, contact) VALUES (?, ?)`, [aorId, `sip:${ip}:${portaVal}`]);
+    await conn.query(`INSERT INTO ps_aors (id, contact) VALUES (?, ?)`, [
+      aorId,
+      `sip:${ip}:${portaVal}`,
+    ]);
 
     if (wantsReg) {
-      await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [authId, authUser, authPass]);
+      await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [
+        authId,
+        authUser,
+        authPass,
+      ]);
     }
 
     await conn.query(
@@ -1457,7 +1581,10 @@ app.put("/troncos/:pjsip", async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT * FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ?`, [tenant, pjsip]);
+    const [rows] = await conn.query(
+      `SELECT * FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ?`,
+      [tenant, pjsip],
+    );
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Tronco não encontrado" });
@@ -1480,7 +1607,8 @@ app.put("/troncos/:pjsip", async (req, res) => {
     const newIp = ip ?? t.ip;
     const newPorta = porta ? String(porta) : t.porta;
     const newTipo = tipo ?? t.tipo;
-    const newTech = techprefix !== undefined ? (techprefix ? String(techprefix) : null) : t.techprefix;
+    const newTech =
+      techprefix !== undefined ? (techprefix ? String(techprefix) : null) : t.techprefix;
     const wantsReg = registrar !== undefined ? registrar === "sim" || registrar === true : wasReg;
     const newLogin = login !== undefined ? login : t.login;
     const newSenha = senha !== undefined ? senha : t.senha;
@@ -1493,7 +1621,11 @@ app.put("/troncos/:pjsip", async (req, res) => {
     // rename pjsip ids if name changed
     if (newPjsip !== oldPjsip) {
       await conn.query(`UPDATE ps_aors SET id = ? WHERE id = ?`, [newAor, oldAor]);
-      await conn.query(`UPDATE ps_endpoints SET id = ?, aors = ? WHERE id = ?`, [newPjsip, newAor, oldPjsip]);
+      await conn.query(`UPDATE ps_endpoints SET id = ?, aors = ? WHERE id = ?`, [
+        newPjsip,
+        newAor,
+        oldPjsip,
+      ]);
       await conn.query(`UPDATE ps_endpoint_id_ips SET id = ?, endpoint = ? WHERE id = ?`, [
         newIdIps,
         newPjsip,
@@ -1515,7 +1647,10 @@ app.put("/troncos/:pjsip", async (req, res) => {
     }
 
     // ip/porta changes
-    await conn.query(`UPDATE ps_aors SET contact = ? WHERE id = ?`, [`sip:${newIp}:${newPorta}`, newAor]);
+    await conn.query(`UPDATE ps_aors SET contact = ? WHERE id = ?`, [
+      `sip:${newIp}:${newPorta}`,
+      newAor,
+    ]);
     await conn.query(`UPDATE ps_endpoints SET from_domain = ? WHERE id = ?`, [newIp, newPjsip]);
     await conn.query(`UPDATE ps_endpoint_id_ips SET \`match\` = ? WHERE id = ?`, [newIp, newIdIps]);
 
@@ -1523,33 +1658,39 @@ app.put("/troncos/:pjsip", async (req, res) => {
     if (wantsReg && !wasReg) {
       const pw = newSenha || genPassword();
       const user = newLogin || slug;
-      await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [newAuth, user, pw]);
+      await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [
+        newAuth,
+        user,
+        pw,
+      ]);
       await conn.query(`UPDATE ps_endpoints SET auth = ?, outbound_auth = ? WHERE id = ?`, [
         newAuth,
         newAuth,
         newPjsip,
       ]);
-      await conn.query(`INSERT INTO ps_registrations (id, client_uri, server_uri, outbound_auth) VALUES (?, ?, ?, ?)`, [
-        newReg,
-        `sip:${user}@${newIp}:${newPorta}`,
-        `sip:${newIp}:${newPorta}`,
-        newAuth,
-      ]);
+      await conn.query(
+        `INSERT INTO ps_registrations (id, client_uri, server_uri, outbound_auth) VALUES (?, ?, ?, ?)`,
+        [newReg, `sip:${user}@${newIp}:${newPorta}`, `sip:${newIp}:${newPorta}`, newAuth],
+      );
     } else if (!wantsReg && wasReg) {
-      await conn.query(`UPDATE ps_endpoints SET auth = NULL, outbound_auth = NULL WHERE id = ?`, [newPjsip]);
+      await conn.query(`UPDATE ps_endpoints SET auth = NULL, outbound_auth = NULL WHERE id = ?`, [
+        newPjsip,
+      ]);
       await conn.query(`DELETE FROM ps_registrations WHERE id = ?`, [newReg]);
       await conn.query(`DELETE FROM ps_auths WHERE id = ?`, [newAuth]);
     } else if (wantsReg && wasReg) {
       // update creds/uris
       const user = newLogin || slug;
       const pw = newSenha || t.senha || genPassword();
-      await conn.query(`UPDATE ps_auths SET username = ?, password = ? WHERE id = ?`, [user, pw, newAuth]);
-      await conn.query(`UPDATE ps_registrations SET client_uri = ?, server_uri = ?, outbound_auth = ? WHERE id = ?`, [
-        `sip:${user}@${newIp}:${newPorta}`,
-        `sip:${newIp}:${newPorta}`,
+      await conn.query(`UPDATE ps_auths SET username = ?, password = ? WHERE id = ?`, [
+        user,
+        pw,
         newAuth,
-        newReg,
       ]);
+      await conn.query(
+        `UPDATE ps_registrations SET client_uri = ?, server_uri = ?, outbound_auth = ? WHERE id = ?`,
+        [`sip:${user}@${newIp}:${newPorta}`, `sip:${newIp}:${newPorta}`, newAuth, newReg],
+      );
     }
 
     await conn.query(
@@ -1578,20 +1719,20 @@ app.put("/troncos/:pjsip", async (req, res) => {
          WHERE tenant_id = ?
          AND tronco = ?`,
         [newPjsip, tenant, oldPjsip],
-  );
-}
+      );
+    }
 
-    const mudouNomeOuIp = (newPjsip !== oldPjsip) || (newIp !== t.ip);
-    const mudouEstadoReg = (wantsReg !== wasReg);
-    const mudouDadosReg = wantsReg && wasReg && (
-      (newSenha && newSenha !== t.senha) ||
-      (newLogin && newLogin !== t.login)
-    );
+    const mudouNomeOuIp = newPjsip !== oldPjsip || newIp !== t.ip;
+    const mudouEstadoReg = wantsReg !== wasReg;
+    const mudouDadosReg =
+      wantsReg &&
+      wasReg &&
+      ((newSenha && newSenha !== t.senha) || (newLogin && newLogin !== t.login));
     const precisaReload = mudouNomeOuIp || mudouEstadoReg || mudouDadosReg;
 
     await conn.commit();
 
-    if(precisaReload) amiPjsipReload();
+    if (precisaReload) amiPjsipReload();
 
     res.json({ ok: true, tronco_pjsip: newPjsip });
   } catch (e) {
@@ -1609,10 +1750,10 @@ app.delete("/troncos/:pjsip", async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT tronco_pjsip, registrar FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ?`, [
-      tenant,
-      pjsip,
-    ]);
+    const [rows] = await conn.query(
+      `SELECT tronco_pjsip, registrar FROM troncos WHERE tenant_id = ? AND tronco_pjsip = ?`,
+      [tenant, pjsip],
+    );
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Tronco não encontrado" });
@@ -1623,7 +1764,10 @@ app.delete("/troncos/:pjsip", async (req, res) => {
     await conn.query(`DELETE FROM ps_endpoints       WHERE id = ?`, [pj]);
     await conn.query(`DELETE FROM ps_auths           WHERE id = ?`, [`auth-${pj}`]);
     await conn.query(`DELETE FROM ps_aors            WHERE id = ?`, [`${pj}-aor`]);
-    await conn.query(`DELETE FROM troncos            WHERE tenant_id = ? AND tronco_pjsip = ?`, [tenant, pjsip]);
+    await conn.query(`DELETE FROM troncos            WHERE tenant_id = ? AND tronco_pjsip = ?`, [
+      tenant,
+      pjsip,
+    ]);
     await conn.commit();
     amiPjsipReload();
     res.json({ ok: true });
@@ -1656,7 +1800,9 @@ app.post("/blacklist", async (req, res) => {
   if (!tenant) return;
   const { regra, tipo, destino, motivo, data_hora_desbloqueio } = req.body || {};
   if (!regra || !tipo || !destino || !data_hora_desbloqueio) {
-    return res.status(400).json({ error: "regra, tipo, destino e data_hora_desbloqueio obrigatórios" });
+    return res
+      .status(400)
+      .json({ error: "regra, tipo, destino e data_hora_desbloqueio obrigatórios" });
   }
   try {
     const [r] = await pool.query(
@@ -1675,62 +1821,63 @@ app.put("/blacklist/:destino/:regra/:tipo", async (req, res) => {
   if (!tenant) return;
   const destinoAtual = req.params.destino;
   const regraAtual = req.params.regra;
-  const tipoAtual = req.params.tipo
-  if (!destinoAtual || !regraAtual || !tipoAtual) return res.status(400).json({ error: "regra, tipo, destino obrigatórios" });
+  const tipoAtual = req.params.tipo;
+  if (!destinoAtual || !regraAtual || !tipoAtual)
+    return res.status(400).json({ error: "regra, tipo, destino obrigatórios" });
   const { regra, tipo, destino, motivo, data_hora_desbloqueio, ativo } = req.body || {};
   try {
     const [b] = await pool.query(
       `SELECT * FROM blacklist
        WHERE destino = ? AND tenant_id = ? AND regra = ? AND tipo = ?`,
-       [destinoAtual, tenant, regraAtual, tipoAtual],
+      [destinoAtual, tenant, regraAtual, tipoAtual],
     );
 
-  if (!b.length) return res.status(404).json({ error: "Regra de blacklist não encontrada." });
+    if (!b.length) return res.status(404).json({ error: "Regra de blacklist não encontrada." });
 
-  const sets = []
-  const vals = []
+    const sets = [];
+    const vals = [];
 
-  if (regra !== undefined) {
-    sets.push("regra = ?");
-    vals.push(regra);
-  }
-  if (tipo !== undefined) {
-    sets.push("tipo = ?");
-    vals.push(tipo);
-  }
-  if (destino !== undefined) {
-    sets.push("destino = ?");
-    vals.push(destino);
-  }
-  if (motivo !== undefined) {
-    sets.push("motivo = ?");
-    vals.push(motivo);
-  }
-  if (data_hora_desbloqueio !== undefined) {
-    sets.push("data_hora_desbloqueio = ?");
-    vals.push(data_hora_desbloqueio);
-  }
-  if (ativo !== undefined) {
-    sets.push("ativo = ?");
-    vals.push(ativo);
-  }
-  if (!sets.length) {
-    return res.json({ ok: true });
-  }
+    if (regra !== undefined) {
+      sets.push("regra = ?");
+      vals.push(regra);
+    }
+    if (tipo !== undefined) {
+      sets.push("tipo = ?");
+      vals.push(tipo);
+    }
+    if (destino !== undefined) {
+      sets.push("destino = ?");
+      vals.push(destino);
+    }
+    if (motivo !== undefined) {
+      sets.push("motivo = ?");
+      vals.push(motivo);
+    }
+    if (data_hora_desbloqueio !== undefined) {
+      sets.push("data_hora_desbloqueio = ?");
+      vals.push(data_hora_desbloqueio);
+    }
+    if (ativo !== undefined) {
+      sets.push("ativo = ?");
+      vals.push(ativo);
+    }
+    if (!sets.length) {
+      return res.json({ ok: true });
+    }
 
-  await pool.query(
-    `UPDATE blacklist
+    await pool.query(
+      `UPDATE blacklist
         SET ${sets.join(", ")}
       WHERE destino = ?
         AND tenant_id = ?
         AND regra = ?
         AND tipo = ?`,
-     [ ...vals, destinoAtual, tenant, regraAtual, tipoAtual]);
+      [...vals, destinoAtual, tenant, regraAtual, tipoAtual],
+    );
 
-  res.json({ ok: true });
-
+    res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({error: String(e.message || e) });
+    res.status(500).json({ error: String(e.message || e) });
   }
 });
 
@@ -1741,7 +1888,10 @@ app.delete("/blacklist/:destino/:regra/:tipo", async (req, res) => {
   const regra = req.params.regra;
   const tipo = req.params.tipo;
   try {
-    await pool.query(`DELETE FROM blacklist WHERE destino = ? AND tenant_id = ? AND regra = ? AND tipo = ?`, [destino, tenant, regra, tipo]);
+    await pool.query(
+      `DELETE FROM blacklist WHERE destino = ? AND tenant_id = ? AND regra = ? AND tipo = ?`,
+      [destino, tenant, regra, tipo],
+    );
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -1763,12 +1913,12 @@ function cdrFilteredEndpoint(p, cfg) {
     for (const [key, col] of Object.entries(cfg.filters || {})) {
       const v = req.query[key];
       if (v !== undefined && v !== null && String(v).trim() !== "") {
-          if (exactFilters.has(key)) {
+        if (exactFilters.has(key)) {
           where.push(`${col} = ?`);
           vals.push(`${String(v).trim()}`);
         } else {
-           where.push(`${col} LIKE ?`);
-           vals.push(`%${String(v).trim()}%`);
+          where.push(`${col} LIKE ?`);
+          vals.push(`%${String(v).trim()}%`);
         }
       }
     }
@@ -1785,8 +1935,7 @@ function cdrFilteredEndpoint(p, cfg) {
       }
     }
     if (req.query.rank === "true") {
-
-        const sql = `
+      const sql = `
             SELECT
                 ${cfg.rankCol} AS nome,
                 COUNT(*) AS total
@@ -1797,23 +1946,29 @@ function cdrFilteredEndpoint(p, cfg) {
             LIMIT 5
         `;
 
-        try {
-            const [rows] = await pool.query(sql, vals);
-            return res.json({ rows });
-        } catch (e) {
-            return res.status(500).json({ error: String(e.message || e) });
-        }
+      try {
+        const [rows] = await pool.query(sql, vals);
+        return res.json({ rows });
+      } catch (e) {
+        return res.status(500).json({ error: String(e.message || e) });
+      }
     }
 
     const orderCol = cfg.order || "id";
     const from = cfg.from ?? cfg.table;
-    const countSql = `SELECT COUNT(*) AS total FROM ${from} WHERE ${where.join(" AND ")}`
+    const countSql = `SELECT COUNT(*) AS total FROM ${from} WHERE ${where.join(" AND ")}`;
     const sql = `SELECT ${cfg.select} FROM ${from} WHERE ${where.join(" AND ")} ORDER BY ${orderCol} DESC LIMIT ? OFFSET ?`;
     const dataVals = [...vals, limit, offset];
     try {
       const [[count]] = await pool.query(countSql, vals);
       const [rows] = await pool.query(sql, dataVals);
-      res.json({ rows, total: count.total, page, limit, totalPages: Math.ceil(count.total / limit), });
+      res.json({
+        rows,
+        total: count.total,
+        page,
+        limit,
+        totalPages: Math.ceil(count.total / limit),
+      });
     } catch (e) {
       res.status(500).json({ error: String(e.message || e) });
     }
@@ -1829,7 +1984,8 @@ cdrFilteredEndpoint("/cdr/entrada", {
   filters: { linkedid: "linkedid", origem: "origem", destino: "num_destino", status: "status" },
 });
 cdrFilteredEndpoint("/cdr/ramal", {
-  select: "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, COALESCE(rd.nome, c.destino) AS destino, COALESCE(ro.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.nome_gravacao, c.duracao, c.date_time",
+  select:
+    "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, COALESCE(rd.nome, c.destino) AS destino, COALESCE(ro.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.nome_gravacao, c.duracao, c.date_time",
   from: `cdr_ramal c
          LEFT JOIN ramais ro ON ro.tenant_id = c.tenant_id AND ro.endpoint_id = c.origem
          LEFT JOIN ramais rd ON rd.tenant_id = c.tenant_id AND rd.endpoint_id = c.destino
@@ -1838,20 +1994,33 @@ cdrFilteredEndpoint("/cdr/ramal", {
   dateCol: "c.date_time",
   tenantCol: "c.tenant_id",
   exactFilters: ["status"],
-  filters: { linkedid: "c.linkedid", origem: "CONCAT(COALESCE(ro.nome, ''), ' ', c.origem)", destino: "CONCAT(COALESCE(rd.nome, ''), ' ', c.destino)", status: "c.status", tipo: "c.tipo_chamada" },
+  filters: {
+    linkedid: "c.linkedid",
+    origem: "CONCAT(COALESCE(ro.nome, ''), ' ', c.origem)",
+    destino: "CONCAT(COALESCE(rd.nome, ''), ' ', c.destino)",
+    status: "c.status",
+    tipo: "c.tipo_chamada",
+  },
 });
 cdrFilteredEndpoint("/cdr/fila", {
-  select: "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.nome_gravacao, c.time_data",
+  select:
+    "c.id, c.linkedid, f.display_name, COALESCE(r.nome, c.ramal) agente, c.evento, c.motivo, c.nome_gravacao, c.time_data",
   from: `cdr_fila c LEFT JOIN filas f ON c.tenant_id = f.tenant_id AND c.nome_fila = f.id
   LEFT JOIN ramais r ON r.tenant_id = c.tenant_id AND r.endpoint_id = c.ramal`,
   order: "c.time_data",
   dateCol: "c.time_data",
   tenantCol: "c.tenant_id",
   exactFilters: ["status"],
-  filters: { linkedid: "linkedid", origem: "CONCAT(COALESCE(r.nome, ''), ' ', c.ramal)", destino: "ramal", status: "evento" },
+  filters: {
+    linkedid: "linkedid",
+    origem: "CONCAT(COALESCE(r.nome, ''), ' ', c.ramal)",
+    destino: "ramal",
+    status: "evento",
+  },
 });
 cdrFilteredEndpoint("/cdr/ura", {
-  select: "c.id, c.linkedid, c.num_did, u.nome, c.opcao, c.dest_op, COALESCE(r.nome, f.display_name, u2.nome, c.dest_nome) AS destino_nome, c.date_time",
+  select:
+    "c.id, c.linkedid, c.num_did, u.nome, c.opcao, c.dest_op, COALESCE(r.nome, f.display_name, u2.nome, c.dest_nome) AS destino_nome, c.date_time",
   from: `cdr_ura c LEFT JOIN uras u ON c.tenant_id = u.tenant_id AND u.id = c.nome_ura
   LEFT JOIN ramais r ON c.dest_op = 'RAMAL' AND r.tenant_id = c.tenant_id AND r.ramal = c.dest_nome
   LEFT JOIN filas f ON c.dest_op = 'FILA' AND f.tenant_id = c.tenant_id AND f.id = c.dest_nome
@@ -1862,7 +2031,8 @@ cdrFilteredEndpoint("/cdr/ura", {
   filters: { linkedid: "c.linkedid", origem: "c.num_did", destino: "c.opcao", status: "u.nome" },
 });
 cdrFilteredEndpoint("/cdr/cidades/entrada", {
-  select: "cde.id, cde.linkedid, cde.ddd, cde.numero, cde.sigla_estado, cd.estado, cr.tipo_chamada, cr.status, cde.data_hora",
+  select:
+    "cde.id, cde.linkedid, cde.ddd, cde.numero, cde.sigla_estado, cd.estado, cr.tipo_chamada, cr.status, cde.data_hora",
   from: `cdr_cidades_entrada cde LEFT JOIN cdr_ramal cr ON cde.linkedid = cr.linkedid AND cde.tenant_id = cr.tenant_id
          LEFT JOIN cidades_ddd cd ON cde.ddd = cd.ddd`,
   order: "cde.data_hora",
@@ -1870,10 +2040,17 @@ cdrFilteredEndpoint("/cdr/cidades/entrada", {
   rankCol: "cde.ddd",
   tenantCol: "cde.tenant_id",
   exactFilters: ["cde.status", "cde.sigla_estado"],
-  filters: { origem: "cde.numero", destino: "cde.numero", tipo: "cr.tipo_chamada", status: "cr.status", sigla_estado: "cde.sigla_estado" },
+  filters: {
+    origem: "cde.numero",
+    destino: "cde.numero",
+    tipo: "cr.tipo_chamada",
+    status: "cr.status",
+    sigla_estado: "cde.sigla_estado",
+  },
 });
 cdrFilteredEndpoint("/cdr/cidades/saida", {
-  select: "cds.id, cds.linkedid, cds.ddd, cds.numero, cds.sigla_estado, cd.estado, cr.tipo_chamada, cr.status, cds.data_hora",
+  select:
+    "cds.id, cds.linkedid, cds.ddd, cds.numero, cds.sigla_estado, cd.estado, cr.tipo_chamada, cr.status, cds.data_hora",
   from: `cdr_cidades_saida cds LEFT JOIN cdr_ramal cr ON cds.linkedid = cr.linkedid AND cds.tenant_id = cr.tenant_id
          LEFT JOIN cidades_ddd cd ON cds.ddd = cd.ddd`,
   order: "cds.data_hora",
@@ -1881,9 +2058,14 @@ cdrFilteredEndpoint("/cdr/cidades/saida", {
   rankCol: "cds.ddd",
   tenantCol: "cds.tenant_id",
   exactFilters: ["cds.status", "cds.sigla_estado"],
-  filters: { origem: "cds.numero", destino: "cds.numero", tipo: "cr.tipo_chamada", status: "cr.status", sigla_estado: "cds.sigla_estado" },
+  filters: {
+    origem: "cds.numero",
+    destino: "cds.numero",
+    tipo: "cr.tipo_chamada",
+    status: "cr.status",
+    sigla_estado: "cds.sigla_estado",
+  },
 });
-
 
 // ---------- Filas (gestão) ----------
 app.get("/filas", async (req, res) => {
@@ -1902,7 +2084,14 @@ app.get("/filas", async (req, res) => {
         ORDER BY f.created_at ASC`,
       [String(tenant)],
     );
-    res.json({ filas: rows.map((r) => ({ ...r, gravacao: !!r.gravacao, ativo: !!r.ativo, pesquisa: !!r.pesquisa })) });
+    res.json({
+      filas: rows.map((r) => ({
+        ...r,
+        gravacao: !!r.gravacao,
+        ativo: !!r.ativo,
+        pesquisa: !!r.pesquisa,
+      })),
+    });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -1929,10 +2118,10 @@ app.get("/filas/:name/agentes", async (req, res) => {
       [tenant, fila.name],
     );
 
-    const [queueRows] = await pool.query(`SELECT * FROM queues WHERE tenant_id = ? AND name = ? LIMIT 1`, [
-      String(tenant),
-      fila.name,
-    ]);
+    const [queueRows] = await pool.query(
+      `SELECT * FROM queues WHERE tenant_id = ? AND name = ? LIMIT 1`,
+      [String(tenant), fila.name],
+    );
 
     res.json({
       fila: { ...fila, ativo: !!fila.ativo },
@@ -2020,7 +2209,9 @@ app.put("/filas/agentes/:id", async (req, res) => {
 
     await queuePenalty({ queue: a.queue, interface: a.interface, penalty });
     await pool.query(`UPDATE filas_agentes SET penalty = ? WHERE id = ? AND tenant_id = ?`, [
-      penalty, id, tenant,
+      penalty,
+      id,
+      tenant,
     ]);
     res.json({ ok: true });
   } catch (e) {
@@ -2093,13 +2284,23 @@ app.post("/filas", async (req, res) => {
     await conn.query(
       `INSERT INTO filas (tenant_id, name, display_name, fila_timeout, description, gravacao, ativo, pesquisa, pesquisa_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [String(tenant), name, display_name, fila_timeout || null, description || null, gravacao ? 1 : 0 , ativo ? 1 : 0, pesquisaInt, pesquisaIdVal],
+      [
+        String(tenant),
+        name,
+        display_name,
+        fila_timeout || null,
+        description || null,
+        gravacao ? 1 : 0,
+        ativo ? 1 : 0,
+        pesquisaInt,
+        pesquisaIdVal,
+      ],
     );
 
     await conn.query(
       `INSERT INTO queues (tenant_id, name, musiconhold, strategy, timeout, retry, ringinuse)
        VALUES (?, ?, 'musiconhold-default', ?, ?, ?, ?)`,
-      [String(tenant), name, strategy, Number(timeout) || 0, Number(retry), ringinuse ?? "no",]
+      [String(tenant), name, strategy, Number(timeout) || 0, Number(retry), ringinuse ?? "no"],
     );
 
     await conn.commit();
@@ -2117,15 +2318,30 @@ app.post("/filas", async (req, res) => {
 app.put("/filas/:name", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const name =req.params.name;
-  const { display_name, description, strategy, timeout, fila_timeout, retry, ringinuse, gravacao, ativo, pesquisa, pesquisa_id } = req.body || {};
+  const name = req.params.name;
+  const {
+    display_name,
+    description,
+    strategy,
+    timeout,
+    fila_timeout,
+    retry,
+    ringinuse,
+    gravacao,
+    ativo,
+    pesquisa,
+    pesquisa_id,
+  } = req.body || {};
   if (strategy !== undefined && !QUEUE_STRATEGIES.includes(strategy)) {
     return res.status(400).json({ error: "Estratégia inválida" });
   }
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT * FROM filas WHERE name = ? AND tenant_id = ?`, [name, String(tenant)]);
+    const [rows] = await conn.query(`SELECT * FROM filas WHERE name = ? AND tenant_id = ?`, [
+      name,
+      String(tenant),
+    ]);
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Fila não encontrada" });
@@ -2153,7 +2369,12 @@ app.put("/filas/:name", async (req, res) => {
     if (pesquisa !== undefined) {
       pesquisaIntUpdate = pesquisa ? 1 : 0;
       pesquisaIdUpdate = pesquisaIntUpdate && pesquisa_id ? Number(pesquisa_id) : null;
-      const pesquisaErr = await validatePesquisaId(conn, tenant, pesquisaIntUpdate, pesquisaIdUpdate);
+      const pesquisaErr = await validatePesquisaId(
+        conn,
+        tenant,
+        pesquisaIntUpdate,
+        pesquisaIdUpdate,
+      );
       if (pesquisaErr) {
         await conn.rollback();
         return res.status(400).json({ error: pesquisaErr });
@@ -2182,22 +2403,40 @@ app.put("/filas/:name", async (req, res) => {
 
     if (nameChanged) {
       await conn.query(`UPDATE queues SET name = ? WHERE tenant_id = ? AND name = ?`, [
-        newName, String(tenant), oldName,
+        newName,
+        String(tenant),
+        oldName,
       ]);
       await conn.query(`UPDATE filas_agentes SET queue = ? WHERE tenant_id = ? AND queue = ?`, [
-        newName, tenant, oldName,
+        newName,
+        tenant,
+        oldName,
       ]);
     }
 
     if (strategy !== undefined || timeout !== undefined) {
       const sets = [];
       const vals = [];
-      if (strategy !== undefined) { sets.push("strategy = ?"); vals.push(strategy); }
-      if (timeout !== undefined) { sets.push("timeout = ?"); vals.push(Number(timeout) || 0); }
-      if (retry !== undefined) { sets.push("retry = ?"); vals.push(Number(retry) || 0); }
-      if (ringinuse !== undefined) { sets.push("ringinuse = ?"); vals.push(ringinuse); }
+      if (strategy !== undefined) {
+        sets.push("strategy = ?");
+        vals.push(strategy);
+      }
+      if (timeout !== undefined) {
+        sets.push("timeout = ?");
+        vals.push(Number(timeout) || 0);
+      }
+      if (retry !== undefined) {
+        sets.push("retry = ?");
+        vals.push(Number(retry) || 0);
+      }
+      if (ringinuse !== undefined) {
+        sets.push("ringinuse = ?");
+        vals.push(ringinuse);
+      }
       await conn.query(`UPDATE queues SET ${sets.join(", ")} WHERE tenant_id = ? AND name = ?`, [
-        ...vals, String(tenant), newName,
+        ...vals,
+        String(tenant),
+        newName,
       ]);
     }
 
@@ -2228,7 +2467,10 @@ app.delete("/filas/:name", async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query(`SELECT * FROM filas WHERE name = ? AND tenant_id = ?`, [name, String(tenant)]);
+    const [rows] = await conn.query(`SELECT * FROM filas WHERE name = ? AND tenant_id = ?`, [
+      name,
+      String(tenant),
+    ]);
     if (!rows.length) {
       await conn.rollback();
       return res.status(404).json({ error: "Fila não encontrada" });
@@ -2245,7 +2487,10 @@ app.delete("/filas/:name", async (req, res) => {
       try {
         await amiCommand(`queue remove member ${a.interface} from ${f.name}`);
       } catch (e) {
-        console.error(`[ami] remover agente ${a.interface} da fila ${f.name} falhou:`, e.message || e);
+        console.error(
+          `[ami] remover agente ${a.interface} da fila ${f.name} falhou:`,
+          e.message || e,
+        );
       }
     }
 
@@ -2321,7 +2566,10 @@ app.get("/uras", async (req, res) => {
         `SELECT ura_identifier, digito, tipo_destino, destino FROM ura_opcoes WHERE ura_identifier = ? ORDER BY digito`,
         [u.ura_identifier],
       );
-      u.opcoes = opts.map((o) => ({ ...o, tipo_destino: String(o.tipo_destino || "").toUpperCase() }));
+      u.opcoes = opts.map((o) => ({
+        ...o,
+        tipo_destino: String(o.tipo_destino || "").toUpperCase(),
+      }));
     }
     res.json({ uras });
   } catch (e) {
@@ -2337,9 +2585,10 @@ app.get("/uras/destinos", async (req, res) => {
       `SELECT name AS value, display_name AS label FROM filas WHERE tenant_id = ? ORDER BY display_name`,
       [String(tenant)],
     );
-    const [uras] = await pool.query(`SELECT ura_identifier AS value, nome AS label FROM uras WHERE tenant_id = ? ORDER BY nome`, [
-      tenant,
-    ]);
+    const [uras] = await pool.query(
+      `SELECT ura_identifier AS value, nome AS label FROM uras WHERE tenant_id = ? ORDER BY nome`,
+      [tenant],
+    );
     const [ramais] = await pool.query(
       `SELECT endpoint_id AS value, nome AS label FROM ramais WHERE tenant_id = ? ORDER BY endpoint_id`,
       [tenant],
@@ -2356,7 +2605,9 @@ app.get("/uras/destinos", async (req, res) => {
     try {
       const dir = path.join(SOUNDS_BASE, `t${tenant}`);
       const files = await fs.readdir(dir);
-      audios = files.filter((f) => f.toLowerCase().endsWith(".wav")).map((f) => f.replace(/\.wav$/i, ""));
+      audios = files
+        .filter((f) => f.toLowerCase().endsWith(".wav"))
+        .map((f) => f.replace(/\.wav$/i, ""));
     } catch (_) {}
     res.json({ filas, uras, ramais, troncos, regras, audios });
   } catch (e) {
@@ -2370,17 +2621,32 @@ app.post("/uras", async (req, res) => {
   if (!tenant) return;
   const { nome, audio, max_digits, tentativas, timeout, ativo } = req.body || {};
   if (!nome || !audio || max_digits == null || tentativas == null || timeout == null) {
-    return res.status(400).json({ error: "nome, audio, max_digits, tentativas, timeout obrigatórios" });
+    return res
+      .status(400)
+      .json({ error: "nome, audio, max_digits, tentativas, timeout obrigatórios" });
   }
   const slug = slugName(nome);
   const uraIdentifier = `u${tenant}-${slug}`;
   try {
-    const [dup] = await pool.query(`SELECT ura_identifier FROM uras WHERE tenant_id = ? AND nome = ? LIMIT 1`, [tenant, nome]);
-    if (dup.length) return res.status(409).json({ error: "Já existe uma URA com esse nome neste tenant" });
+    const [dup] = await pool.query(
+      `SELECT ura_identifier FROM uras WHERE tenant_id = ? AND nome = ? LIMIT 1`,
+      [tenant, nome],
+    );
+    if (dup.length)
+      return res.status(409).json({ error: "Já existe uma URA com esse nome neste tenant" });
     const [r] = await pool.query(
       `INSERT INTO uras (ura_identifier, tenant_id, nome, audio, max_digits, tentativas, timeout, ativo)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [uraIdentifier, tenant, nome, audio, Number(max_digits), Number(tentativas), Number(timeout), ativo ? 1 : 0],
+      [
+        uraIdentifier,
+        tenant,
+        nome,
+        audio,
+        Number(max_digits),
+        Number(tentativas),
+        Number(timeout),
+        ativo ? 1 : 0,
+      ],
     );
     res.json({ ok: true, ura_identifier: r.ura_identifier });
   } catch (e) {
@@ -2412,7 +2678,10 @@ app.put("/uras/:ura_identifier", async (req, res) => {
   }
   if (!sets.length) return res.json({ ok: true });
   try {
-    const [current] = await pool.query(`SELECT nome FROM uras WHERE tenant_id = ? AND ura_identifier = ? LIMIT 1`, [tenant, uraIdentifier]);
+    const [current] = await pool.query(
+      `SELECT nome FROM uras WHERE tenant_id = ? AND ura_identifier = ? LIMIT 1`,
+      [tenant, uraIdentifier],
+    );
     if (!current.length) return res.status(404).json({ error: "URA não encontrada" });
 
     const nomeAtual = current[0].nome;
@@ -2421,15 +2690,24 @@ app.put("/uras/:ura_identifier", async (req, res) => {
 
     const newIdentifier = nomeMudou ? `u${tenant}-${slugName(nomeNovo)}` : uraIdentifier;
 
-    if(nomeMudou) {
-      const [dup] = await pool.query(`SELECT ura_identifier FROM uras WHERE tenant_id = ? AND nome = ? AND ura_identifier <> ? LIMIT 1`, [tenant, nome, uraIdentifier]);
+    if (nomeMudou) {
+      const [dup] = await pool.query(
+        `SELECT ura_identifier FROM uras WHERE tenant_id = ? AND nome = ? AND ura_identifier <> ? LIMIT 1`,
+        [tenant, nome, uraIdentifier],
+      );
       if (!dup.length) return res.status(409).json({ error: "" });
 
-    sets.push("ura_identifier = ?");
-    vals.push(newIdentifier);
-   }
-    await pool.query(`UPDATE uras SET ${sets.join(", ")} WHERE ura_identifier = ? AND tenant_id = ?`, [...vals, uraIdentifier, tenant]);
-    await pool.query(`UPDATE ura_opcoes SET ura_identifier = ? WHERE ura_identifier = ?`, [newIdentifier, uraIdentifier]);
+      sets.push("ura_identifier = ?");
+      vals.push(newIdentifier);
+    }
+    await pool.query(
+      `UPDATE uras SET ${sets.join(", ")} WHERE ura_identifier = ? AND tenant_id = ?`,
+      [...vals, uraIdentifier, tenant],
+    );
+    await pool.query(`UPDATE ura_opcoes SET ura_identifier = ? WHERE ura_identifier = ?`, [
+      newIdentifier,
+      uraIdentifier,
+    ]);
     res.json({ ok: true, ura_identifier: newIdentifier });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2442,7 +2720,10 @@ app.delete("/uras/:ura_identifier", async (req, res) => {
   const uraIdentifier = req.params.ura_identifier;
   try {
     await pool.query(`DELETE FROM ura_opcoes WHERE ura_identifier = ?`, [uraIdentifier]);
-    await pool.query(`DELETE FROM uras WHERE ura_identifier = ? AND tenant_id = ?`, [uraIdentifier, tenant]);
+    await pool.query(`DELETE FROM uras WHERE ura_identifier = ? AND tenant_id = ?`, [
+      uraIdentifier,
+      tenant,
+    ]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2454,17 +2735,19 @@ app.post("/uras/:ura_identifier/opcoes", async (req, res) => {
   if (!tenant) return;
   const uraIdentifier = req.params.ura_identifier;
   const { digito, tipo_destino, destino } = req.body || {};
-  if (!tipo_destino || !destino) return res.status(400).json({ error: "tipo_destino e destino obrigatórios" });
+  if (!tipo_destino || !destino)
+    return res.status(400).json({ error: "tipo_destino e destino obrigatórios" });
   try {
-    const [own] = await pool.query(`SELECT ura_identifier FROM uras WHERE ura_identifier = ? AND tenant_id = ?`, [uraIdentifier, tenant]);
+    const [own] = await pool.query(
+      `SELECT ura_identifier FROM uras WHERE ura_identifier = ? AND tenant_id = ?`,
+      [uraIdentifier, tenant],
+    );
     if (!own.length) return res.status(404).json({ error: "URA não encontrada" });
     const digitoValor = String(digito ?? "");
-    const [r] = await pool.query(`INSERT INTO ura_opcoes (ura_identifier, digito, tipo_destino, destino) VALUES (?, ?, ?, ?)`, [
-      uraIdentifier,
-      digitoValor,
-      String(tipo_destino).toUpperCase(),
-      String(destino),
-    ]);
+    const [r] = await pool.query(
+      `INSERT INTO ura_opcoes (ura_identifier, digito, tipo_destino, destino) VALUES (?, ?, ?, ?)`,
+      [uraIdentifier, digitoValor, String(tipo_destino).toUpperCase(), String(destino)],
+    );
     res.json({ ok: true, ura_identifier: uraIdentifier, digito: digitoValor });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2530,7 +2813,11 @@ app.put("/uras/:ura_identifier/ativo", async (req, res) => {
   if (!uraIdentifier) return;
 
   try {
-    await pool.query(`UPDATE uras SET ativo = ? WHERE ura_identifier = ? AND tenant_id = ?`, [ativo, uraIdentifier, tenant]);
+    await pool.query(`UPDATE uras SET ativo = ? WHERE ura_identifier = ? AND tenant_id = ?`, [
+      ativo,
+      uraIdentifier,
+      tenant,
+    ]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2571,9 +2858,11 @@ app.post("/roteamento", async (req, res) => {
       `INSERT INTO roteamento (numero, tenant_id, tipo_destino, destino, descricao) VALUES (?, ?, ?, ?, ?)`,
       [numero, tenant, tipo, dest, descricao ?? null],
     );
-    res.json({ ok: true, numero: numero, });
+    res.json({ ok: true, numero: numero });
   } catch (e) {
-    if (e.code === "ER_DUP_ENTRY") {return res.status(409).json({error: "Número já possui roteamento (edite)." });}
+    if (e.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ error: "Número já possui roteamento (edite)." });
+    }
     res.status(500).json({ error: String(e.message || e) });
   }
 });
@@ -2581,7 +2870,7 @@ app.post("/roteamento", async (req, res) => {
 app.put("/roteamento/:numero", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
-  const numeroAtual = req.params.numero
+  const numeroAtual = req.params.numero;
   const { numero, tipo_destino, destino, descricao } = req.body || {};
   const sets = [];
   const vals = [];
@@ -2618,11 +2907,10 @@ app.put("/roteamento/:numero", async (req, res) => {
   }
   if (!sets.length) return res.json({ ok: true });
   try {
-    await pool.query(`UPDATE roteamento SET ${sets.join(", ")} WHERE numero = ? AND tenant_id = ?`, [
-      ...vals,
-      numeroAtual,
-      tenant,
-    ]);
+    await pool.query(
+      `UPDATE roteamento SET ${sets.join(", ")} WHERE numero = ? AND tenant_id = ?`,
+      [...vals, numeroAtual, tenant],
+    );
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2633,7 +2921,10 @@ app.delete("/roteamento/:numero", async (req, res) => {
   const tenant = getTenant(req, res);
   if (!tenant) return;
   try {
-    await pool.query(`DELETE FROM roteamento WHERE id = ? AND tenant_id = ?`, [Number(req.params.id), tenant]);
+    await pool.query(`DELETE FROM roteamento WHERE id = ? AND tenant_id = ?`, [
+      Number(req.params.id),
+      tenant,
+    ]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2647,7 +2938,12 @@ app.get("/cdr/pesquisa", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 500, 5000);
   const where = ["(ps.tenant_id = ? OR ps.tenant_id IS NULL)"];
   const vals = [tenant];
-  const map = { linkedid: "p.linkedid", origem: "COALESCE(ro.nome, p.origem)", destino: "COALESCE(rd.nome, p.destino)", status: "COALESCE(f.display_name, p.fila)" };
+  const map = {
+    linkedid: "p.linkedid",
+    origem: "COALESCE(ro.nome, p.origem)",
+    destino: "COALESCE(rd.nome, p.destino)",
+    status: "COALESCE(f.display_name, p.fila)",
+  };
   for (const [k, col] of Object.entries(map)) {
     const v = req.query[k];
     if (v !== undefined && String(v).trim() !== "") {
@@ -2707,8 +3003,18 @@ app.get("/regra-horario", async (req, res) => {
 });
 
 function validateRegra(body) {
-  const { nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora } = body || {};
-  if (!nome || !dias || !hora_inicial || !hora_final) return "nome, dias, hora_inicial e hora_final obrigatórios";
+  const {
+    nome,
+    dias,
+    hora_inicial,
+    hora_final,
+    acao_dentro,
+    destino_dentro,
+    acao_fora,
+    destino_fora,
+  } = body || {};
+  if (!nome || !dias || !hora_inicial || !hora_final)
+    return "nome, dias, hora_inicial e hora_final obrigatórios";
   if (!ACAO_ENUM.includes(String(acao_dentro))) return "acao_dentro inválido";
   if (!ACAO_ENUM.includes(String(acao_fora))) return "acao_fora inválido";
   if (!destino_dentro || !destino_fora) return "destinos obrigatórios";
@@ -2788,7 +3094,10 @@ app.delete("/regra-horario/:regra_identifier", async (req, res) => {
   const regraHorario = req.params.regra_identifier;
   if (!regraHorario) return res.status(400).json({ error: "É obrigatório enviar a regra" });
   try {
-    await pool.query(`DELETE FROM regra_horario WHERE regra_identifier = ? AND tenant_id = ?`, [regraHorario, tenant]);
+    await pool.query(`DELETE FROM regra_horario WHERE regra_identifier = ? AND tenant_id = ?`, [
+      regraHorario,
+      tenant,
+    ]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2839,7 +3148,8 @@ app.get("/horario-ramais/:regra/membros", async (req, res) => {
 
 function validateHorarioRamal(body) {
   const { nome, dias, hora_inicial, hora_final } = body || {};
-  if (!nome || !dias || !hora_inicial || !hora_final) return "nome, dias, hora_inicial e hora_final obrigatórios";
+  if (!nome || !dias || !hora_inicial || !hora_final)
+    return "nome, dias, hora_inicial e hora_final obrigatórios";
   return null;
 }
 
@@ -2868,17 +3178,15 @@ app.post("/horario-ramais", async (req, res) => {
         String(b.hora_final),
       ],
     );
-    const regraId = r.insertId;
     for (const ramal of ramais) {
       if (!ramal) continue;
-      await conn.query(`INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`, [
-        regraHoraRamalName,
-        tenant,
-        String(ramal),
-      ]);
+      await conn.query(
+        `INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`,
+        [regraHoraRamalName, tenant, String(ramal)],
+      );
     }
     await conn.commit();
-    res.json({ ok: true, id: regraId });
+    res.json({ ok: true, regra: regraHoraRamalName });
   } catch (e) {
     await conn.rollback();
     res.status(500).json({ error: String(e.message || e) });
@@ -2896,7 +3204,7 @@ app.put("/horario-ramais/:regra", async (req, res) => {
   const regra = req.params.regra;
   const slug = slugName(String(b.nome));
   if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
-  const regraHoraRamalName = `r${tenant}-${slug}`
+  const regraHoraRamalName = `r${tenant}-${slug}`;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -2914,7 +3222,10 @@ app.put("/horario-ramais/:regra", async (req, res) => {
         tenant,
       ],
     );
-    await conn.query(`UPDATE ramais_grupo_horario SET regra = ? WHERE tenant_id = ? AND regra = ?`, [regraHoraRamalName, tenant, regra]);
+    await conn.query(
+      `UPDATE ramais_grupo_horario SET regra = ? WHERE tenant_id = ? AND regra = ?`,
+      [regraHoraRamalName, tenant, regra],
+    );
     await conn.commit();
     res.json({ ok: true });
   } catch (e) {
@@ -2934,12 +3245,18 @@ app.put("/horario-ramais/:regra/membros", async (req, res) => {
   const ramais = Array.isArray(req.body?.ramais) ? req.body.ramais : null;
   const conn = await pool.getConnection();
   try {
-     await conn.beginTransaction();
-     await conn.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [tenant, regra]);
-     for (const ramal of ramais) {
+    await conn.beginTransaction();
+    await conn.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [
+      tenant,
+      regra,
+    ]);
+    for (const ramal of ramais) {
       if (!ramal) continue;
-      await conn.query(`INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`, [regra, tenant, String(ramal)]);
-     }
+      await conn.query(
+        `INSERT INTO ramais_grupo_horario (regra, tenant_id, ramal) VALUES (?, ?, ?)`,
+        [regra, tenant, String(ramal)],
+      );
+    }
     await conn.commit();
     res.json({ ok: true });
   } catch (e) {
@@ -2955,8 +3272,14 @@ app.delete("/horario-ramais/:regra", async (req, res) => {
   if (!tenant) return;
   try {
     const regra = req.params.regra;
-    await pool.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [tenant, regra]);
-    await pool.query(`DELETE FROM regra_horario_ramais WHERE regra = ? AND tenant_id = ?`, [regra, tenant]);
+    await pool.query(`DELETE FROM ramais_grupo_horario WHERE tenant_id = ? AND regra = ?`, [
+      tenant,
+      regra,
+    ]);
+    await pool.query(`DELETE FROM regra_horario_ramais WHERE regra = ? AND tenant_id = ?`, [
+      regra,
+      tenant,
+    ]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -2991,7 +3314,8 @@ function validatePesquisaBody(body) {
   const { nome_pesquisa, quantidade_op, perguntas } = body || {};
   if (!nome_pesquisa || String(nome_pesquisa).trim() === "") return "nome_pesquisa obrigatório";
   const qtd = Number(quantidade_op);
-  if (!Number.isInteger(qtd) || qtd < 1) return "quantidade_op deve ser um número inteiro maior que zero";
+  if (!Number.isInteger(qtd) || qtd < 1)
+    return "quantidade_op deve ser um número inteiro maior que zero";
   if (!Array.isArray(perguntas) || perguntas.length === 0) return "perguntas obrigatórias";
   if (perguntas.length !== qtd) {
     return `quantidade_op (${qtd}) não bate com o número de perguntas enviadas (${perguntas.length})`;
@@ -3000,7 +3324,8 @@ function validatePesquisaBody(body) {
   for (const p of perguntas) {
     if (!p.audio || String(p.audio).trim() === "") return "toda pergunta precisa de um áudio";
     const md = Number(p.max_digit);
-    if (!Number.isInteger(md) || md < 1) return "max_digit deve ser um número inteiro maior que zero";
+    if (!Number.isInteger(md) || md < 1)
+      return "max_digit deve ser um número inteiro maior que zero";
     const ord = Number(p.ordem);
     if (!Number.isInteger(ord) || ord < 1) return "ordem deve ser um número inteiro maior que zero";
     if (ordens.has(ord)) return `ordem ${ord} está repetida entre as perguntas`;
@@ -3071,17 +3396,17 @@ app.put("/pesquisa-satisfacao/:id", async (req, res) => {
     const idsEnviados = perguntas.map((p) => p.id).filter(Boolean);
 
     if (idsEnviados.length > 0) {
-      await conn.query(
-        `DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ? AND id NOT IN (?)`,
-        [id, idsEnviados],
-      );
+      await conn.query(`DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ? AND id NOT IN (?)`, [
+        id,
+        idsEnviados,
+      ]);
     } else {
       // Se não enviou nenhum ID válido, limpa tudo desse id_pesquisa
       await conn.query(`DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ?`, [id]);
     }
 
     for (const p of perguntas) {
-       if (p.id) {
+      if (p.id) {
         // Se já tem ID, faz um UPDATE (preserva estatísticas e chaves estrangeiras)
         await conn.query(
           `UPDATE pesquisa_perguntas
@@ -3115,7 +3440,10 @@ app.delete("/pesquisa-satisfacao/:id", async (req, res) => {
   const id = Number(req.params.id);
   try {
     await pool.query(`DELETE FROM pesquisa_perguntas WHERE id_pesquisa = ?`, [id]);
-    await pool.query(`DELETE FROM pesquisa_satisfacao WHERE id = ? AND tenant_id = ?`, [id, tenant]);
+    await pool.query(`DELETE FROM pesquisa_satisfacao WHERE id = ? AND tenant_id = ?`, [
+      id,
+      tenant,
+    ]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -3123,69 +3451,63 @@ app.delete("/pesquisa-satisfacao/:id", async (req, res) => {
 });
 
 const authMiddleware = (req, res, next) => {
-    // Tenta pegar o tenant_id do header (ou da query string se preferir)
-    const tenantId = req.headers['x-tenant-id'] || req.query.tenant_id;
-    if (!tenantId) {
-        return res.status(401).json({ error: "Faltando identificação do Tenant (x-tenant-id)" });
-    }
-    // Salva no objeto req para a rota usar
-    req.tenantId = tenantId;
-    next();
+  // Tenta pegar o tenant_id do header (ou da query string se preferir)
+  const tenantId = req.headers["x-tenant-id"] || req.query.tenant_id;
+  if (!tenantId) {
+    return res.status(401).json({ error: "Faltando identificação do Tenant (x-tenant-id)" });
+  }
+  // Salva no objeto req para a rota usar
+  req.tenantId = tenantId;
+  next();
 };
 
 app.get("/gravacoes/:tipo/:linkedid", authMiddleware, async (req, res) => {
-    console.log("=== DOWNLOAD GRAVAÇÃO ===");
-    console.log("TIPO:", req.params.tipo);
-    console.log("LINKEDID:", req.params.linkedid);
-    console.log("TENANT:", req.tenantId);
-    try {
-        // Pega o tenant_id injetado pelo authMiddleware
-        const tenant = req.tenantId;
-        const chamadaId = req.params.linkedid;
-        const tipo = req.params.tipo;
+  console.log("=== DOWNLOAD GRAVAÇÃO ===");
+  console.log("TIPO:", req.params.tipo);
+  console.log("LINKEDID:", req.params.linkedid);
+  console.log("TENANT:", req.tenantId);
+  try {
+    // Pega o tenant_id injetado pelo authMiddleware
+    const tenant = req.tenantId;
+    const chamadaId = req.params.linkedid;
+    const tipo = req.params.tipo;
 
-        if (!tenant) {
-            return res.status(401).json({ error: "Tenant não identificado" });
-        }
-
-       // Valida o tipo para evitar manipulação de caminhos injetados (Directory Traversal)
-        if (tipo !== "ramal" && tipo !== "fila") {
-            return res.status(400).json({ error: "Tipo de gravação inválido" });
-        }
-
-        const tabela = tipo === "fila" ? "cdr_fila" : "cdr_ramal";
-
-        //Faz a consulta usando o pool.query no padrão exato do seu arquivo
-        const sql = `SELECT nome_gravacao FROM ${tabela} WHERE linkedid = ? AND tenant_id = ? LIMIT 1`;
-        const [rows] = await pool.query(sql, [chamadaId, tenant]);
-
-        const chamada = rows[0];
-
-        if (!chamada || !chamada.nome_gravacao) {
-            return res.status(404).json({ erro: "Registro de gravação não encontrado no banco" });
-        }
-
-        // Extrai apenas o arquivo final de forma segura (ex: arquivo.wav)
-        const arquivo = `${path.basename(chamada.nome_gravacao)}.wav`;
-        // Monta o caminho completo no disco do Asterisk
-        const caminho = path.join(
-            GRAVACAO_BASE,
-            tipo,
-            `t${tenant}`,
-            arquivo,
-        );
-
-        // 4. Verifica se o arquivo existe e faz o stream dele
-        await fs.access(caminho);
-        res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
-        res.setHeader("Content-Disposition", `attachment; filename="${arquivo}"`);
-        res.setHeader("Content-Type", "audio/wav");
-        fsSync.createReadStream(caminho).pipe(res);
-
-    } catch (err) {
-        console.error("[Erro Gravacao]:", err);
-        res.status(404).json({ erro: "Gravação não encontrada no sistema" });
+    if (!tenant) {
+      return res.status(401).json({ error: "Tenant não identificado" });
     }
+
+    // Valida o tipo para evitar manipulação de caminhos injetados (Directory Traversal)
+    if (tipo !== "ramal" && tipo !== "fila") {
+      return res.status(400).json({ error: "Tipo de gravação inválido" });
+    }
+
+    const tabela = tipo === "fila" ? "cdr_fila" : "cdr_ramal";
+
+    //Faz a consulta usando o pool.query no padrão exato do seu arquivo
+    const sql = `SELECT nome_gravacao FROM ${tabela} WHERE linkedid = ? AND tenant_id = ? LIMIT 1`;
+    const [rows] = await pool.query(sql, [chamadaId, tenant]);
+
+    const chamada = rows[0];
+
+    if (!chamada || !chamada.nome_gravacao) {
+      return res.status(404).json({ erro: "Registro de gravação não encontrado no banco" });
+    }
+
+    // Extrai apenas o arquivo final de forma segura (ex: arquivo.wav)
+    const arquivo = `${path.basename(chamada.nome_gravacao)}.wav`;
+    // Monta o caminho completo no disco do Asterisk
+    const caminho = path.join(GRAVACAO_BASE, tipo, `t${tenant}`, arquivo);
+
+    // 4. Verifica se o arquivo existe e faz o stream dele
+    await fs.access(caminho);
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+    res.setHeader("Content-Disposition", `attachment; filename="${arquivo}"`);
+    res.setHeader("Content-Type", "audio/wav");
+    fsSync.createReadStream(caminho).pipe(res);
+  } catch (err) {
+    console.error("[Erro Gravacao]:", err);
+    res.status(404).json({ erro: "Gravação não encontrada no sistema" });
+  }
 });
 
 app.get("/audios", async (req, res) => {
@@ -3194,7 +3516,9 @@ app.get("/audios", async (req, res) => {
   const dir = path.join(SOUNDS_BASE, `t${tenant}`);
   try {
     const files = await fs.readdir(dir);
-    const identifiers = files.filter((f) => f.toLowerCase().endsWith(".wav")).map((f) => f.replace(/\.wav$/i, ""));
+    const identifiers = files
+      .filter((f) => f.toLowerCase().endsWith(".wav"))
+      .map((f) => f.replace(/\.wav$/i, ""));
 
     if (!identifiers.length) return res.json({ audios: [], dir });
 
@@ -3202,7 +3526,10 @@ app.get("/audios", async (req, res) => {
 
     console.log("ARQUIVOS:", identifiers);
 
-    const [audios] = await pool.query(`SELECT * FROM audios WHERE tenant_id = ? AND audio_identifier IN (${placeholders}) ORDER BY created_at ASC`, [tenant, ...identifiers]);
+    const [audios] = await pool.query(
+      `SELECT * FROM audios WHERE tenant_id = ? AND audio_identifier IN (${placeholders}) ORDER BY created_at ASC`,
+      [tenant, ...identifiers],
+    );
 
     console.log("AUDIOS DO BANCO:", audios);
 
@@ -3221,9 +3548,12 @@ app.post("/audios", async (req, res) => {
     .toLowerCase()
     .replace(/^\./, "");
 
-  if (typeof display_name !== "string" || !display_name.trim()) return res.status(400).json({ error: "Nome do áudio é obrigatório" });
-  if (!["wav", "mp3"].includes(ext)) return res.status(400).json({ error: "Envie um arquivo WAV ou MP3." });
-  if (typeof conteudo_base64 !== "string" || !conteudo_base64) return res.status(400).json({ error: "Arquivo obrigatório." });
+  if (typeof display_name !== "string" || !display_name.trim())
+    return res.status(400).json({ error: "Nome do áudio é obrigatório" });
+  if (!["wav", "mp3"].includes(ext))
+    return res.status(400).json({ error: "Envie um arquivo WAV ou MP3." });
+  if (typeof conteudo_base64 !== "string" || !conteudo_base64)
+    return res.status(400).json({ error: "Arquivo obrigatório." });
 
   const slug = slugName(display_name.trim());
   const audioIdentifier = `a${tenant}-${slug}`;
@@ -3276,11 +3606,7 @@ app.post("/audios", async (req, res) => {
       `INSERT INTO audios
         (audio_identifier, display_name, tenant_id)
        VALUES (?, ?, ?)`,
-      [
-        audioIdentifier,
-        display_name.trim(),
-        tenant,
-      ],
+      [audioIdentifier, display_name.trim(), tenant],
     );
 
     res.status(201).json({
@@ -3313,8 +3639,10 @@ app.put("/audios/:audio_identifier", async (req, res) => {
   const audioIdentifier = req.params.audio_identifier;
   const { display_name } = req.body || {};
 
-  if (!audioIdentifier) return res.status(400).json({ error: "Identificador do áudio não informado." });
-  if (typeof display_name !== "string" || !display_name.trim()) return res.status(400).json({ error: "Nome do áudio é obrigatório." });
+  if (!audioIdentifier)
+    return res.status(400).json({ error: "Identificador do áudio não informado." });
+  if (typeof display_name !== "string" || !display_name.trim())
+    return res.status(400).json({ error: "Nome do áudio é obrigatório." });
 
   const cleanDisplayName = display_name.trim();
 
@@ -3359,10 +3687,62 @@ app.delete("/audios/:audio_identifier", async (req, res) => {
 
     const finalPath = path.join(SOUNDS_BASE, `t${tenant}`, `${audioIdentifier}.wav`);
     await fs.unlink(finalPath);
-    await pool.query(`DELETE FROM audios WHERE tenant_id = ? AND audio_identifier = ?`, [tenant, audioIdentifier]);
+    await pool.query(`DELETE FROM audios WHERE tenant_id = ? AND audio_identifier = ?`, [
+      tenant,
+      audioIdentifier,
+    ]);
     res.json({ ok: true });
   } catch (e) {
     if (e.code === "ENOENT") return res.status(404).json({ error: "Áudio não encontrado." });
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// Regra para o firewall de black e white list
+
+app.get("/firewall", async (req, res) => {
+  try {
+    const [firewall] = await pool.query(`SELECT * FROM firewall_ips`);
+    res.json({ firewall });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+app.post("/firewall", async (req, res) => {
+  const { ip, tipo, motivo, expires_at } = req.body || {};
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [firewall] = await conn.query(
+      `INSERT INTO firewall_ips (ip, tipo, motivo, expires_at) VALUES (?, ?, ?, ?)`,
+      [ip, tipo, motivo, expires_at],
+    );
+    await conn.commit();
+    if (tipo === "BLACKLIST") {
+      await bloquearIp(ip);
+    }
+    res.json({ ok: true, id: firewall.insertId });
+  } catch (e) {
+    await conn.rollback();
+    res.status(500).json({ error: String(e.message || e) });
+  } finally {
+    conn.release();
+  }
+});
+
+app.delete("/firewall/:id", async (req, res) => {
+  const id = req.params.id;
+  const { ip, tipo } = req.body || {};
+  try {
+    const [firewall] = await pool.query(`DELETE FROM firewall_ips WHERE id = ?`, [id]);
+
+    if (tipo === "BLACKLIST") {
+      await liberarIp(ip);
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
@@ -3375,4 +3755,3 @@ app.use((err, _req, res, _next) => {
 app.listen(Number(PORT), () => {
   console.log(`[pabx-agent] ouvindo em http://127.0.0.1:${PORT}`);
 });
-

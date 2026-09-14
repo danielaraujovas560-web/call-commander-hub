@@ -2,23 +2,37 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
-import { MapPin, Map, PhoneIncoming, PhoneOutgoing, ChevronLeft, ChevronRight, Icon } from "lucide-react";
+import {
+  MapPin,
+  Map,
+  PhoneIncoming,
+  PhoneOutgoing,
+  ChevronLeft,
+  ChevronRight,
+  Icon,
+} from "lucide-react";
 import { PodiumIcon } from "@/components/podium";
 import { listCdrCidadesEntrada, listCdrCidadesSaida } from "@/lib/ramais.functions";
-import { ReportFilters, type ReportFilterValues, usePersistentFilter } from "@/components/report-filters";
+import {
+  ReportFilters,
+  type ReportFilterValues,
+  usePersistentFilter,
+} from "@/components/report-filters";
 import { statusOptions, getStatusLabel } from "@/lib/report-labels";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapaBrasil, type EstadoData } from "@/components/mapa-brasil";
 import { Button } from "@/components/ui/button";
 import { RankCard } from "@/components/RankCard";
 import { tipoOptionsMapaDDD } from "@/lib/report-labels";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { formatarDataHora } from "@/lib/utils";
 
@@ -34,7 +48,7 @@ function getTodayFilters(): ReportFilterValues {
 
   return {
     from: `${todayStr}T00:00`,
-    to: `${todayStr}T${hours}:${minutes}`
+    to: `${todayStr}T${hours}:${minutes}`,
   };
 }
 
@@ -53,7 +67,11 @@ function Page() {
   const [fSai, setFSai] = usePersistentFilter("fSai", tenantId, getTodayFilters());
   const [fRank, setFRank] = usePersistentFilter("fRank", tenantId, getTodayFilters());
 
-  const [fRankAtendidas, setFRankAtendidas] = usePersistentFilter("fRankAtendidas", tenantId, getTodayFilters());
+  const [fRankAtendidas, setFRankAtendidas] = usePersistentFilter(
+    "fRankAtendidas",
+    tenantId,
+    getTodayFilters(),
+  );
 
   const [pageEnt, setPageEnt] = useState(1);
   const [pageSai, setPageSai] = useState(1);
@@ -66,13 +84,13 @@ function Page() {
   const saiFn = useServerFn(listCdrCidadesSaida);
 
   // --- QUERIES DO MAPA ---
-  const mapEnt = useQuery({ 
-    queryKey: ["mapa_entrada", tenantId, fMapa], 
-    queryFn: () => entFn({ data: { tenant_id: tenantId, ...fMapa } }) 
+  const mapEnt = useQuery({
+    queryKey: ["mapa_entrada", tenantId, fMapa],
+    queryFn: () => entFn({ data: { tenant_id: tenantId, ...fMapa } }),
   });
-  const mapSai = useQuery({ 
-    queryKey: ["mapa_saida", tenantId, fMapa], 
-    queryFn: () => saiFn({ data: { tenant_id: tenantId, ...fMapa } }) 
+  const mapSai = useQuery({
+    queryKey: ["mapa_saida", tenantId, fMapa],
+    queryFn: () => saiFn({ data: { tenant_id: tenantId, ...fMapa } }),
   });
 
   const queryDetalheUf = useQuery({
@@ -80,40 +98,50 @@ function Page() {
     queryFn: () => {
       const fn = tipoUf === "entrada" ? entFn : saiFn;
       // Reutiliza os filtros do mapa (fMapa) mas injeta a UF clicada e a página
-      return fn({ data: { ...fMapa, tenant_id: tenantId, page: pageUf, limit: 15, sigla_estado: ufSelecionada } });
+      return fn({
+        data: {
+          ...fMapa,
+          tenant_id: tenantId,
+          page: pageUf,
+          limit: 15,
+          sigla_estado: ufSelecionada,
+        },
+      });
     },
     enabled: !!ufSelecionada, // Só faz o fetch se tiver uma UF selecionada!
   });
 
   // --- QUERIES DAS TABELAS ---
-  const ent = useQuery({ 
-    queryKey: ["cdr_cidades_entrada", tenantId, fEnt, pageEnt], 
-    queryFn: () => entFn({ data: { tenant_id: tenantId, page: pageEnt, ...fEnt } }) 
+  const ent = useQuery({
+    queryKey: ["cdr_cidades_entrada", tenantId, fEnt, pageEnt],
+    queryFn: () => entFn({ data: { tenant_id: tenantId, page: pageEnt, ...fEnt } }),
   });
-  const sai = useQuery({ 
-    queryKey: ["cdr_cidades_saida", tenantId, fSai, pageSai], 
-    queryFn: () => saiFn({ data: { tenant_id: tenantId, page: pageSai, ...fSai } }) 
+  const sai = useQuery({
+    queryKey: ["cdr_cidades_saida", tenantId, fSai, pageSai],
+    queryFn: () => saiFn({ data: { tenant_id: tenantId, page: pageSai, ...fSai } }),
   });
 
   // --- QUERIES DO RANK DDD ---
   const rankEntrada = useQuery({
-  queryKey: ["rank_entrada", tenantId, fRank],
-  queryFn: () => entFn({ data: { tenant_id: tenantId, ...fRank, rank: true, } })
+    queryKey: ["rank_entrada", tenantId, fRank],
+    queryFn: () => entFn({ data: { tenant_id: tenantId, ...fRank, rank: true } }),
   });
 
   const rankSaida = useQuery({
-  queryKey: ["rank_saida", tenantId, fRank],
-  queryFn: () => saiFn({ data: { tenant_id: tenantId, ...fRank, rank: true }  }),
+    queryKey: ["rank_saida", tenantId, fRank],
+    queryFn: () => saiFn({ data: { tenant_id: tenantId, ...fRank, rank: true } }),
   });
 
   const rankEntradaAtendidas = useQuery({
     queryKey: ["rank_entrada_atendidas", tenantId, fRankAtendidas],
-    queryFn: () => entFn({ data: { tenant_id: tenantId, ...fRankAtendidas, rank: true, status: "ANSWER" } }),
+    queryFn: () =>
+      entFn({ data: { tenant_id: tenantId, ...fRankAtendidas, rank: true, status: "ANSWER" } }),
   });
 
   const rankSaidaAtendidas = useQuery({
     queryKey: ["rank_saida_atendidas", tenantId, fRankAtendidas],
-    queryFn: () => saiFn({ data: { tenant_id: tenantId, ...fRankAtendidas, rank: true, status: "ANSWER" } }),
+    queryFn: () =>
+      saiFn({ data: { tenant_id: tenantId, ...fRankAtendidas, rank: true, status: "ANSWER" } }),
   });
 
   // --- TRATAMENTO DE DADOS (MAPA) ---
@@ -169,14 +197,14 @@ function Page() {
     return [];
   }, [rankSaida.data]);
 
-const rowsRankEntAtendidas = useMemo(() => {
+  const rowsRankEntAtendidas = useMemo(() => {
     if (Array.isArray(rankEntradaAtendidas.data?.rows)) return rankEntradaAtendidas.data.rows;
     if (Array.isArray(rankEntradaAtendidas.data?.data)) return rankEntradaAtendidas.data.data;
     if (Array.isArray(rankEntradaAtendidas.data)) return rankEntradaAtendidas.data;
     return [];
   }, [rankEntradaAtendidas.data]);
 
-const rowsRankSaiAtendidas = useMemo(() => {
+  const rowsRankSaiAtendidas = useMemo(() => {
     if (Array.isArray(rankSaidaAtendidas.data?.rows)) return rankSaidaAtendidas.data.rows;
     if (Array.isArray(rankSaidaAtendidas.data?.data)) return rankSaidaAtendidas.data.data;
     if (Array.isArray(rankSaidaAtendidas.data)) return rankSaidaAtendidas.data;
@@ -188,14 +216,18 @@ const rowsRankSaiAtendidas = useMemo(() => {
     const map: Record<string, EstadoData> = {};
 
     rowsMapaEnt.forEach((r: any) => {
-      const uf = String(r?.sigla_estado || r?.uf || "").trim().toUpperCase();
+      const uf = String(r?.sigla_estado || r?.uf || "")
+        .trim()
+        .toUpperCase();
       if (!uf) return;
       if (!map[uf]) map[uf] = { entrada: 0, saida: 0 };
       map[uf].entrada += 1;
     });
 
     rowsMapaSai.forEach((r: any) => {
-      const uf = String(r?.sigla_estado || r?.uf || "").trim().toUpperCase();
+      const uf = String(r?.sigla_estado || r?.uf || "")
+        .trim()
+        .toUpperCase();
       if (!uf) return;
       if (!map[uf]) map[uf] = { entrada: 0, saida: 0 };
       map[uf].saida += 1;
@@ -241,40 +273,52 @@ const rowsRankSaiAtendidas = useMemo(() => {
                   { key: "status", label: "Status", options: statusOptions },
                   { key: "tipo", label: "Tipo", options: tipoOptionsMapaDDD },
                   { key: "from", label: "Data/Hora Inicial", type: "datetime-local" },
-                  { key: "to", label: "Data/Hora Final", type: "datetime-local" }
+                  { key: "to", label: "Data/Hora Final", type: "datetime-local" },
                 ]}
               />
             </div>
             <div className="rounded-md border bg-card p-4 overflow-hidden w-full">
-              <MapaBrasil data={mapaData} onSelectState={(uf) => { setUfSelecionada(uf); setPageUf(1);}}/>
+              <MapaBrasil
+                data={mapaData}
+                onSelectState={(uf) => {
+                  setUfSelecionada(uf);
+                  setPageUf(1);
+                }}
+              />
             </div>
-             {ufSelecionada && (
+            {ufSelecionada && (
               <div className="w-full bg-card rounded-lg border shadow-sm overflow-hidden mt-4 animate-in fade-in slide-in-from-bottom-4">
                 <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                   <h3 className="font-semibold text-lg flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-primary" />
                     Detalhamento - {ufSelecionada}
                   </h3>
-                  
+
                   <div className="flex items-center gap-4">
                     {/* Botões para alternar entre Entrada/Saída desse Estado */}
                     <div className="flex bg-muted rounded-md p-1">
-                      <Button 
-                        variant={tipoUf === "entrada" ? "default" : "ghost"} 
-                        size="sm" 
-                        onClick={() => { setTipoUf("entrada"); setPageUf(1); }}
+                      <Button
+                        variant={tipoUf === "entrada" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => {
+                          setTipoUf("entrada");
+                          setPageUf(1);
+                        }}
                       >
                         Entrada
                       </Button>
-                      <Button 
-                        variant={tipoUf === "saida" ? "default" : "ghost"} 
-                        size="sm" 
-                        onClick={() => { setTipoUf("saida"); setPageUf(1); }}
+                      <Button
+                        variant={tipoUf === "saida" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => {
+                          setTipoUf("saida");
+                          setPageUf(1);
+                        }}
                       >
                         Saída
                       </Button>
                     </div>
-                    
+
                     <Button variant="ghost" size="sm" onClick={() => setUfSelecionada(null)}>
                       Fechar (X)
                     </Button>
@@ -323,7 +367,8 @@ const rowsRankSaiAtendidas = useMemo(() => {
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline" size="sm"
+                      variant="outline"
+                      size="sm"
                       disabled={pageUf <= 1 || queryDetalheUf.isLoading}
                       onClick={() => setPageUf((p) => Math.max(1, p - 1))}
                     >
@@ -331,8 +376,11 @@ const rowsRankSaiAtendidas = useMemo(() => {
                     </Button>
                     <span className="text-sm">Página {pageUf}</span>
                     <Button
-                      variant="outline" size="sm"
-                      disabled={pageUf >= (queryDetalheUf.data?.totalPages ?? 1) || queryDetalheUf.isLoading}
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        pageUf >= (queryDetalheUf.data?.totalPages ?? 1) || queryDetalheUf.isLoading
+                      }
                       onClick={() => setPageUf((p) => p + 1)}
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -354,13 +402,13 @@ const rowsRankSaiAtendidas = useMemo(() => {
                 initialValues={fEnt}
                 defaultValues={getTodayFilters()}
                 onApply={(valores) => {
-                  setPageEnt(1); 
+                  setPageEnt(1);
                   setFEnt({ ...getTodayFilters(), ...valores });
                 }}
                 fields={[
                   { key: "status", label: "Status", options: statusOptions },
                   { key: "from", label: "Data/Hora Inicial", type: "datetime-local" },
-                  { key: "to", label: "Data/Hora Final", type: "datetime-local" }
+                  { key: "to", label: "Data/Hora Final", type: "datetime-local" },
                 ]}
               />
             </div>
@@ -440,93 +488,88 @@ const rowsRankSaiAtendidas = useMemo(() => {
 
         <TabsContent value="rank">
           <Tabs defaultValue="geral">
-           <div className="flex justify-center">
-            <TabsList>
-               <TabsTrigger value="geral">Geral</TabsTrigger>
-               <TabsTrigger value="atendidas">Atendidas</TabsTrigger>
-               <TabsTrigger value="discadas">Mais Discados</TabsTrigger>
-            {/*   <TabsTrigger value="ramais">Ramais</TabsTrigger>*/}
-            </TabsList>
-           </div>
-
-           <TabsContent value="geral">
-            <div className="space-y-6">
-            <div className="w-full bg-card rounded-lg border p-4 shadow-sm">
-              <ReportFilters
-                storageKey="fRank"
-                tenantId={tenantId}
-                initialValues={fRank}
-                defaultValues={getTodayFilters()}
-                showLimit={false}
-                onApply={(valores) => setFRank(valores)}
-                fields={[
-                  { key: "from", label: "Data/Hora Inicial", type: "datetime-local" },
-                  { key: "to", label: "Data/Hora Final", type: "datetime-local" }
-                ]}
-              />
+            <div className="flex justify-center">
+              <TabsList>
+                <TabsTrigger value="geral">Geral</TabsTrigger>
+                <TabsTrigger value="atendidas">Atendidas</TabsTrigger>
+                <TabsTrigger value="discadas">Mais Discados</TabsTrigger>
+                {/*   <TabsTrigger value="ramais">Ramais</TabsTrigger>*/}
+              </TabsList>
             </div>
 
-             <RankCard
-               titulo="Entrada"
-               descricao="Top 5 DDDs com maior volume de chamadas de entrada"
-               dados={rowsRankEnt}
-               Icon={PhoneIncoming}
-               iconColor="text-emerald-500"
-              />
+            <TabsContent value="geral">
+              <div className="space-y-6">
+                <div className="w-full bg-card rounded-lg border p-4 shadow-sm">
+                  <ReportFilters
+                    storageKey="fRank"
+                    tenantId={tenantId}
+                    initialValues={fRank}
+                    defaultValues={getTodayFilters()}
+                    showLimit={false}
+                    onApply={(valores) => setFRank(valores)}
+                    fields={[
+                      { key: "from", label: "Data/Hora Inicial", type: "datetime-local" },
+                      { key: "to", label: "Data/Hora Final", type: "datetime-local" },
+                    ]}
+                  />
+                </div>
 
-              <RankCard
-                titulo="Saída"
-                descricao="Top 5 DDDs com maior volume de chamadas de saída"
-                dados={rowsRankSai}
-                Icon={PhoneOutgoing}
-                iconColor="text-blue-500"
-              />
+                <RankCard
+                  titulo="Entrada"
+                  descricao="Top 5 DDDs com maior volume de chamadas de entrada"
+                  dados={rowsRankEnt}
+                  Icon={PhoneIncoming}
+                  iconColor="text-emerald-500"
+                />
 
-            </div>
-          </TabsContent>
+                <RankCard
+                  titulo="Saída"
+                  descricao="Top 5 DDDs com maior volume de chamadas de saída"
+                  dados={rowsRankSai}
+                  Icon={PhoneOutgoing}
+                  iconColor="text-blue-500"
+                />
+              </div>
+            </TabsContent>
 
-          <TabsContent value="atendidas">
-            <div className="space-y-6">
-            <div className="w-full bg-card rounded-lg border p-4 shadow-sm">
-              <ReportFilters
-                storageKey="fRankAtendidas"
-                tenantId={tenantId}
-                initialValues={fRankAtendidas}
-                defaultValues={getTodayFilters()}
-                showLimit={false}
-                onApply={(valores) => setFRankAtendidas(valores)}
-                fields={[
-                  { key: "from", label: "Data/Hora Inicial", type: "datetime-local" },
-                  { key: "to", label: "Data/Hora Final", type: "datetime-local" }
-                ]}
-              />
-            </div>
+            <TabsContent value="atendidas">
+              <div className="space-y-6">
+                <div className="w-full bg-card rounded-lg border p-4 shadow-sm">
+                  <ReportFilters
+                    storageKey="fRankAtendidas"
+                    tenantId={tenantId}
+                    initialValues={fRankAtendidas}
+                    defaultValues={getTodayFilters()}
+                    showLimit={false}
+                    onApply={(valores) => setFRankAtendidas(valores)}
+                    fields={[
+                      { key: "from", label: "Data/Hora Inicial", type: "datetime-local" },
+                      { key: "to", label: "Data/Hora Final", type: "datetime-local" },
+                    ]}
+                  />
+                </div>
 
-             <RankCard
-               titulo="Entrada"
-               descricao="Top 5 DDDs com maior índice de atendimento de entrada"
-               dados={rowsRankEntAtendidas}
-               Icon={PhoneIncoming}
-               iconColor="text-emerald-500"
-              />
+                <RankCard
+                  titulo="Entrada"
+                  descricao="Top 5 DDDs com maior índice de atendimento de entrada"
+                  dados={rowsRankEntAtendidas}
+                  Icon={PhoneIncoming}
+                  iconColor="text-emerald-500"
+                />
 
-              <RankCard
-                titulo="Saída"
-                descricao="Top 5 DDDs com maior índice de atendimento de saída"
-                dados={rowsRankSaiAtendidas}
-                Icon={PhoneOutgoing}
-                iconColor="text-blue-500"
-              />
+                <RankCard
+                  titulo="Saída"
+                  descricao="Top 5 DDDs com maior índice de atendimento de saída"
+                  dados={rowsRankSaiAtendidas}
+                  Icon={PhoneOutgoing}
+                  iconColor="text-blue-500"
+                />
+              </div>
+            </TabsContent>
 
-            </div>
-          </TabsContent>
-
-          <TabsContent value="discadas">
-             Em desenvolvimento...
-          </TabsContent>
-
-        </Tabs>
-     </TabsContent>
+            <TabsContent value="discadas">Em desenvolvimento...</TabsContent>
+          </Tabs>
+        </TabsContent>
 
         {/* ABA 4: SAÍDA */}
         <TabsContent value="saida">
@@ -538,13 +581,13 @@ const rowsRankSaiAtendidas = useMemo(() => {
                 initialValues={fSai}
                 defaultValues={getTodayFilters()}
                 onApply={(valores) => {
-                  setPageSai(1); 
+                  setPageSai(1);
                   setFSai({ ...getTodayFilters(), ...valores });
                 }}
-                fields={[                                   
+                fields={[
                   { key: "status", label: "Status", options: statusOptions },
                   { key: "from", label: "Data/Hora Inicial", type: "datetime-local" },
-                  { key: "to", label: "Data/Hora Final", type: "datetime-local" }
+                  { key: "to", label: "Data/Hora Final", type: "datetime-local" },
                 ]}
               />
             </div>

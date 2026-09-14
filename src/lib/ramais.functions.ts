@@ -50,7 +50,10 @@ export interface Tronco {
 
 const RamalInput = z.object({
   nome: z.coerce.string().trim().max(80).optional().or(z.literal("")),
-  ramal: z.coerce.string().trim().regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
+  ramal: z.coerce
+    .string()
+    .trim()
+    .regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
   senha: z.coerce.string().max(64).optional().or(z.literal("")),
   tronco: z.coerce.string().trim().min(1).max(80),
   ddd: z.coerce.string().trim().min(1).max(3),
@@ -88,7 +91,9 @@ export const listTroncos = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ troncos: Tronco[] }>(`/troncos?tenant=${tenantId}`, { tenantId });
+    const res = await agentFetch<{ troncos: Tronco[] }>(`/troncos?tenant=${tenantId}`, {
+      tenantId,
+    });
     return { troncos: res.troncos ?? [] };
   });
 
@@ -114,7 +119,6 @@ export const createRamal = createServerFn({ method: "POST" })
 
     return created;
   });
-
 
 const RamalUpdateInput = z.object({
   endpoint_id: z.string(),
@@ -159,7 +163,9 @@ export const updateRamal = createServerFn({ method: "POST" })
 export const deleteRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) =>
-    z.object({ endpoint_id: z.string(), tenant_id: z.number().int().positive().optional() }).parse(input),
+    z
+      .object({ endpoint_id: z.string(), tenant_id: z.number().int().positive().optional() })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -177,9 +183,12 @@ export const pingAgent = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .handler(async () => {
     const { agentFetch, isAgentConfigured } = await import("./agent.server");
-    if (!isAgentConfigured()) return { ok: false, configured: false, error: "Agente não configurado" };
+    if (!isAgentConfigured())
+      return { ok: false, configured: false, error: "Agente não configurado" };
     try {
-      const data = await agentFetch<{ status: string; version?: string }>("/health", { timeoutMs: 5_000 });
+      const data = await agentFetch<{ status: string; version?: string }>("/health", {
+        timeoutMs: 5_000,
+      });
       return { ok: true, configured: true, data };
     } catch (e) {
       return { ok: false, configured: true, error: e instanceof Error ? e.message : String(e) };
@@ -199,15 +208,18 @@ export const getMyTenant = createServerFn({ method: "GET" })
 export const generateRamalPassword = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ tenant_id: z.number().int().positive().optional(), endpoint_id: z.string().min(1), }).parse(d))
+    z
+      .object({ tenant_id: z.number().int().positive().optional(), endpoint_id: z.string().min(1) })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    const tenantId = await resolveTenantId( context.token, data.tenant_id );
-    return await agentFetch<{ ok: true; senha: string }>(
-      "/ramais/generate-password",
-      { method: "POST", tenantId,body: { endpoint_id: data.endpoint_id, },
-      }
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    return await agentFetch<{ ok: true; senha: string }>("/ramais/generate-password", {
+      method: "POST",
+      tenantId,
+      body: { endpoint_id: data.endpoint_id },
+    });
   });
 
 // ---------- Tenant upsert (mariadb) ----------
@@ -245,11 +257,11 @@ type CdrFilterT = z.infer<typeof CdrFilter>;
 
 function buildQuery(filters: CdrFilterT, tenantId?: number): string {
   const q = new URLSearchParams();
-  
+
   // Varre TODAS as chaves que o Zod validou dinamicamente
   for (const [k, v] of Object.entries(filters)) {
     // Ignoramos tenant_id pq ele é injetado separadamente no final
-    if (k === 'tenant_id' || k === 'rank') continue;     
+    if (k === "tenant_id" || k === "rank") continue;
     if (v !== undefined && v !== null && String(v).trim() !== "") {
       q.set(k, String(v).trim());
     }
@@ -265,8 +277,21 @@ async function fetchCdr(path: string, token: string, filters: CdrFilterT) {
   const { agentFetch } = await import("./agent.server");
   const tenantId = await resolveTenantId(token, filters.tenant_id);
   const qs = buildQuery(filters, tenantId);
-  const res = await agentFetch<{ rows: any[]; total: number; page: number; limit: number; totalPages: number; }>(`${path}${qs}`, { tenantId });
-  return { tenantId, rows: res.rows ?? [], total: res.total, page: res.page, limit: res.limit, totalPages: res.totalPages, };
+  const res = await agentFetch<{
+    rows: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`${path}${qs}`, { tenantId });
+  return {
+    tenantId,
+    rows: res.rows ?? [],
+    total: res.total,
+    page: res.page,
+    limit: res.limit,
+    totalPages: res.totalPages,
+  };
 }
 
 export const listCdrEntrada = createServerFn({ method: "GET" })
@@ -304,7 +329,6 @@ export const listCdrCidadesSaida = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.token, data));
 
-
 // ---------- Blacklist ----------
 export interface BlacklistItem {
   destino: string;
@@ -321,7 +345,9 @@ export const listBlacklist = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ blacklist: BlacklistItem[] }>(`/blacklist?tenant=${tenantId}`, { tenantId });
+    const res = await agentFetch<{ blacklist: BlacklistItem[] }>(`/blacklist?tenant=${tenantId}`, {
+      tenantId,
+    });
     return { tenantId, blacklist: res.blacklist ?? [] };
   });
 
@@ -350,41 +376,52 @@ export const createBlacklist = createServerFn({ method: "POST" })
 export const updateBlacklist = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      destinoAtual: z.string().min(1).max(64),
-      regraAtual: z.enum(["Entrada", "Saida"]),
-      tipoAtual: z.enum(["Prefixo", "Numero"]),
+    z
+      .object({
+        destinoAtual: z.string().min(1).max(64),
+        regraAtual: z.enum(["Entrada", "Saida"]),
+        tipoAtual: z.enum(["Prefixo", "Numero"]),
 
-      destino: z.string().min(1).max(64), 
-      tenant_id: z.number().int().positive().optional(), 
-      regra: z.enum(["Entrada", "Saida"]), 
-      tipo: z.enum(["Prefixo", "Numero"]),
-      motivo: z.string().max(255).optional(),
-      data_hora_desbloqueio: z.string().optional(),
-    }).parse(d),
+        destino: z.string().min(1).max(64),
+        tenant_id: z.number().int().positive().optional(),
+        regra: z.enum(["Entrada", "Saida"]),
+        tipo: z.enum(["Prefixo", "Numero"]),
+        motivo: z.string().max(255).optional(),
+        data_hora_desbloqueio: z.string().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { destinoAtual, regraAtual, tipoAtual, tenant_id: _i, ...body } = data;
-    await agentFetch(`/blacklist/${destinoAtual}/${regraAtual}/${tipoAtual}`, { method: "PUT", tenantId, body });
+    await agentFetch(`/blacklist/${destinoAtual}/${regraAtual}/${tipoAtual}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
     return { ok: true };
   });
 
 export const deleteBlacklist = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ 
-      destino: z.string().min(1).max(64),
-      tenant_id: z.number().int().positive().optional(),
-      regra: z.enum(["Entrada", "Saida"]),
-      tipo: z.enum(["Prefixo", "Numero"]),
-    }).parse(d),
+    z
+      .object({
+        destino: z.string().min(1).max(64),
+        tenant_id: z.number().int().positive().optional(),
+        regra: z.enum(["Entrada", "Saida"]),
+        tipo: z.enum(["Prefixo", "Numero"]),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/blacklist/${data.destino}/${data.regra}/${data.tipo}`, { method: "DELETE", tenantId });
+    await agentFetch(`/blacklist/${data.destino}/${data.regra}/${data.tipo}`, {
+      method: "DELETE",
+      tenantId,
+    });
     return { ok: true };
   });
 
@@ -402,7 +439,11 @@ export const toggleBlacklistAtivo = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/blacklist/${data.destino}/${data.regra}/${data.tipo}`, { method: "PUT", tenantId, body: {ativo: data.ativo} });
+    await agentFetch(`/blacklist/${data.destino}/${data.regra}/${data.tipo}`, {
+      method: "PUT",
+      tenantId,
+      body: { ativo: data.ativo },
+    });
     return { ok: true };
   });
 
@@ -453,16 +494,20 @@ export const listFilas = createServerFn({ method: "GET" })
 export const getFilaAgentes = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      tenant_id: z.number().int().positive().optional(),
-      name: z.string().min(1),
-    }).parse(d),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        name: z.string().min(1),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await agentFetch<{
-      fila: Fila; agentes: FilaAgente[]; queue: FilaQueueConfig | null;
+      fila: Fila;
+      agentes: FilaAgente[];
+      queue: FilaQueueConfig | null;
     }>(`/filas/${data.name}/agentes`, { tenantId });
     return res;
   });
@@ -470,12 +515,14 @@ export const getFilaAgentes = createServerFn({ method: "GET" })
 export const addFilaAgente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      tenant_id: z.number().int().positive().optional(),
-      name: z.string().min(1),
-      ramal: z.string().min(1),
-      penalty: z.coerce.number().int().min(0).max(100).optional(),
-    }).parse(d),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        name: z.string().min(1),
+        ramal: z.string().min(1),
+        penalty: z.coerce.number().int().min(0).max(100).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -490,10 +537,12 @@ export const addFilaAgente = createServerFn({ method: "POST" })
 export const removeFilaAgente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      tenant_id: z.number().int().positive().optional(),
-      agente_id: z.string().min(1),
-    }).parse(d),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        agente_id: z.string().min(1),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -505,11 +554,13 @@ export const removeFilaAgente = createServerFn({ method: "POST" })
 export const setFilaAgentePenalty = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      tenant_id: z.number().int().positive().optional(),
-      agente_id: z.string().min(1),
-      penalty: z.coerce.number().int().min(0).max(100),
-    }).parse(d),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        agente_id: z.string().min(1),
+        penalty: z.coerce.number().int().min(0).max(100),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -550,25 +601,30 @@ export const listUraAudios = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ audios: string[]; dir: string; warn?: string }>(
-      `/uras/audios`, { tenantId },
-    );
+    const res = await agentFetch<{ audios: string[]; dir: string; warn?: string }>(`/uras/audios`, {
+      tenantId,
+    });
     return { audios: res.audios ?? [], dir: res.dir, warn: res.warn };
   });
 
-const AudioName = z.string().trim().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,119}$/, {
-  message: "Use letras, números, hífen ou sublinhado no nome",
-});
+const AudioName = z
+  .string()
+  .trim()
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,119}$/, {
+    message: "Use letras, números, hífen ou sublinhado no nome",
+  });
 
 export const uploadUraAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      tenant_id: z.number().int().positive().optional(),
-      nome: AudioName,
-      extensao: z.enum(["wav", "mp3"]),
-      conteudo_base64: z.string().min(1),
-    }).parse(d),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        nome: AudioName,
+        extensao: z.enum(["wav", "mp3"]),
+        conteudo_base64: z.string().min(1),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -584,18 +640,25 @@ export const uploadUraAudio = createServerFn({ method: "POST" })
 export const renameUraAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      tenant_id: z.number().int().positive().optional(),
-      nome: AudioName,
-      novo_nome: AudioName,
-    }).parse(d),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        nome: AudioName,
+        novo_nome: AudioName,
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    return await agentFetch<{ ok: true; nome: string }>(`/uras/audios/${encodeURIComponent(data.nome)}`, {
-      method: "PUT", tenantId, body: { novo_nome: data.novo_nome },
-    });
+    return await agentFetch<{ ok: true; nome: string }>(
+      `/uras/audios/${encodeURIComponent(data.nome)}`,
+      {
+        method: "PUT",
+        tenantId,
+        body: { novo_nome: data.novo_nome },
+      },
+    );
   });
 
 export const deleteUraAudio = createServerFn({ method: "POST" })
@@ -607,7 +670,8 @@ export const deleteUraAudio = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     return await agentFetch<{ ok: true }>(`/uras/audios/${encodeURIComponent(data.nome)}`, {
-      method: "DELETE", tenantId,
+      method: "DELETE",
+      tenantId,
     });
   });
 
@@ -645,7 +709,9 @@ export const createUra = createServerFn({ method: "POST" })
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
     return await agentFetch<{ ok: true; ura_identifier: string }>("/uras", {
-      method: "POST", tenantId, body,
+      method: "POST",
+      tenantId,
+      body,
     });
   });
 
@@ -668,14 +734,21 @@ export const updateUra = createServerFn({ method: "POST" })
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { ura_identifier, tenant_id: _i, ...patch } = data;
     return await agentFetch<{ ok: true }>(`/uras/${ura_identifier}`, {
-      method: "PUT", tenantId, body: patch,
+      method: "PUT",
+      tenantId,
+      body: patch,
     });
   });
 
 export const deleteUra = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ ura_identifier: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d),
+    z
+      .object({
+        ura_identifier: z.string().min(1),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -687,53 +760,76 @@ export const deleteUra = createServerFn({ method: "POST" })
 export const addUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      ura_identifier: z.string().min(1),
-      tenant_id: z.number().int().positive().optional(),
-      digito: z.coerce.string().max(4),
-      tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]),
-      destino: z.coerce.string().min(1).max(120),
-    }).parse(d),
+    z
+      .object({
+        ura_identifier: z.string().min(1),
+        tenant_id: z.number().int().positive().optional(),
+        digito: z.coerce.string().max(4),
+        tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]),
+        destino: z.coerce.string().min(1).max(120),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { ura_identifier, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; ura_identifier: string }>(`/uras/${ura_identifier}/opcoes`, {
-      method: "POST", tenantId, body,
-    });
+    return await agentFetch<{ ok: true; ura_identifier: string }>(
+      `/uras/${ura_identifier}/opcoes`,
+      {
+        method: "POST",
+        tenantId,
+        body,
+      },
+    );
   });
 
 export const updateUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      ura_identifier: z.string().min(1),
-      tenant_id: z.number().int().positive().optional(),
-      digito_atual: z.coerce.string().max(4),
-      digito: z.coerce.string().max(4).optional(),
-      tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]).optional(),
-      destino: z.coerce.string().min(1).max(120).optional(),
-    }).parse(d),
+    z
+      .object({
+        ura_identifier: z.string().min(1),
+        tenant_id: z.number().int().positive().optional(),
+        digito_atual: z.coerce.string().max(4),
+        digito: z.coerce.string().max(4).optional(),
+        tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]).optional(),
+        destino: z.coerce.string().min(1).max(120).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { ura_identifier, digito_atual, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/uras/${ura_identifier}/opcoes/${encodeURIComponent(digito_atual)}`, {
-      method: "PUT", tenantId, body,
-    });
+    return await agentFetch<{ ok: true }>(
+      `/uras/${ura_identifier}/opcoes/${encodeURIComponent(digito_atual)}`,
+      {
+        method: "PUT",
+        tenantId,
+        body,
+      },
+    );
   });
 
 export const deleteUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ ura_identifier: z.string().min(1), digito: z.coerce.string().max(4), tenant_id: z.number().int().positive().optional() }).parse(d),
+    z
+      .object({
+        ura_identifier: z.string().min(1),
+        digito: z.coerce.string().max(4),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/uras/${data.ura_identifier}/opcoes/${encodeURIComponent(data.digito)}`, { method: "DELETE", tenantId });
+    await agentFetch(`/uras/${data.ura_identifier}/opcoes/${encodeURIComponent(data.digito)}`, {
+      method: "DELETE",
+      tenantId,
+    });
     return { ok: true };
   });
 
@@ -749,7 +845,11 @@ export const toggleUraAtivo = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/uras/${data.ura_identifier}/ativo`, { method: "PUT", tenantId, body: {ativo: data.ativo} });
+    await agentFetch(`/uras/${data.ura_identifier}/ativo`, {
+      method: "PUT",
+      tenantId,
+      body: { ativo: data.ativo },
+    });
     return { ok: true };
   });
 
@@ -760,7 +860,13 @@ const TroncoInput = z.object({
   ip: z.coerce.string().trim().min(1).max(100),
   porta: z.coerce.string().trim().max(7).optional().or(z.literal("")),
   tipo: z.enum(["STFC", "E164"]),
-  techprefix: z.coerce.string().trim().regex(/^\d*$/, "Só números").max(20).optional().or(z.literal("")),
+  techprefix: z.coerce
+    .string()
+    .trim()
+    .regex(/^\d*$/, "Só números")
+    .max(20)
+    .optional()
+    .or(z.literal("")),
   registrar: z.enum(["sim", "não"]).default("não"),
   login: z.coerce.string().trim().max(100).optional().or(z.literal("")),
   senha: z.coerce.string().trim().max(100).optional().or(z.literal("")),
@@ -776,7 +882,11 @@ export const createTronco = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; tronco_pjsip: string }>("/troncos", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; tronco_pjsip: string }>("/troncos", {
+      method: "POST",
+      tenantId,
+      body,
+    });
   });
 
 export const updateTronco = createServerFn({ method: "POST" })
@@ -786,13 +896,23 @@ export const updateTronco = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tronco_pjsip, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/troncos/${tronco_pjsip}`, { method: "PUT", tenantId, body });
+    return await agentFetch<{ ok: true }>(`/troncos/${tronco_pjsip}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const deleteTronco = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ tronco_pjsip: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z
+      .object({
+        tronco_pjsip: z.string().min(1),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -803,11 +923,20 @@ export const deleteTronco = createServerFn({ method: "POST" })
 export const getTroncoStatus = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ tronco_pjsip: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z
+      .object({
+        tronco_pjsip: z.string().min(1),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    return await agentFetch<{ endpoint: string; state?: string; status: string }>(`/troncos/${data.tronco_pjsip}/status`, { tenantId });
+    return await agentFetch<{ endpoint: string; state?: string; status: string }>(
+      `/troncos/${data.tronco_pjsip}/status`,
+      { tenantId },
+    );
   });
 
 // ---------- Status em lote (online/offline) ----------
@@ -817,7 +946,9 @@ export const listRamaisStatus = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ endpoints: Record<string, string> }>(`/ramais/status`, { tenantId });
+    const res = await agentFetch<{ endpoints: Record<string, string> }>(`/ramais/status`, {
+      tenantId,
+    });
     return { endpoints: res.endpoints ?? {} };
   });
 
@@ -827,17 +958,20 @@ export const listTroncosStatus = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ endpoints: Record<string, string> }>(`/troncos/status`, { tenantId });
+    const res = await agentFetch<{ endpoints: Record<string, string> }>(`/troncos/status`, {
+      tenantId,
+    });
     return { endpoints: res.endpoints ?? {} };
   });
-
 
 // ---------- Filas CRUD ----------
 const FilaInput = z.object({
   tenant_id: z.number().int().positive().optional(),
   display_name: z.coerce.string().trim().min(1).max(120),
   description: z.coerce.string().trim().max(255).optional().or(z.literal("")),
-  strategy: z.enum(["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"]).default("ringall"),
+  strategy: z
+    .enum(["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"])
+    .default("ringall"),
   ringinuse: z.enum(["no", "yes"]),
   timeout: z.coerce.number().int().min(0).max(3600).default(15),
   fila_timeout: z.coerce.number().int().min(0).max(3600).default(0),
@@ -864,7 +998,11 @@ export const createFila = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; name: string }>("/filas", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; name: string }>("/filas", {
+      method: "POST",
+      tenantId,
+      body,
+    });
   });
 
 export const updateFila = createServerFn({ method: "POST" })
@@ -880,7 +1018,10 @@ export const updateFila = createServerFn({ method: "POST" })
 export const deleteFila = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ name: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z
+      .object({ name: z.string().min(1), tenant_id: z.number().int().positive().optional() })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -894,7 +1035,11 @@ export const toggleFilaAtivo = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/filas/${data.name}/ativo`, { method: "PUT", tenantId, body: {ativo: data.ativo} });
+    await agentFetch(`/filas/${data.name}/ativo`, {
+      method: "PUT",
+      tenantId,
+      body: { ativo: data.ativo },
+    });
     return { ok: true };
   });
 
@@ -931,23 +1076,38 @@ export const createRoteamento = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; numero: string }>("/roteamento", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; numero: string }>("/roteamento", {
+      method: "POST",
+      tenantId,
+      body,
+    });
   });
 
 export const updateRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => RoteamentoInput.partial().extend({ numero: z.string().min(1) }).parse(d))
+  .inputValidator((d: unknown) =>
+    RoteamentoInput.partial()
+      .extend({ numero: z.string().min(1) })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { numero, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/roteamento/${numero}`, { method: "PUT", tenantId, body });
+    return await agentFetch<{ ok: true }>(`/roteamento/${numero}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const deleteRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ numero: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z
+      .object({ numero: z.string().min(1), tenant_id: z.number().int().positive().optional() })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -999,23 +1159,39 @@ export const createRegraHorario = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; regra_identifier: string }>("/regra-horario", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; regra_identifier: string }>("/regra-horario", {
+      method: "POST",
+      tenantId,
+      body,
+    });
   });
 
 export const updateRegraHorario = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => RegraHorarioInput.extend({ regra_identifier: z.string().min(1) }).parse(d))
+  .inputValidator((d: unknown) =>
+    RegraHorarioInput.extend({ regra_identifier: z.string().min(1) }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { regra_identifier, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/regra-horario/${regra_identifier}`, { method: "PUT", tenantId, body });
+    return await agentFetch<{ ok: true }>(`/regra-horario/${regra_identifier}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const deleteRegraHorario = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ regra_identifier: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z
+      .object({
+        regra_identifier: z.string().min(1),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -1032,7 +1208,11 @@ export interface HorarioRamal {
   hora_final: string;
   membros: number;
 }
-export interface HorarioRamalMembro { regra: string; ramal: string; nome: string | null }
+export interface HorarioRamalMembro {
+  regra: string;
+  ramal: string;
+  nome: string | null;
+}
 
 const HorarioRamalInput = z.object({
   tenant_id: z.number().int().positive().optional(),
@@ -1070,11 +1250,17 @@ export const listHorarioRamais = createServerFn({ method: "GET" })
 export const getHorarioRamalMembros = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z
+      .object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ membros: HorarioRamalMembro[] }>(`/horario-ramais/${data.regra}/membros`, { tenantId });
+    const res = await agentFetch<{ membros: HorarioRamalMembro[] }>(
+      `/horario-ramais/${data.regra}/membros`,
+      { tenantId },
+    );
     return { membros: res.membros ?? [] };
   });
 
@@ -1085,17 +1271,27 @@ export const createHorarioRamal = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true; regra: string }>("/horario-ramais", { method: "POST", tenantId, body });
+    return await agentFetch<{ ok: true; regra: string }>("/horario-ramais", {
+      method: "POST",
+      tenantId,
+      body,
+    });
   });
 
 export const updateHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => UpdateHorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d))
+  .inputValidator((d: unknown) =>
+    UpdateHorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { regra, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/horario-ramais/${regra}`, { method: "PUT", tenantId, body });
+    return await agentFetch<{ ok: true }>(`/horario-ramais/${regra}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const updateHorarioRamalMembros = createServerFn({ method: "POST" })
@@ -1105,13 +1301,20 @@ export const updateHorarioRamalMembros = createServerFn({ method: "POST" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { regra, tenant_id: _i, ...body } = data;
-    return await agentFetch<{ ok: true }>(`/horario-ramais/${regra}/membros`, { method: "PUT", tenantId, body });
+    return await agentFetch<{ ok: true }>(`/horario-ramais/${regra}/membros`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const deleteHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() }).parse(d))
+    z
+      .object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -1156,7 +1359,9 @@ export const listPesquisaSatisfacao = createServerFn({ method: "GET" })
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     // Bate no app.get("/pesquisa-satisfacao") do seu back
-    const res = await agentFetch<{ pesquisas: PesquisaSatisfacao[] }>("/pesquisa-satisfacao", { tenantId });
+    const res = await agentFetch<{ pesquisas: PesquisaSatisfacao[] }>("/pesquisa-satisfacao", {
+      tenantId,
+    });
     return { pesquisas: res.pesquisas ?? [] };
   });
 
@@ -1177,8 +1382,8 @@ export const createPesquisaSatisfacao = createServerFn({ method: "POST" })
 
 export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => 
-    PesquisaSatisfacaoInput.extend({ id: z.number().int().positive() }).parse(d)
+  .inputValidator((d: unknown) =>
+    PesquisaSatisfacaoInput.extend({ id: z.number().int().positive() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -1194,7 +1399,12 @@ export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
 export const deletePesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.number().int().positive(), tenant_id: z.number().int().positive().optional() }).parse(d)
+    z
+      .object({
+        id: z.number().int().positive(),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
@@ -1211,11 +1421,13 @@ export const deletePesquisaSatisfacao = createServerFn({ method: "POST" })
 export const downloadGravacao = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      linkedid: z.string(),
-      tipo: z.enum(["ramal", "fila"]),
-      tenant_id: z.number().int().positive().optional(),
-    }).parse(d)
+    z
+      .object({
+        linkedid: z.string(),
+        tipo: z.enum(["ramal", "fila"]),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentDownload } = await import("./agent.server");
@@ -1229,9 +1441,10 @@ export const downloadGravacao = createServerFn({ method: "GET" })
     // 2. Em vez de retornar o 'res' puro (que causa o erro "immutable"),
     // pegamos o ArrayBuffer (binário) do áudio diretamente no servidor.
     const audioBuffer = await res.arrayBuffer();
-    
+
     // Captura o cabeçalho de disposição que veio do Asterisk (contendo o nome real do arquivo)
-    const contentDisposition = res.headers.get("content-disposition") || `attachment; filename="call-${data.linkedid}.wav"`;
+    const contentDisposition =
+      res.headers.get("content-disposition") || `attachment; filename="call-${data.linkedid}.wav"`;
 
     // 3. Retornamos um novo Response customizado com o buffer e o cabeçalho correto
     return new Response(audioBuffer, {
@@ -1262,44 +1475,125 @@ export const listAudios = createServerFn({ method: "GET" })
 export const uploadAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      tenant_id: z.number().int().positive().optional(),
-      display_name: z.string().min(1),
-      extensao: z.enum(["wav", "mp3"]),
-      conteudo_base64: z.string().min(1),
-    }).parse(d),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        display_name: z.string().min(1),
+        extensao: z.enum(["wav", "mp3"]),
+        conteudo_base64: z.string().min(1),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    return await agentFetch<{ ok: true; audio_identifier:string; display_name: string }>("/audios", {
-      method: "POST",
-      tenantId,
-      body: { display_name: data.display_name, extensao: data.extensao, conteudo_base64: data.conteudo_base64 },
-      timeoutMs: 120_000,
-    });
+    return await agentFetch<{ ok: true; audio_identifier: string; display_name: string }>(
+      "/audios",
+      {
+        method: "POST",
+        tenantId,
+        body: {
+          display_name: data.display_name,
+          extensao: data.extensao,
+          conteudo_base64: data.conteudo_base64,
+        },
+        timeoutMs: 120_000,
+      },
+    );
   });
 
 export const renameAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ tenant_id: z.number().int().positive().optional(), audio_identifier: AudioName, display_name: z.string().min(1) }).parse(d))
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        audio_identifier: AudioName,
+        display_name: z.string().min(1),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     return await agentFetch<{ ok: true }>(`/audios/${encodeURIComponent(data.audio_identifier)}`, {
-      method: "PUT", tenantId, body: { display_name: data.display_name.trim() },
+      method: "PUT",
+      tenantId,
+      body: { display_name: data.display_name.trim() },
     });
   });
 
 export const deleteAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((d: unknown) =>
-    z.object({ tenant_id: z.number().int().positive().optional(), audio_identifier: AudioName }).parse(d))
+    z
+      .object({ tenant_id: z.number().int().positive().optional(), audio_identifier: AudioName })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     return await agentFetch<{ ok: true }>(`/audios/${encodeURIComponent(data.audio_identifier)}`, {
-      method: "DELETE", tenantId,
+      method: "DELETE",
+      tenantId,
+    });
+  });
+
+// ---------- Firewall Black e White ----------
+export interface Firewall {
+  id: number;
+  ip: string;
+  tipo: "WHITELIST" | "BLACKLIST";
+  motivo: string | null;
+  origem: "MANUAL" | "AUTO";
+  ativo: boolean;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const FirewallInput = z.object({
+  ip: z.string().min(1),
+  tipo: z.enum(["WHITELIST", "BLACKLIST"]),
+  motivo: z.string().optional(),
+  expires_at: z.string().optional(),
+});
+
+export const listFirewall = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .handler(async () => {
+    const { agentFetch } = await import("./agent.server");
+    const res = await agentFetch<{ firewall: Firewall[]; warn?: string }>("/firewall");
+    return { firewall: res.firewall ?? [], warn: res.warn };
+  });
+
+export const createFirewall = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => FirewallInput.parse(d))
+  .handler(async ({ data }) => {
+    const { agentFetch } = await import("./agent.server");
+    const { ...body } = data;
+    return await agentFetch<{ ok: true; id: number }>("/firewall", {
+      method: "POST",
+      body,
+    });
+  });
+
+export const deleteFirewall = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.number().int().positive(),
+        ip: z.string().min(1),
+        tipo: z.enum(["WHITELIST", "BLACKLIST"]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{ ok: true }>(`/firewall/${data.id}`, {
+      method: "DELETE",
+      body: { ip: data.ip, tipo: data.tipo },
     });
   });

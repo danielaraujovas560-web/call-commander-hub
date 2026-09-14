@@ -97,7 +97,8 @@ function AudiosPage() {
   });
 
   const remove = useMutation({
-    mutationFn: (audio_identifier: string) => deleteFn({ data: { tenant_id: tenantId, audio_identifier: audio_identifier } }),
+    mutationFn: (audio_identifier: string) =>
+      deleteFn({ data: { tenant_id: tenantId, audio_identifier: audio_identifier } }),
     onSuccess: () => {
       toast.success("Áudio excluído");
       refresh();

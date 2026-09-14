@@ -10,9 +10,7 @@ function getConfig() {
   const url = process.env.PABX_AGENT_URL;
   const secret = process.env.PABX_AGENT_SECRET;
   if (!url || !secret) {
-    throw new Error(
-      "PABX agent não configurado: defina PABX_AGENT_URL e PABX_AGENT_SECRET.",
-    );
+    throw new Error("PABX agent não configurado: defina PABX_AGENT_URL e PABX_AGENT_SECRET.");
   }
   const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`;
   return { url: normalized.replace(/\/$/, ""), secret };
@@ -67,9 +65,7 @@ export async function agentFetch<T = unknown>(
     });
     const text = await res.text();
     if (!res.ok) {
-      throw new Error(
-        `Agente PABX retornou ${res.status}: ${text.slice(0, 300)}`,
-      );
+      throw new Error(`Agente PABX retornou ${res.status}: ${text.slice(0, 300)}`);
     }
     return text ? (JSON.parse(text) as T) : (undefined as T);
   } finally {
@@ -104,17 +100,12 @@ export async function agentDownload(
     "Content-Type": "application/json",
   };
 
-  if (options.tenantId != null)
-    headers["X-Tenant-Id"] = String(options.tenantId);
+  if (options.tenantId != null) headers["X-Tenant-Id"] = String(options.tenantId);
 
-  if (options.bearerToken)
-    headers["Authorization"] = `Bearer ${options.bearerToken}`;
+  if (options.bearerToken) headers["Authorization"] = `Bearer ${options.bearerToken}`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    options.timeoutMs ?? 15000,
-  );
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 15000);
 
   try {
     const res = await fetch(`${url}${fullPath}`, {

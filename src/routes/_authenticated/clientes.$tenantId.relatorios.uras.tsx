@@ -4,9 +4,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { Workflow } from "lucide-react";
 import { listCdrUra } from "@/lib/ramais.functions";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ReportShell } from "@/components/report-shell";
-import { ReportFilters, type ReportFilterValues, usePersistentFilter } from "@/components/report-filters";
+import {
+  ReportFilters,
+  type ReportFilterValues,
+  usePersistentFilter,
+} from "@/components/report-filters";
 import { formatarDataHora } from "@/lib/utils";
 
 function getTodayFilters(): ReportFilterValues {
@@ -20,7 +31,7 @@ function getTodayFilters(): ReportFilterValues {
 
   return {
     from: `${todayStr}T00:00`,
-    to: `${todayStr}T${hours}:${minutes}`
+    to: `${todayStr}T${hours}:${minutes}`,
   };
 }
 
@@ -35,7 +46,11 @@ function Page() {
   const [fUra, setFUra] = usePersistentFilter("fUra", tenantId, getTodayFilters());
   const [page, setPage] = useState(1);
   const fn = useServerFn(listCdrUra);
-  const { data: uraData, isLoading, error } = useQuery({
+  const {
+    data: uraData,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["cdr_ura", tenantId, page, fUra],
     queryFn: () => fn({ data: { tenant_id: tenantId, page, ...fUra } }),
   });
@@ -47,12 +62,7 @@ function Page() {
   }, [uraData]);
 
   const uraOptions = [
-    ...new Map(
-     rowsUra.map((r) => [
-        r.display_name,
-        { value: r.nome, label: r.nome },
-      ])
-    ).values(),
+    ...new Map(rowsUra.map((r) => [r.display_name, { value: r.nome, label: r.nome }])).values(),
   ];
 
   return (
@@ -72,16 +82,24 @@ function Page() {
           { key: "status", label: "Nome URA", options: uraOptions },
           { key: "destino", label: "Opção digitada" },
           { key: "from", label: "De", type: "datetime-local" },
-          { key: "to", label: "Até", type: "datetime-local" }
+          { key: "to", label: "Até", type: "datetime-local" },
         ]}
       />
       <div className="rounded-md border bg-card">
-        <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rowsUra.length === 0}>
+        <ReportShell
+          loading={isLoading}
+          error={error as Error | null}
+          empty={!isLoading && rowsUra.length === 0}
+        >
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Linked ID</TableHead><TableHead>DID</TableHead><TableHead>URA</TableHead><TableHead>Opção</TableHead>
-                <TableHead>Destino</TableHead><TableHead>Data/Hora</TableHead>
+                <TableHead>Linked ID</TableHead>
+                <TableHead>DID</TableHead>
+                <TableHead>URA</TableHead>
+                <TableHead>Opção</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Data/Hora</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,7 +109,9 @@ function Page() {
                   <TableCell>{r.num_did}</TableCell>
                   <TableCell className="font-mono">{r.nome}</TableCell>
                   <TableCell className="font-mono">{r.opcao}</TableCell>
-                  <TableCell>{r.dest_op} → {r.destino_nome}</TableCell>
+                  <TableCell>
+                    {r.dest_op} → {r.destino_nome}
+                  </TableCell>
                   <TableCell>{formatarDataHora(r.date_time)}</TableCell>
                 </TableRow>
               ))}

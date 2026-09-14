@@ -60,8 +60,7 @@ type AdminUser = {
 function Page() {
   const { isAdmin, isLoading } = useIsAdmin();
   if (isLoading) return <p>Carregando…</p>;
-  if (!isAdmin)
-    return <p className="text-destructive">Acesso restrito a administradores.</p>;
+  if (!isAdmin) return <p className="text-destructive">Acesso restrito a administradores.</p>;
   return <UsersAdmin />;
 }
 
@@ -147,12 +146,7 @@ function UsersTable({
         </TableHeader>
         <TableBody>
           {users.map((u) => (
-            <UserRow
-              key={u.id}
-              user={u}
-              showTenants={showTenants}
-              onChange={onChange}
-            />
+            <UserRow key={u.id} user={u} showTenants={showTenants} onChange={onChange} />
           ))}
         </TableBody>
       </Table>
@@ -173,8 +167,7 @@ function UserRow({
   const deleteFn = useServerFn(deleteUser);
 
   const roleMut = useMutation({
-    mutationFn: (role: "admin" | "cliente") =>
-      setRoleFn({ data: { user_id: user.id, role } }),
+    mutationFn: (role: "admin" | "cliente") => setRoleFn({ data: { user_id: user.id, role } }),
     onSuccess: () => {
       toast.success("Perfil atualizado");
       onChange();
@@ -196,10 +189,7 @@ function UserRow({
       <TableCell className="font-mono text-xs">{user.email}</TableCell>
       <TableCell>{user.nome ?? "—"}</TableCell>
       <TableCell>
-        <Select
-          value={user.role}
-          onValueChange={(v) => roleMut.mutate(v as "admin" | "cliente")}
-        >
+        <Select value={user.role} onValueChange={(v) => roleMut.mutate(v as "admin" | "cliente")}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -236,13 +226,7 @@ function UserRow({
   );
 }
 
-function EditUserDialog({
-  user,
-  onDone,
-}: {
-  user: AdminUser;
-  onDone: () => void;
-}) {
+function EditUserDialog({ user, onDone }: { user: AdminUser; onDone: () => void }) {
   const fn = useServerFn(updateUser);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -300,10 +284,7 @@ function EditUserDialog({
         <div className="grid gap-3">
           <div>
             <Label>Nome</Label>
-            <Input
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-            />
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div>
             <Label>Email</Label>
@@ -326,9 +307,7 @@ function EditUserDialog({
             <Label>Perfil</Label>
             <Select
               value={form.role}
-              onValueChange={(v) =>
-                setForm({ ...form, role: v as "admin" | "cliente" })
-              }
+              onValueChange={(v) => setForm({ ...form, role: v as "admin" | "cliente" })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -400,11 +379,7 @@ function TenantCell({
     <div className="flex flex-wrap items-center gap-1">
       {tenants.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
       {tenants.map((t) => (
-        <Badge
-          key={t.tenant_id}
-          variant={t.is_default ? "default" : "secondary"}
-          className="gap-1"
-        >
+        <Badge key={t.tenant_id} variant={t.is_default ? "default" : "secondary"} className="gap-1">
           {t.label ? `${t.label} (#${t.tenant_id})` : `#${t.tenant_id}`}
           <button
             type="button"
@@ -456,10 +431,7 @@ function TenantCell({
             </label>
           </div>
           <DialogFooter>
-            <Button
-              disabled={!tenantId || addMut.isPending}
-              onClick={() => addMut.mutate()}
-            >
+            <Button disabled={!tenantId || addMut.isPending} onClick={() => addMut.mutate()}>
               Vincular
             </Button>
           </DialogFooter>
@@ -489,12 +461,8 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
           password: form.password,
           nome: form.nome,
           role: form.role,
-          tenant_id:
-            form.role === "cliente" && form.tenant_id
-              ? Number(form.tenant_id)
-              : undefined,
-          tenant_label:
-            form.role === "cliente" ? form.tenant_label || undefined : undefined,
+          tenant_id: form.role === "cliente" && form.tenant_id ? Number(form.tenant_id) : undefined,
+          tenant_label: form.role === "cliente" ? form.tenant_label || undefined : undefined,
         },
       }),
     onSuccess: () => {
@@ -524,17 +492,14 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
         <DialogHeader>
           <DialogTitle>Criar usuário</DialogTitle>
           <DialogDescription>
-            O usuário receberá acesso imediato (email já confirmado).
-            Administradores têm acesso a todos os tenants automaticamente.
+            O usuário receberá acesso imediato (email já confirmado). Administradores têm acesso a
+            todos os tenants automaticamente.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
           <div>
             <Label>Nome</Label>
-            <Input
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-            />
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div>
             <Label>Email</Label>

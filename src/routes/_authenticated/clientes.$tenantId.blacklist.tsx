@@ -172,7 +172,10 @@ function BlacklistPage() {
               </TableRow>
             )}
             {rows.map((b) => (
-              <TableRow key={`${b.destino}-${b.regra}-${b.tipo}`} className={b.ativo ? "" : "opacity-60"}>
+              <TableRow
+                key={`${b.destino}-${b.regra}-${b.tipo}`}
+                className={b.ativo ? "" : "opacity-60"}
+              >
                 <TableCell className="font-mono">{b.destino}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{b.regra}</Badge>
@@ -316,7 +319,7 @@ function BlacklistDialog({
       setTimeout(() => {
         onDone();
       }, 200);
-    }, 
+    },
 
     onError: (e: Error) => {
       toast.error(e.message);
@@ -324,18 +327,15 @@ function BlacklistDialog({
   });
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-         onKeyDown={(e) => {
-           if (e.key === "Enter") {
-             e.preventDefault();
-             mut.mutate();
-           }
-         }}
-       >
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            mut.mutate();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar bloqueio" : "Novo bloqueio"}</DialogTitle>
 

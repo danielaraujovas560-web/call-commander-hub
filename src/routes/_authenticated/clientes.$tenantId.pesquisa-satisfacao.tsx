@@ -17,14 +17,32 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Select,
@@ -116,7 +134,9 @@ function Page() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-10">Carregando…</TableCell>
+                <TableCell colSpan={4} className="text-center py-10">
+                  Carregando…
+                </TableCell>
               </TableRow>
             )}
             {!isLoading && pesquisas.length === 0 && (
@@ -152,7 +172,9 @@ function Page() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remover pesquisa "{p.nome_pesquisa}"?</AlertDialogTitle>
-                          <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                          <AlertDialogDescription>
+                            Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -184,7 +206,10 @@ function Page() {
 }
 
 function PesquisaFormDialog({
-  tenantId, pesquisa, open: co, onOpenChange,
+  tenantId,
+  pesquisa,
+  open: co,
+  onOpenChange,
 }: {
   tenantId: number;
   pesquisa?: PesquisaSatisfacao;
@@ -235,9 +260,7 @@ function PesquisaFormDialog({
         })),
       };
 
-      return editing
-        ? updateFn({ data: { id: pesquisa!.id, ...body } })
-        : createFn({ data: body });
+      return editing ? updateFn({ data: { id: pesquisa!.id, ...body } }) : createFn({ data: body });
     },
     onSuccess: () => {
       toast.success(editing ? "Pesquisa atualizada" : "Pesquisa criada");
@@ -250,10 +273,7 @@ function PesquisaFormDialog({
   const addPergunta = () => {
     // Procura o maior número de ordem atual para sugerir o próximo e evitar conflito de cara
     const maxOrdem = perguntas.reduce((max, p) => (p.ordem > max ? p.ordem : max), 0);
-    setPerguntas((prev) => [
-      ...prev,
-      { ordem: maxOrdem + 1, audio: "", max_digit: 1 },
-    ]);
+    setPerguntas((prev) => [...prev, { ordem: maxOrdem + 1, audio: "", max_digit: 1 }]);
   };
 
   const removePergunta = (index: number) => {
@@ -261,26 +281,35 @@ function PesquisaFormDialog({
   };
 
   const updatePergunta = (index: number, key: keyof PerguntaInput, value: any) => {
-    setPerguntas((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, [key]: value } : p))
-    );
+    setPerguntas((prev) => prev.map((p, i) => (i === index ? { ...p, [key]: value } : p)));
   };
 
   // Validação em tempo real para encontrar ordens repetidas
   const ordensMapeadas = perguntas.map((p) => Number(p.ordem)).filter((o) => !isNaN(o) && o > 0);
-  const temOrdemDuplicada = ordensMapeadas.some((ordem, index) => ordensMapeadas.indexOf(ordem) !== index);
+  const temOrdemDuplicada = ordensMapeadas.some(
+    (ordem, index) => ordensMapeadas.indexOf(ordem) !== index,
+  );
 
   const canSubmit =
     !!nomePesquisa.trim() &&
     perguntas.length > 0 &&
     !temOrdemDuplicada &&
-    perguntas.every((p) => p.audio.trim().length > 0 && p.ordem !== undefined && p.ordem !== null && Number(p.ordem) > 0 && p.max_digit > 0);
+    perguntas.every(
+      (p) =>
+        p.audio.trim().length > 0 &&
+        p.ordem !== undefined &&
+        p.ordem !== null &&
+        Number(p.ordem) > 0 &&
+        p.max_digit > 0,
+    );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!editing && (
         <DialogTrigger asChild>
-          <Button><Plus className="mr-2 h-4 w-4" /> Nova pesquisa</Button>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" /> Nova pesquisa
+          </Button>
         </DialogTrigger>
       )}
       <DialogContent className="max-w-xl max-h-[90vh] flex flex-col">
@@ -310,12 +339,10 @@ function PesquisaFormDialog({
           </div>
 
           <div className="flex items-center space-x-2 pb-2">
-            <Checkbox
-              id="ativo"
-              checked={ativo}
-              onCheckedChange={(v) => setAtivo(!!v)}
-            />
-            <Label htmlFor="ativo" className="cursor-pointer">Pesquisa ativa</Label>
+            <Checkbox id="ativo" checked={ativo} onCheckedChange={(v) => setAtivo(!!v)} />
+            <Label htmlFor="ativo" className="cursor-pointer">
+              Pesquisa ativa
+            </Label>
           </div>
 
           <div className="space-y-3 pt-2">
@@ -335,16 +362,26 @@ function PesquisaFormDialog({
 
             {perguntas.map((pergunta, index) => {
               // Verifica se a ordem desta pergunta específica está duplicada no array
-              const isDuplicated = ordensMapeadas.filter((o) => o === Number(pergunta.ordem)).length > 1;
+              const isDuplicated =
+                ordensMapeadas.filter((o) => o === Number(pergunta.ordem)).length > 1;
 
               return (
-                <div key={index} className="flex gap-3 items-start bg-muted/40 p-3 rounded-md border relative">
+                <div
+                  key={index}
+                  className="flex gap-3 items-start bg-muted/40 p-3 rounded-md border relative"
+                >
                   <div className="w-20 space-y-1">
                     <Label className="text-xs">Ordem *</Label>
                     <Input
                       type="number"
                       value={pergunta.ordem}
-                      onChange={(e) => updatePergunta(index, "ordem", e.target.value === "" ? undefined : Number(e.target.value))}
+                      onChange={(e) =>
+                        updatePergunta(
+                          index,
+                          "ordem",
+                          e.target.value === "" ? undefined : Number(e.target.value),
+                        )
+                      }
                       required
                       min={1}
                       className={`h-8 text-center ${isDuplicated ? "border-destructive focus-visible:ring-destructive bg-destructive/5 text-destructive font-bold" : ""}`}
@@ -358,14 +395,18 @@ function PesquisaFormDialog({
                       onValueChange={(val) => updatePergunta(index, "audio", val)}
                     >
                       <SelectTrigger className="h-8">
-                        <SelectValue placeholder={isLoadingAudios ? "Carregando..." : "Selecione o áudio..."} />
+                        <SelectValue
+                          placeholder={isLoadingAudios ? "Carregando..." : "Selecione o áudio..."}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {listaAudios.map((audio: any, audioIdx: number) => {
                           // Suporta se retornar um array de strings ou objetos
-                          const audioNome = typeof audio === "string" ? audio : audio.nome || audio.arquivo;
-                          const audioValor = typeof audio === "string" ? audio : audio.id?.toString() || audio.nome;
-                          
+                          const audioNome =
+                            typeof audio === "string" ? audio : audio.nome || audio.arquivo;
+                          const audioValor =
+                            typeof audio === "string" ? audio : audio.id?.toString() || audio.nome;
+
                           return (
                             <SelectItem key={audioIdx} value={audioValor}>
                               {audioNome}
@@ -373,7 +414,9 @@ function PesquisaFormDialog({
                           );
                         })}
                         {!isLoadingAudios && listaAudios.length === 0 && (
-                          <div className="p-2 text-xs text-muted-foreground text-center">Nenhum áudio encontrado</div>
+                          <div className="p-2 text-xs text-muted-foreground text-center">
+                            Nenhum áudio encontrado
+                          </div>
                         )}
                       </SelectContent>
                     </Select>

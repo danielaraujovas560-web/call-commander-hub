@@ -17,17 +17,17 @@ export const tipoOptions = [
   { value: "ENTRADA", label: "Entrada" },
   { value: "SAIDA", label: "Saida" },
   { value: "INTERNO", label: "Interno" },
-]
+];
 
-export const contextOptions =[
+export const contextOptions = [
   { value: "INTERNO", label: "Interno" },
   { value: "EXTERNO", label: "Externo" },
-]
+];
 
 export const tipoOptionsMapaDDD = [
   { value: "ENTRADA", label: "Entrada" },
   { value: "SAIDA", label: "Saida" },
-]
+];
 
 export const eventOptions = [
   { value: "AGENTE_ATENDEU", label: "Atendida" },
@@ -49,11 +49,11 @@ export const reasonOptions = [
 ] as const;
 
 export function getStatusLabel(status: string) {
-  return statusOptions.find(s => s.value === status)?.label ?? status;
+  return statusOptions.find((s) => s.value === status)?.label ?? status;
 }
 
 export const getEventLabel = (value: string) =>
-  eventOptions.find(o => o.value === value)?.label ?? value;
+  eventOptions.find((o) => o.value === value)?.label ?? value;
 
 export const getReasonLabel = (value: string) =>
-  reasonOptions.find(o => o.value === value)?.label ?? value;
+  reasonOptions.find((o) => o.value === value)?.label ?? value;

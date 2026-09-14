@@ -96,7 +96,6 @@ export const updateClienteConfiguracoes = createServerFn({ method: "POST" })
     });
   });
 
-
 // ---------- DELETE ----------
 export const deleteCliente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
@@ -112,9 +111,7 @@ export const deleteCliente = createServerFn({ method: "POST" })
 // ---------- GET ONE (for cliente detail page) ----------
 export const getClienteByTenant = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
-    z.object({ tenant_id: z.number().int().positive() }).parse(d),
-  )
+  .inputValidator((d: unknown) => z.object({ tenant_id: z.number().int().positive() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const res = await agentFetch<{ cliente: Cliente | null }>(

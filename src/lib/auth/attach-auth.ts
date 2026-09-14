@@ -46,24 +46,20 @@ export function isTokenExpired(token: string): boolean {
 
 // Substitui attachSupabaseAuth. Deve ser registrado como functionMiddleware
 // global em src/start.ts, senão o navegador nunca anexa o Bearer token.
-export const attachAuth = createMiddleware({ type: "function" }).client(
-  async ({ next }) => {
-    let token = getStoredToken();
+export const attachAuth = createMiddleware({ type: "function" }).client(async ({ next }) => {
+  let token = getStoredToken();
 
-    // Token expirado? Remove e volta para o login.
-    if (token && isTokenExpired(token)) {
-      setStoredToken(null);
-      token = null;
+  // Token expirado? Remove e volta para o login.
+  if (token && isTokenExpired(token)) {
+    setStoredToken(null);
+    token = null;
 
-      if (window.location.pathname !== "/auth") {
-        window.location.replace("/auth");
-      }
+    if (window.location.pathname !== "/auth") {
+      window.location.replace("/auth");
     }
+  }
 
-    return next({
-      headers: token
-        ? { Authorization: `Bearer ${token}` }
-        : {},
-    });
-  },
-);
+  return next({
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+});

@@ -4,7 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { Star, Users, Phone } from "lucide-react";
 import { listCdrPesquisa } from "@/lib/ramais.functions";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, notaColors } from "@/components/ui/badge";
 import { ReportShell } from "@/components/report-shell";
@@ -21,7 +28,7 @@ function getTodayFilters(): ReportFilterValues {
 
   return {
     from: `${todayStr}T00:00`,
-    to: `${todayStr}T${hours}:${minutes}`
+    to: `${todayStr}T${hours}:${minutes}`,
   };
 }
 
@@ -41,7 +48,8 @@ function Page() {
   const fn = useServerFn(listCdrPesquisa);
   const { data, isLoading, error } = useQuery({
     queryKey: ["cdr_pesquisa", tenantId, activeTab, currentFilters, page],
-    queryFn: () => fn({ data: { tenant_id: tenantId, tipo: activeTab.toUpperCase(), page, ...currentFilters } }),
+    queryFn: () =>
+      fn({ data: { tenant_id: tenantId, tipo: activeTab.toUpperCase(), page, ...currentFilters } }),
   });
   const rows = useMemo(() => {
     if (Array.isArray(data?.rows)) return data.rows;
@@ -55,13 +63,13 @@ function Page() {
         <Star className="h-6 w-6" /> Relatório — Pesquisa de satisfação
       </h1>
 
-      <Tabs 
+      <Tabs
         value={activeTab}
         onValueChange={(val) => {
           setPage(1); // Reseta a página ao trocar de aba
           setActiveTab(val as "ramal" | "fila");
-       }}
-       className="w-full space-y-4"
+        }}
+        className="w-full space-y-4"
       >
         <TabsList>
           <TabsTrigger value="ramal" className="flex items-center gap-2">
@@ -72,95 +80,116 @@ function Page() {
           </TabsTrigger>
         </TabsList>
 
-    <TabsContent value="ramal" className="w-full space-y-6">
-      <ReportFilters
-        storageKey="fPesquisaRamal"
-        tenantId={tenantId}
-        initialValues={fPesquisaRamal}
-        defaultValues={getTodayFilters()}
-        onApply={(valores) => {
-             setPage(1);
-             setFPesquisaRamal(valores);}}
-        fields={[
-          { key: "linkedid", label: "Linkedid" },
-          { key: "origem", label: "Origem" },
-          { key: "destino", label: "Destino" },
-          { key: "from", label: "De", type: "datetime-local" },
-          { key: "to", label: "Até", type: "datetime-local" },
-        ]}
-      />
-      <div className="rounded-md border bg-card">
-        <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead><TableHead>Linkedid</TableHead>
-                 <TableHead>Origem</TableHead><TableHead>Destino</TableHead>
-                <TableHead>Pergunta</TableHead><TableHead>Nota</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-xs">{r.data}</TableCell>
-                  <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
-                  <TableCell className="font-mono">{r.origem}</TableCell>
-                  <TableCell>{r.destino}</TableCell>
-                  <TableCell>#{r.pergunta_id}</TableCell>
-                  <TableCell><Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-         </ReportShell>
-        </div>
-       </TabsContent>
-    <TabsContent value="fila" className="w-full space-y-6">
-      <ReportFilters
-        storageKey="fPesquisaFila"
-        tenantId={tenantId}
-        initialValues={fPesquisaFila}
-        defaultValues={getTodayFilters()}
-        onApply={(valores) => {
-             setPage(1);
-             setFPesquisaFila(valores);}}
-        fields={[
-          { key: "linkedid", label: "Linkedid" },
-          { key: "origem", label: "Origem" },
-          { key: "destino", label: "Destino" },
-          { key: "status", label: "Fila" },
-          { key: "from", label: "De", type: "datetime-local" },
-          { key: "to", label: "Até", type: "datetime-local" },
-        ]}
-      />
-      <div className="rounded-md border bg-card">
-        <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead><TableHead>Linkedid</TableHead>
-                 <TableHead>Origem</TableHead><TableHead>Destino</TableHead><TableHead>Fila</TableHead>
-                <TableHead>Pergunta</TableHead><TableHead>Nota</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-xs">{r.data}</TableCell>
-                  <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
-                  <TableCell className="font-mono">{r.origem}</TableCell>
-                  <TableCell>{r.destino}</TableCell>
-                  <TableCell>{r.fila}</TableCell>
-                  <TableCell>#{r.pergunta_id}</TableCell>
-                  <TableCell><Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge></TableCell>
-                </TableRow>
-              ))}
-           </TableBody>
-         </Table>
-        </ReportShell>
-       </div>
-      </TabsContent>
-     </Tabs> 
+        <TabsContent value="ramal" className="w-full space-y-6">
+          <ReportFilters
+            storageKey="fPesquisaRamal"
+            tenantId={tenantId}
+            initialValues={fPesquisaRamal}
+            defaultValues={getTodayFilters()}
+            onApply={(valores) => {
+              setPage(1);
+              setFPesquisaRamal(valores);
+            }}
+            fields={[
+              { key: "linkedid", label: "Linkedid" },
+              { key: "origem", label: "Origem" },
+              { key: "destino", label: "Destino" },
+              { key: "from", label: "De", type: "datetime-local" },
+              { key: "to", label: "Até", type: "datetime-local" },
+            ]}
+          />
+          <div className="rounded-md border bg-card">
+            <ReportShell
+              loading={isLoading}
+              error={error as Error | null}
+              empty={!isLoading && rows.length === 0}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Linkedid</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Destino</TableHead>
+                    <TableHead>Pergunta</TableHead>
+                    <TableHead>Nota</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-xs">{r.data}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
+                      <TableCell className="font-mono">{r.origem}</TableCell>
+                      <TableCell>{r.destino}</TableCell>
+                      <TableCell>#{r.pergunta_id}</TableCell>
+                      <TableCell>
+                        <Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ReportShell>
+          </div>
+        </TabsContent>
+        <TabsContent value="fila" className="w-full space-y-6">
+          <ReportFilters
+            storageKey="fPesquisaFila"
+            tenantId={tenantId}
+            initialValues={fPesquisaFila}
+            defaultValues={getTodayFilters()}
+            onApply={(valores) => {
+              setPage(1);
+              setFPesquisaFila(valores);
+            }}
+            fields={[
+              { key: "linkedid", label: "Linkedid" },
+              { key: "origem", label: "Origem" },
+              { key: "destino", label: "Destino" },
+              { key: "status", label: "Fila" },
+              { key: "from", label: "De", type: "datetime-local" },
+              { key: "to", label: "Até", type: "datetime-local" },
+            ]}
+          />
+          <div className="rounded-md border bg-card">
+            <ReportShell
+              loading={isLoading}
+              error={error as Error | null}
+              empty={!isLoading && rows.length === 0}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Linkedid</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Destino</TableHead>
+                    <TableHead>Fila</TableHead>
+                    <TableHead>Pergunta</TableHead>
+                    <TableHead>Nota</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-xs">{r.data}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
+                      <TableCell className="font-mono">{r.origem}</TableCell>
+                      <TableCell>{r.destino}</TableCell>
+                      <TableCell>{r.fila}</TableCell>
+                      <TableCell>#{r.pergunta_id}</TableCell>
+                      <TableCell>
+                        <Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ReportShell>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

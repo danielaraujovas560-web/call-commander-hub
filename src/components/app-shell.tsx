@@ -23,6 +23,7 @@ import {
   MapPin,
   Clock,
   ClipboardCheck,
+  UsersRound,
 } from "lucide-react";
 
 import { setStoredToken } from "@/lib/auth/attach-auth";
@@ -49,7 +50,9 @@ const mainNav: NavItem[] = [
 ];
 
 const adminNav: NavItem[] = [
-  { to: "/admin/usuarios", label: "Usuários", icon: ShieldCheck },
+  { to: "/admin/blacklist", label: "Blacklist", icon: ShieldBan },
+  { to: "/admin/whitelist", label: "Whitelist", icon: ShieldCheck },
+  { to: "/admin/usuarios", label: "Usuários", icon: UsersRound },
   { to: "/admin/servidor", label: "Servidor", icon: Server, adminOnly: true },
 ];
 

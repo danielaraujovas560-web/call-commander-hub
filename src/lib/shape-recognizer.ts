@@ -42,14 +42,19 @@ function resample(points: Pt[], n: number): Pt[] {
 }
 
 function centroid(points: Pt[]): Pt {
-  let x = 0, y = 0;
-  for (const p of points) { x += p.x; y += p.y; }
+  let x = 0,
+    y = 0;
+  for (const p of points) {
+    x += p.x;
+    y += p.y;
+  }
   return { x: x / points.length, y: y / points.length };
 }
 
 function rotateBy(points: Pt[], angle: number): Pt[] {
   const c = centroid(points);
-  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const cos = Math.cos(angle),
+    sin = Math.sin(angle);
   return points.map((p) => ({
     x: (p.x - c.x) * cos - (p.y - c.y) * sin + c.x,
     y: (p.x - c.x) * sin + (p.y - c.y) * cos + c.y,
@@ -63,10 +68,15 @@ function rotateToZero(points: Pt[]): Pt[] {
 }
 
 function scaleToSquare(points: Pt[], size: number): Pt[] {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of points) {
-    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
   }
   const w = maxX - minX || 1;
   const h = maxY - minY || 1;
@@ -89,18 +99,23 @@ function distanceAtAngle(points: Pt[], template: Pt[], angle: number): number {
 }
 
 function distanceAtBestAngle(points: Pt[], template: Pt[]): number {
-  let a = -ANGLE_RANGE, b = ANGLE_RANGE;
+  let a = -ANGLE_RANGE,
+    b = ANGLE_RANGE;
   let x1 = PHI * a + (1 - PHI) * b;
   let f1 = distanceAtAngle(points, template, x1);
   let x2 = (1 - PHI) * a + PHI * b;
   let f2 = distanceAtAngle(points, template, x2);
   while (Math.abs(b - a) > ANGLE_PRECISION) {
     if (f1 < f2) {
-      b = x2; x2 = x1; f2 = f1;
+      b = x2;
+      x2 = x1;
+      f2 = f1;
       x1 = PHI * a + (1 - PHI) * b;
       f1 = distanceAtAngle(points, template, x1);
     } else {
-      a = x1; x1 = x2; f1 = f2;
+      a = x1;
+      x1 = x2;
+      f1 = f2;
       x2 = (1 - PHI) * a + PHI * b;
       f2 = distanceAtAngle(points, template, x2);
     }

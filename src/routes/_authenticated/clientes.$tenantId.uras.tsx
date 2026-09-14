@@ -23,7 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -45,9 +52,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
-
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/uras")({
   head: () => ({ meta: [{ title: "URAs — Cliente — Painel PABX" }] }),
@@ -83,7 +95,8 @@ function UrasPage() {
 
   const delFn = useServerFn(deleteUra);
   const delMut = useMutation({
-    mutationFn: (ura_identifier: string) => delFn({ data: { ura_identifier, tenant_id: tenantId } }),
+    mutationFn: (ura_identifier: string) =>
+      delFn({ data: { ura_identifier, tenant_id: tenantId } }),
     onSuccess: () => {
       toast.success("URA removida");
       qc.invalidateQueries({ queryKey: ["uras", tenantId] });
@@ -93,17 +106,18 @@ function UrasPage() {
 
   const toggleUraAtivoFn = useServerFn(toggleUraAtivo);
   const toggleAtivoMut = useMutation({
-    mutationFn: ({ ura_identifier, ativo }: { ura_identifier: string; ativo: boolean; }) =>
-      toggleUraAtivoFn({ data: { ura_identifier, ativo, tenant_id: tenantId }}),
+    mutationFn: ({ ura_identifier, ativo }: { ura_identifier: string; ativo: boolean }) =>
+      toggleUraAtivoFn({ data: { ura_identifier, ativo, tenant_id: tenantId } }),
     onSuccess: () => {
-       toast.success("Ura atualizada");
-       qc.invalidateQueries({
-         queryKey: ["uras", tenantId],
+      toast.success("Ura atualizada");
+      qc.invalidateQueries({
+        queryKey: ["uras", tenantId],
       });
     },
     onError: (e: Error) => {
       toast.error(e.message);
-   }});
+    },
+  });
 
   const count = data?.uras.length ?? 0;
   const atLimit = max > 0 && count >= max;
@@ -115,13 +129,15 @@ function UrasPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Workflow className="h-6 w-6" /> URAs
           </h1>
-          <p className="text-sm text-muted-foreground">{count} {max > 0 ? `/ ${max}` : ""} uras cadastradas.</p>
+          <p className="text-sm text-muted-foreground">
+            {count} {max > 0 ? `/ ${max}` : ""} uras cadastradas.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <UraFormDialog tenantId={tenantId} disabled={atLimit}/>
+          <UraFormDialog tenantId={tenantId} disabled={atLimit} />
         </div>
       </div>
 
@@ -174,9 +190,12 @@ function UrasPage() {
                 <TableCell>{u.timeout ?? "-"}</TableCell>
                 <TableCell>
                   <ToggleAtivoBadge
-                     ativo={u.ativo}
-                     isPending={toggleAtivoMut.isPending}
-                     onToggle={() => { toggleAtivoMut.mutate({ ura_identifier: u.ura_identifier, ativo: !u.ativo })}}/>
+                    ativo={u.ativo}
+                    isPending={toggleAtivoMut.isPending}
+                    onToggle={() => {
+                      toggleAtivoMut.mutate({ ura_identifier: u.ura_identifier, ativo: !u.ativo });
+                    }}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -195,11 +214,15 @@ function UrasPage() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remover URA {u.nome}?</AlertDialogTitle>
-                          <AlertDialogDescription>Também remove todas as opções configuradas.</AlertDialogDescription>
+                          <AlertDialogDescription>
+                            Também remove todas as opções configuradas.
+                          </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => delMut.mutate(u.ura_identifier)}>Remover</AlertDialogAction>
+                          <AlertDialogAction onClick={() => delMut.mutate(u.ura_identifier)}>
+                            Remover
+                          </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -218,7 +241,14 @@ function UrasPage() {
           onClose={() => setSelected(null)}
         />
       )}
-      {editing && <UraFormDialog tenantId={tenantId} ura={editing} open onOpenChange={(v) => !v && setEditing(null)} />}
+      {editing && (
+        <UraFormDialog
+          tenantId={tenantId}
+          ura={editing}
+          open
+          onOpenChange={(v) => !v && setEditing(null)}
+        />
+      )}
     </div>
   );
 }
@@ -282,7 +312,12 @@ function UraFormDialog({
     mutationFn: () =>
       editing
         ? updateFn({
-            data: { ura_identifier: ura!.ura_identifier, tenant_id: tenantId, ...form, timeout: Number(form.timeout) },
+            data: {
+              ura_identifier: ura!.ura_identifier,
+              tenant_id: tenantId,
+              ...form,
+              timeout: Number(form.timeout),
+            },
           })
         : createFn({ data: { tenant_id: tenantId, ...form, timeout: Number(form.timeout) } }),
     onSuccess: () => {
@@ -342,7 +377,9 @@ function UraFormDialog({
                   </SelectItem>
                 ))}
                 {audios.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum .wav encontrado</div>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Nenhum .wav encontrado
+                  </div>
                 )}
               </SelectContent>
             </Select>
@@ -403,18 +440,43 @@ type OpcaoForm = {
   externoNumero: string;
   externoTronco: string;
 };
-const emptyOpcao: OpcaoForm = { digito: "", tipo_destino: "", destino: "", externoNumero: "", externoTronco: "" };
+const emptyOpcao: OpcaoForm = {
+  digito: "",
+  tipo_destino: "",
+  destino: "",
+  externoNumero: "",
+  externoTronco: "",
+};
 
-function opcaoToForm(o: { ura_identifier: string; digito: string; tipo_destino: string; destino: string }): OpcaoForm {
+function opcaoToForm(o: {
+  ura_identifier: string;
+  digito: string;
+  tipo_destino: string;
+  destino: string;
+}): OpcaoForm {
   const t = String(o.tipo_destino || "").toUpperCase() as TipoOpc;
   if (t === "EXTERNO" && o.destino.includes("/")) {
     const [n, tr] = o.destino.split("/");
     return { digito: o.digito, tipo_destino: t, destino: "", externoNumero: n, externoTronco: tr };
   }
-  return { digito: o.digito, tipo_destino: t, destino: o.destino, externoNumero: "", externoTronco: "" };
+  return {
+    digito: o.digito,
+    tipo_destino: t,
+    destino: o.destino,
+    externoNumero: "",
+    externoTronco: "",
+  };
 }
 
-function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ura; onClose: () => void }) {
+function UraOpcoesDialog({
+  tenantId,
+  ura,
+  onClose,
+}: {
+  tenantId: number;
+  ura: Ura;
+  onClose: () => void;
+}) {
   const destinosFn = useServerFn(listUraDestinos);
   const { data: destinos } = useQuery({
     queryKey: ["ura-destinos", tenantId],
@@ -426,7 +488,10 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
   const updateFn = useServerFn(updateUraOpcao);
   const delFn = useServerFn(deleteUraOpcao);
 
-  const [editingOpcao, setEditingOpcao] = useState<{ura_identifier: string; digito: string;} | null>(null);
+  const [editingOpcao, setEditingOpcao] = useState<{
+    ura_identifier: string;
+    digito: string;
+  } | null>(null);
   const [form, setForm] = useState<OpcaoForm>(emptyOpcao);
 
   function reset() {
@@ -436,14 +501,25 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
 
   const saveMut = useMutation({
     mutationFn: () => {
-      const destino = form.tipo_destino === "EXTERNO" ? `${form.externoNumero}/${form.externoTronco}` : form.destino;
+      const destino =
+        form.tipo_destino === "EXTERNO"
+          ? `${form.externoNumero}/${form.externoTronco}`
+          : form.destino;
       const body = {
         tenant_id: tenantId,
         digito: form.digito,
         tipo_destino: form.tipo_destino as Exclude<TipoOpc, "">,
         destino,
       };
-      return editingOpcao ? updateFn({ data: { ura_identifier: editingOpcao.ura_identifier, digito_atual: editingOpcao.digito, ...body } }) : addFn({ data: { ura_identifier: ura.ura_identifier, ...body } });
+      return editingOpcao
+        ? updateFn({
+            data: {
+              ura_identifier: editingOpcao.ura_identifier,
+              digito_atual: editingOpcao.digito,
+              ...body,
+            },
+          })
+        : addFn({ data: { ura_identifier: ura.ura_identifier, ...body } });
     },
     onSuccess: () => {
       toast.success(editingOpcao ? "Opção atualizada" : "Opção adicionada");
@@ -454,10 +530,11 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
   });
 
   const delMut = useMutation({
-    mutationFn: ({ura_identifier, digito}: {ura_identifier: string, digito: string}) => delFn({ data: { ura_identifier, digito, tenant_id: tenantId } }),
+    mutationFn: ({ ura_identifier, digito }: { ura_identifier: string; digito: string }) =>
+      delFn({ data: { ura_identifier, digito, tenant_id: tenantId } }),
     onSuccess: () => {
-        toast.success("Opção removida");
-        qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+      toast.success("Opção removida");
+      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -516,13 +593,19 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                         size="icon"
                         variant="ghost"
                         onClick={() => {
-                          setEditingOpcao({ura_identifier: o.ura_identifier, digito: o.digito});
+                          setEditingOpcao({ ura_identifier: o.ura_identifier, digito: o.digito });
                           setForm(opcaoToForm(o));
                         }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => delMut.mutate({ ura_identifier: o.ura_identifier, digito: o.digito })}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() =>
+                          delMut.mutate({ ura_identifier: o.ura_identifier, digito: o.digito })
+                        }
+                      >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -573,7 +656,10 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
             <div className="col-span-2 space-y-1">
               <Label>Destino</Label>
               {form.tipo_destino === "FILA" && (
-                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
+                <Select
+                  value={form.destino}
+                  onValueChange={(v) => setForm({ ...form, destino: v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a fila" />
                   </SelectTrigger>
@@ -587,7 +673,10 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                 </Select>
               )}
               {form.tipo_destino === "URA" && (
-                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
+                <Select
+                  value={form.destino}
+                  onValueChange={(v) => setForm({ ...form, destino: v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a URA" />
                   </SelectTrigger>
@@ -603,12 +692,15 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                 </Select>
               )}
               {form.tipo_destino === "RAMAL" && (
-                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
+                <Select
+                  value={form.destino}
+                  onValueChange={(v) => setForm({ ...form, destino: v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o ramal" />
                   </SelectTrigger>
                   <SelectContent>
-                    {destinos?.ramais .map((r) => (
+                    {destinos?.ramais.map((r) => (
                       <SelectItem key={r.value} value={String(r.value)}>
                         {displayFromBackend(r.label)}
                       </SelectItem>
@@ -617,7 +709,10 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                 </Select>
               )}
               {form.tipo_destino === "INTERNO" && (
-                <Select value={form.destino} onValueChange={(v) => setForm({ ...form, destino: v })}>
+                <Select
+                  value={form.destino}
+                  onValueChange={(v) => setForm({ ...form, destino: v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Função" />
                   </SelectTrigger>
@@ -637,7 +732,10 @@ function UraOpcoesDialog({ tenantId, ura, onClose }: { tenantId: number; ura: Ur
                     onChange={(e) => setForm({ ...form, externoNumero: e.target.value })}
                     placeholder="Número"
                   />
-                  <Select value={form.externoTronco} onValueChange={(v) => setForm({ ...form, externoTronco: v })}>
+                  <Select
+                    value={form.externoTronco}
+                    onValueChange={(v) => setForm({ ...form, externoTronco: v })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Tronco" />
                     </SelectTrigger>

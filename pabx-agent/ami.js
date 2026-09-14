@@ -2,14 +2,15 @@
 // Substitui "asterisk -rx pjsip show endpoints" por uma conexão AMI persistente.
 
 const AsteriskManager = require("asterisk-manager");
-const { ensureChain, restoreBlacklist, handleAuthFailure, resetAuthFailures, normalizeIp } = require("./firewall");
-
 const {
-  AMI_HOST = "127.0.0.1",
-  AMI_PORT = "5038",
-  AMI_USER,
-  AMI_PASSWORD,
-} = process.env;
+  ensureChain,
+  restoreBlacklist,
+  handleAuthFailure,
+  resetAuthFailures,
+  normalizeIp,
+} = require("./firewall");
+
+const { AMI_HOST = "127.0.0.1", AMI_PORT = "5038", AMI_USER, AMI_PASSWORD } = process.env;
 
 if (!AMI_USER || !AMI_PASSWORD) {
   console.error("AMI_USER/AMI_PASSWORD ausentes no .env — status via AMI não vai funcionar.");
@@ -27,10 +28,7 @@ ami.on("connect", async () => {
     await ensureChain();
     await restoreBlacklist();
   } catch (err) {
-    console.error(
-      "[firewall] erro inicializando firewall:",
-      err.message || err
-    );
+    console.error("[firewall] erro inicializando firewall:", err.message || err);
   }
   if (_onConnect) {
     Promise.resolve()
@@ -220,17 +218,11 @@ ami.on("managerevent", async (event) => {
     const status = event.contactstatus || event.ContactStatus;
 
     if (status === "Reachable") {
-      const endpoint =
-        event.endpointname ||
-        event.EndpointName ||
-        event.aor ||
-        event.AOR;
+      const endpoint = event.endpointname || event.EndpointName || event.aor || event.AOR;
 
       const uri = event.uri || event.URI;
 
-      const match = String(uri || "").match(
-        /^sip:[^@]+@([^:;]+)/
-      );
+      const match = String(uri || "").match(/^sip:[^@]+@([^:;]+)/);
 
       const ip = match ? match[1] : null;
 
@@ -246,9 +238,7 @@ ami.on("managerevent", async (event) => {
     const status = event.peerstatus || event.PeerStatus;
 
     if (status === "Reachable") {
-      const channelType =
-        event.channeltype ||
-        event.ChannelType;
+      const channelType = event.channeltype || event.ChannelType;
 
       if (channelType && String(channelType).toUpperCase() !== "PJSIP") {
         return;
@@ -273,34 +263,25 @@ ami.on("managerevent", async (event) => {
     return;
   }
 
-  const service =
-    event.service ||
-    event.Service;
+  const service = event.service || event.Service;
 
   if (service && String(service).toUpperCase() !== "PJSIP") {
     return;
   }
 
-  const remoteAddress =
-    event.remoteaddress ||
-    event.RemoteAddress;
+  const remoteAddress = event.remoteaddress || event.RemoteAddress;
 
   const ip = normalizeIp(remoteAddress);
 
   if (!ip) {
-    console.warn(
-      `[firewall] evento ${nome} sem RemoteAddress`
-    );
+    console.warn(`[firewall] evento ${nome} sem RemoteAddress`);
     return;
   }
 
   try {
     await handleAuthFailure(ip, nome);
   } catch (err) {
-    console.error(
-      `[firewall] erro processando ${nome} de ${ip}:`,
-      err.message || err
-    );
+    console.error(`[firewall] erro processando ${nome} de ${ip}:`, err.message || err);
   }
 });
 

@@ -17,7 +17,17 @@ import {
   Copy,
   UserRound,
 } from "lucide-react";
-import { listRamais, listRamaisStatus, listTroncos, createRamal, updateRamal, deleteRamal, type Ramal, listPesquisaSatisfacao, generateRamalPassword, } from "@/lib/ramais.functions";
+import {
+  listRamais,
+  listRamaisStatus,
+  listTroncos,
+  createRamal,
+  updateRamal,
+  deleteRamal,
+  type Ramal,
+  listPesquisaSatisfacao,
+  generateRamalPassword,
+} from "@/lib/ramais.functions";
 import { getSipConfig } from "@/lib/login-config.functions";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
@@ -122,12 +132,7 @@ function RamaisPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
           <NewRamalDialog tenantId={tenantId} disabled={atLimit} />
@@ -207,7 +212,11 @@ function RamaisPage() {
                   <div className="flex justify-end gap-1">
                     <RamalNewPassword ramal={r} />
                     <RamalLoginInfoDialog ramal={r} />
-                    <EditRamalDialog key={`${r.endpoint_id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`} tenantId={tenantId} ramal={r} />
+                    <EditRamalDialog
+                      key={`${r.endpoint_id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`}
+                      tenantId={tenantId}
+                      ramal={r}
+                    />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -231,7 +240,6 @@ function RamaisPage() {
                     </AlertDialog>
                   </div>
                 </TableCell>
-
               </TableRow>
             ))}
           </TableBody>
@@ -276,7 +284,7 @@ function ReadOnlyCopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RamalNewPassword({ ramal }: {ramal: Ramal}) {
+function RamalNewPassword({ ramal }: { ramal: Ramal }) {
   const { tenantId: tenantParam } = Route.useParams();
   const tenantId = Number(tenantParam);
   const queryClient = useQueryClient();
@@ -310,9 +318,7 @@ function RamalNewPassword({ ramal }: {ramal: Ramal}) {
       disabled={mut.isPending}
       title="Gerar nova senha"
     >
-      <KeyRound
-        className={mut.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"}
-      />
+      <KeyRound className={mut.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
     </Button>
   );
 }
@@ -347,7 +353,9 @@ function RamalLoginInfoDialog({ ramal }: { ramal: Ramal }) {
           <ReadOnlyCopyField label="Porta" value={data?.port ?? "carregando…"} />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Fechar
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -408,9 +416,10 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
         data: {
           ...form,
           tenant_id: tenantId,
-          transbordo_tronco: form.transbordo && form.transbordo_troncos.length
-            ? form.transbordo_troncos.join("&")
-            : "",
+          transbordo_tronco:
+            form.transbordo && form.transbordo_troncos.length
+              ? form.transbordo_troncos.join("&")
+              : "",
         },
       }),
     onSuccess: () => {
@@ -432,9 +441,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo ramal</DialogTitle>
-          <DialogDescription>
-            Criação de um novo ramal.
-          </DialogDescription>
+          <DialogDescription>Criação de um novo ramal.</DialogDescription>
         </DialogHeader>
 
         <form
@@ -456,23 +463,20 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           </div>
           <div className="space-y-1">
             <Label>DDD *</Label>
-              <Select 
-                value={form.ddd} 
-                onValueChange={(value) => setForm({ ...form, ddd: value })}
-            >
-             <SelectTrigger className="w-full">
-                 <SelectValue placeholder="Selecione o DDD" />
-               </SelectTrigger>
-               <SelectContent>
-                 {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
-                   <SelectItem key={ddd} value={ddd}>
-                     {ddd}
-                   </SelectItem>
-                 ))}
-               </SelectContent>
-              </Select>
-             </div>
-          
+            <Select value={form.ddd} onValueChange={(value) => setForm({ ...form, ddd: value })}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione o DDD" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
+                  <SelectItem key={ddd} value={ddd}>
+                    {ddd}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="col-span-2 space-y-1">
             <Label>Nome (opcional — usa nº do ramal se vazio)</Label>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
@@ -480,7 +484,16 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
 
           <div className="col-span-2 space-y-1">
             <Label>Tronco *</Label>
-            <Select value={form.tronco} onValueChange={(v) => setForm({ ...form, tronco: v, transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v) })}>
+            <Select
+              value={form.tronco}
+              onValueChange={(v) =>
+                setForm({
+                  ...form,
+                  tronco: v,
+                  transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
+                })
+              }
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um tronco" />
               </SelectTrigger>
@@ -491,7 +504,9 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
                   </SelectItem>
                 ))}
                 {troncos.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco encontrado</div>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Nenhum tronco encontrado
+                  </div>
                 )}
               </SelectContent>
             </Select>
@@ -499,32 +514,44 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
 
           <div className="col-span-2 space-y-1">
             <Label>CallerID (opcional — qualquer texto)</Label>
-            <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />
+            <Input
+              value={form.callerid}
+              onChange={(e) => setForm({ ...form, callerid: e.target.value })}
+              maxLength={32}
+            />
           </div>
 
           <div className="col-span-2 w-full flex items-center gap-2 rounded-md border p-3">
-           <Switch
-             checked={form.gravacao}
-             onCheckedChange={(v) =>setForm({ ...form, gravacao: v })}
-           />
-          <div>
-            <p className="font-medium">Gravação de chamadas</p>
-            <p className="text-xs text-muted-foreground">
-               Grava automaticamente as chamadas deste ramal.
-            </p>
+            <Switch
+              checked={form.gravacao}
+              onCheckedChange={(v) => setForm({ ...form, gravacao: v })}
+            />
+            <div>
+              <p className="font-medium">Gravação de chamadas</p>
+              <p className="text-xs text-muted-foreground">
+                Grava automaticamente as chamadas deste ramal.
+              </p>
+            </div>
           </div>
-         </div>
 
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={form.transbordo}
-                onCheckedChange={(v) => setForm({ ...form, transbordo: v, transbordo_troncos: v ? form.transbordo_troncos : [] })}
+                onCheckedChange={(v) =>
+                  setForm({
+                    ...form,
+                    transbordo: v,
+                    transbordo_troncos: v ? form.transbordo_troncos : [],
+                  })
+                }
               />
-             <div>
-               <p className="font-medium text-sm">Transbordo</p>
-               <p className="text-xs text-muted-foreground">Encaminha chamadas para troncos de transbordo caso o primeiro falhe</p>
-             </div>
+              <div>
+                <p className="font-medium text-sm">Transbordo</p>
+                <p className="text-xs text-muted-foreground">
+                  Encaminha chamadas para troncos de transbordo caso o primeiro falhe
+                </p>
+              </div>
             </div>
             {form.transbordo && (
               <TransbordoTroncosSelector
@@ -539,12 +566,17 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
             <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={form.pesquisa}
-                onCheckedChange={(v) => setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null, })}
+                onCheckedChange={(v) =>
+                  setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
+                }
               />
-             <div>
-               <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-               <p className="text-xs text-muted-foreground"> Executa uma pesquisa ao finalizar a chamada.</p>
-             </div>
+              <div>
+                <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+                <p className="text-xs text-muted-foreground">
+                  {" "}
+                  Executa uma pesquisa ao finalizar a chamada.
+                </p>
+              </div>
             </div>
             {form.pesquisa && (
               <Select
@@ -552,15 +584,24 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
                 onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
               >
                 <SelectTrigger>
-                   <SelectValue placeholder="Selecione uma pesquisa" />
+                  <SelectValue placeholder="Selecione uma pesquisa" />
                 </SelectTrigger>
 
                 <SelectContent>
-                  {pesquisas.map((p) => ( <SelectItem key={p.id} value={String(p.id)}> {p.nome_pesquisa}</SelectItem>))}
-                  {pesquisas.length === 0 && ( <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>)}
-                 </SelectContent>
+                  {pesquisas.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {" "}
+                      {p.nome_pesquisa}
+                    </SelectItem>
+                  ))}
+                  {pesquisas.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhuma pesquisa encontrada
+                    </div>
+                  )}
+                </SelectContent>
               </Select>
-             )}
+            )}
           </div>
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
@@ -628,13 +669,17 @@ function TransbordoTroncosSelector({
           );
         })}
         {selected.length === 0 && (
-          <span className="text-xs text-muted-foreground">Nenhum tronco de transbordo selecionado</span>
+          <span className="text-xs text-muted-foreground">
+            Nenhum tronco de transbordo selecionado
+          </span>
         )}
       </div>
       <div className="flex gap-2">
         <Select value={pick} onValueChange={setPick}>
           <SelectTrigger className="flex-1">
-            <SelectValue placeholder={remaining.length ? "Selecione tronco…" : "Nenhum disponível"} />
+            <SelectValue
+              placeholder={remaining.length ? "Selecione tronco…" : "Nenhum disponível"}
+            />
           </SelectTrigger>
           <SelectContent>
             {remaining.map((t) => (
@@ -648,7 +693,10 @@ function TransbordoTroncosSelector({
           type="button"
           variant="outline"
           disabled={!pick}
-          onClick={() => { onChange([...selected, pick]); setPick(""); }}
+          onClick={() => {
+            onChange([...selected, pick]);
+            setPick("");
+          }}
         >
           Adicionar
         </Button>
@@ -724,9 +772,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           cng: form.cng,
           gravacao: form.gravacao,
           transbordo: form.transbordo,
-          transbordo_tronco: form.transbordo
-            ? form.transbordo_troncos.join("&")
-            : "",
+          transbordo_tronco: form.transbordo ? form.transbordo_troncos.join("&") : "",
           pesquisa: form.pesquisa,
           pesquisa_id: form.pesquisa ? form.pesquisa_id : null,
         },
@@ -749,13 +795,14 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar ramal {ramal.ramal}</DialogTitle>
-          <DialogDescription>
-            Edição de um Ramal já existente.
-          </DialogDescription>
+          <DialogDescription>Edição de um Ramal já existente.</DialogDescription>
         </DialogHeader>
 
         <form
-          onSubmit={(e) => { e.preventDefault(); mut.mutate(); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            mut.mutate();
+          }}
           className="grid grid-cols-2 gap-3"
         >
           <div className="col-span-2 space-y-1">
@@ -764,34 +811,38 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           </div>
           <div className="space-y-1">
             <Label>DDD</Label>
-            <Select 
-              value={form.ddd} 
-              onValueChange={(value) => setForm({ ...form, ddd: value })}
-           >
-           <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecione o DDD" />
-           </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
-              <SelectItem key={ddd} value={ddd}>
-                {ddd}
-              </SelectItem>
-             ))}
-           </SelectContent>
-          </Select>
-         </div>
+            <Select value={form.ddd} onValueChange={(value) => setForm({ ...form, ddd: value })}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione o DDD" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
+                  <SelectItem key={ddd} value={ddd}>
+                    {ddd}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1">
             <Label>CallerID</Label>
-            <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} />
+            <Input
+              value={form.callerid}
+              onChange={(e) => setForm({ ...form, callerid: e.target.value })}
+              maxLength={32}
+            />
           </div>
           <div className="col-span-2 space-y-1">
             <Label>Tronco</Label>
             <Select
               value={form.tronco}
-              onValueChange={(v) => setForm({
-                ...form, tronco: v,
-                transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
-              })}
+              onValueChange={(v) =>
+                setForm({
+                  ...form,
+                  tronco: v,
+                  transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
+                })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um tronco" />
@@ -803,35 +854,45 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
                   </SelectItem>
                 ))}
                 {troncos.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco disponível</div>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Nenhum tronco disponível
+                  </div>
                 )}
               </SelectContent>
             </Select>
           </div>
 
           <div className="col-span-2 w-full flex items-center gap-2 rounded-md border p-3">
-           <Switch
-             checked={form.gravacao}
-             onCheckedChange={(v) =>setForm({ ...form, gravacao: v })}
-           />
-          <div>
-            <p className="font-medium">Gravação de chamadas</p>
-            <p className="text-xs text-muted-foreground">
-               Grava automaticamente as chamadas deste ramal.
-            </p>
+            <Switch
+              checked={form.gravacao}
+              onCheckedChange={(v) => setForm({ ...form, gravacao: v })}
+            />
+            <div>
+              <p className="font-medium">Gravação de chamadas</p>
+              <p className="text-xs text-muted-foreground">
+                Grava automaticamente as chamadas deste ramal.
+              </p>
+            </div>
           </div>
-         </div>
 
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={form.transbordo}
-                onCheckedChange={(v) => setForm({ ...form, transbordo: v, transbordo_troncos: v ? form.transbordo_troncos : [] })}
+                onCheckedChange={(v) =>
+                  setForm({
+                    ...form,
+                    transbordo: v,
+                    transbordo_troncos: v ? form.transbordo_troncos : [],
+                  })
+                }
               />
-             <div>
-               <p className="font-medium text-sm">Transbordo</p>
-               <p className="text-xs text-muted-foreground">Encaminha chamadas para troncos de transbordo caso o primeiro falhe</p>
-             </div>
+              <div>
+                <p className="font-medium text-sm">Transbordo</p>
+                <p className="text-xs text-muted-foreground">
+                  Encaminha chamadas para troncos de transbordo caso o primeiro falhe
+                </p>
+              </div>
             </div>
             {form.transbordo && (
               <TransbordoTroncosSelector
@@ -846,12 +907,17 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
             <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={form.pesquisa}
-                onCheckedChange={(v) => setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null, })}
+                onCheckedChange={(v) =>
+                  setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
+                }
               />
-             <div>
-               <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-               <p className="text-xs text-muted-foreground"> Executa uma pesquisa ao finalizar a chamada.</p>
-             </div>
+              <div>
+                <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+                <p className="text-xs text-muted-foreground">
+                  {" "}
+                  Executa uma pesquisa ao finalizar a chamada.
+                </p>
+              </div>
             </div>
             {form.pesquisa && (
               <Select
@@ -859,15 +925,24 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
                 onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
               >
                 <SelectTrigger>
-                   <SelectValue placeholder="Selecione uma pesquisa" />
+                  <SelectValue placeholder="Selecione uma pesquisa" />
                 </SelectTrigger>
 
                 <SelectContent>
-                  {pesquisas.map((p) => ( <SelectItem key={p.id} value={String(p.id)}> {p.nome_pesquisa}</SelectItem>))}
-                  {pesquisas.length === 0 && ( <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>)}
-                 </SelectContent>
+                  {pesquisas.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {" "}
+                      {p.nome_pesquisa}
+                    </SelectItem>
+                  ))}
+                  {pesquisas.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhuma pesquisa encontrada
+                    </div>
+                  )}
+                </SelectContent>
               </Select>
-             )}
+            )}
           </div>
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
@@ -904,5 +979,3 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
     </Dialog>
   );
 }
-
-

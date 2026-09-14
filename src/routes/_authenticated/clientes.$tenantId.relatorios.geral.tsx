@@ -5,7 +5,14 @@ import { useState, useMemo } from "react";
 import { PhoneCall, Headset, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { listCdrRamal, downloadGravacao } from "@/lib/ramais.functions";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
@@ -24,7 +31,7 @@ function getTodayFilters(): ReportFilterValues {
 
   return {
     from: `${todayStr}T00:00`,
-    to: `${todayStr}T${hours}:${minutes}`
+    to: `${todayStr}T${hours}:${minutes}`,
   };
 }
 
@@ -36,8 +43,11 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relator
 function Page() {
   const { tenantId: p } = Route.useParams();
   const tenantId = Number(p);
-  const [fRamais, setFRamais] = useState<ReportFilterValues>(() => ({ ...getTodayFilters(), limit: 25 }));
-  const [page, setPage] = useState(1); 
+  const [fRamais, setFRamais] = useState<ReportFilterValues>(() => ({
+    ...getTodayFilters(),
+    limit: 25,
+  }));
+  const [page, setPage] = useState(1);
   const fn = useServerFn(listCdrRamal);
   const { data, isLoading, error } = useQuery({
     queryKey: ["cdr_ramal", tenantId, page, fRamais],
@@ -50,50 +60,50 @@ function Page() {
     return [];
   }, [data]);
 
-const fnDownload = useServerFn(downloadGravacao);
+  const fnDownload = useServerFn(downloadGravacao);
 
-const executarDownload = async (linkedid: string) => {
-  try {
-    const response = await fnDownload({ 
-      data: { 
-        linkedid: linkedid,
-        tipo: "ramal",
-        tenant_id: tenantId 
-      } 
-    });
+  const executarDownload = async (linkedid: string) => {
+    try {
+      const response = await fnDownload({
+        data: {
+          linkedid: linkedid,
+          tipo: "ramal",
+          tenant_id: tenantId,
+        },
+      });
 
-    let nomeArquivo = `call-${linkedid}.wav`;
-    let blob: Blob;
+      let nomeArquivo = `call-${linkedid}.wav`;
+      let blob: Blob;
 
-    if (response instanceof Response) {
-      blob = await response.blob();
-      
-      // Tenta extrair o nome do arquivo de dentro do "attachment; filename="nome_real.wav""
-      const disposition = response.headers.get("content-disposition");
-      if (disposition && disposition.includes("filename=")) {
-        const match = disposition.match(/filename="?([^"]+)"?/);
-        if (match && match[1]) {
-          nomeArquivo = match[1];
+      if (response instanceof Response) {
+        blob = await response.blob();
+
+        // Tenta extrair o nome do arquivo de dentro do "attachment; filename="nome_real.wav""
+        const disposition = response.headers.get("content-disposition");
+        if (disposition && disposition.includes("filename=")) {
+          const match = disposition.match(/filename="?([^"]+)"?/);
+          if (match && match[1]) {
+            nomeArquivo = match[1];
+          }
         }
+      } else {
+        blob = new Blob([response as any], { type: "audio/wav" });
       }
-    } else {
-      blob = new Blob([response as any], { type: "audio/wav" });
-    }
 
-    // Executa o download com o nome real dinâmico
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nomeArquivo;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-  } catch (err) {
-    console.error("Erro ao baixar gravação:", err);
-    alert("Não foi possível baixar o áudio.");
-  }
-};
+      // Executa o download com o nome real dinâmico
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nomeArquivo;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (err) {
+      console.error("Erro ao baixar gravação:", err);
+      alert("Não foi possível baixar o áudio.");
+    }
+  };
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -105,8 +115,9 @@ const executarDownload = async (linkedid: string) => {
         initialValues={fRamais}
         defaultValues={getTodayFilters()}
         onApply={(valores) => {
-             setPage(1); 
-             setFRamais(valores);}}
+          setPage(1);
+          setFRamais(valores);
+        }}
         fields={[
           { key: "linkedid", label: "Linked ID" },
           { key: "origem", label: "Origem" },
@@ -119,14 +130,26 @@ const executarDownload = async (linkedid: string) => {
         ]}
       />
       <div className="rounded-md border bg-card">
-        <ReportShell loading={isLoading} error={error as Error | null} empty={!isLoading && rows.length === 0}>
+        <ReportShell
+          loading={isLoading}
+          error={error as Error | null}
+          empty={!isLoading && rows.length === 0}
+        >
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Linked ID</TableHead><TableHead>Origem</TableHead><TableHead>Destino</TableHead>
-                <TableHead>Tronco</TableHead><TableHead>Contexto</TableHead><TableHead>Tipo</TableHead>
-                <TableHead className="w-24">Duração</TableHead><TableHead className="w-40">Status</TableHead><TableHead>Data/Hora</TableHead>
-                <TableHead className="w-16 text-center pr-4"><Headset className="mx-auto h-4 w-4 text-muted-foreground" /></TableHead>
+                <TableHead>Linked ID</TableHead>
+                <TableHead>Origem</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Tronco</TableHead>
+                <TableHead>Contexto</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="w-24">Duração</TableHead>
+                <TableHead className="w-40">Status</TableHead>
+                <TableHead>Data/Hora</TableHead>
+                <TableHead className="w-16 text-center pr-4">
+                  <Headset className="mx-auto h-4 w-4 text-muted-foreground" />
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -139,28 +162,32 @@ const executarDownload = async (linkedid: string) => {
                   <TableCell>{r.context}</TableCell>
                   <TableCell>{r.tipo_chamada}</TableCell>
                   <TableCell className="w-24 font-mono whitespace-nowrap">{r.duracao}</TableCell>
-                  <TableCell className="w-40 whitespace-nowrap"><Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>{getStatusLabel(r.status)}</Badge></TableCell> 
+                  <TableCell className="w-40 whitespace-nowrap">
+                    <Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>
+                      {getStatusLabel(r.status)}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-xs">{formatarDataHora(r.date_time)}</TableCell>
                   <TableCell className="w-14 text-center pr-4">
                     {r.nome_gravacao && r.status === "ANSWER" ? (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7 p-0" 
-                        onClick={() => executarDownload(r.linkedid)} 
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 p-0"
+                        onClick={() => executarDownload(r.linkedid)}
                         title="Baixar gravação"
                       >
                         <Headset className="h-4 w-4" />
                       </Button>
-                    ): null}
+                    ) : null}
                   </TableCell>
-               </TableRow>
+                </TableRow>
               ))}
             </TableBody>
           </Table>
         </ReportShell>
         <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/20">
-            <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             Total de registros: <strong>{data?.total ?? rows.length}</strong>
           </span>
 
@@ -175,8 +202,7 @@ const executarDownload = async (linkedid: string) => {
             </Button>
 
             <span className="text-sm">
-               Página <strong>{page}</strong> de{" "}
-              <strong>{data?.totalPages ?? 1}</strong>
+              Página <strong>{page}</strong> de <strong>{data?.totalPages ?? 1}</strong>
             </span>
 
             <Button

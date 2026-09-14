@@ -4,7 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Cable, RefreshCw, Plus, Pencil, Trash2, Lock } from "lucide-react";
-import {  listTroncos, listTroncosStatus, createTronco, updateTronco, deleteTronco, type Tronco,} from "@/lib/ramais.functions";
+import {
+  listTroncos,
+  listTroncosStatus,
+  createTronco,
+  updateTronco,
+  deleteTronco,
+  type Tronco,
+} from "@/lib/ramais.functions";
 import { OnlineBadge } from "@/components/online-badge";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
@@ -13,17 +20,39 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/troncos")({
@@ -53,7 +82,10 @@ function TroncosPage() {
   const delFn = useServerFn(deleteTronco);
   const delMut = useMutation({
     mutationFn: (tronco_pjsip: string) => delFn({ data: { tronco_pjsip, tenant_id: tenantId } }),
-    onSuccess: () => { toast.success("Tronco removido"); qc.invalidateQueries({ queryKey: ["troncos", tenantId] }); },
+    onSuccess: () => {
+      toast.success("Tronco removido");
+      qc.invalidateQueries({ queryKey: ["troncos", tenantId] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -65,8 +97,12 @@ function TroncosPage() {
             <Cable className="h-6 w-6" /> Troncos
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isAdmin ? "Configuração de troncos SIP." : (
-              <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" /> Somente leitura (admin edita).</span>
+            {isAdmin ? (
+              "Configuração de troncos SIP."
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <Lock className="h-3 w-3" /> Somente leitura (admin edita).
+              </span>
             )}
           </p>
         </div>
@@ -99,31 +135,57 @@ function TroncosPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={8} className="text-center py-10">Carregando…</TableCell></TableRow>}
-            {!isLoading && troncos.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Nenhum tronco.</TableCell></TableRow>}
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-10">
+                  Carregando…
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && troncos.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                  Nenhum tronco.
+                </TableCell>
+              </TableRow>
+            )}
             {troncos.map((t) => (
               <TableRow key={t.tronco_pjsip}>
                 <TableCell className="font-medium">{t.nome}</TableCell>
                 <TableCell className="font-mono text-xs">{t.ip ?? "-"}</TableCell>
                 <TableCell className="font-mono">{t.porta ?? "-"}</TableCell>
-                <TableCell><Badge variant="outline">{t.tipo}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant="outline">{t.tipo}</Badge>
+                </TableCell>
                 <TableCell className="font-mono">{t.techprefix ?? "-"}</TableCell>
                 <TableCell>{t.registrar === "sim" ? "Sim" : "Não"}</TableCell>
-                <TableCell><OnlineBadge state={statusData?.endpoints?.[t.tronco_pjsip]} showLabel /></TableCell>
+                <TableCell>
+                  <OnlineBadge state={statusData?.endpoints?.[t.tronco_pjsip]} showLabel />
+                </TableCell>
                 {isAdmin && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => setEditing(t)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setEditing(t)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Remover tronco {t.nome}?</AlertDialogTitle>
-                            <AlertDialogDescription>Remove endpoint, aor, auth, id_ips e registrations.</AlertDialogDescription>
+                            <AlertDialogDescription>
+                              Remove endpoint, aor, auth, id_ips e registrations.
+                            </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => delMut.mutate(t.tronco_pjsip)}>Remover</AlertDialogAction>
+                            <AlertDialogAction onClick={() => delMut.mutate(t.tronco_pjsip)}>
+                              Remover
+                            </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -149,11 +211,19 @@ function TroncosPage() {
 }
 
 function TroncoFormDialog({
-  tenantId, tronco, open: controlledOpen, onOpenChange,
-}: { tenantId: number; tronco?: Tronco; open?: boolean; onOpenChange?: (v: boolean) => void }) {
+  tenantId,
+  tronco,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  tenantId: number;
+  tronco?: Tronco;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const setOpen = (v: boolean) => onOpenChange ? onOpenChange(v) : setInternalOpen(v);
+  const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setInternalOpen(v));
   const editing = !!tronco;
 
   const [form, setForm] = useState({
@@ -180,7 +250,16 @@ function TroncoFormDialog({
         senha: tronco.senha ?? "",
       });
     } else if (open && !tronco) {
-      setForm({ nome: "", ip: "", porta: "5060", tipo: "STFC", techprefix: "", registrar: false, login: "", senha: "" });
+      setForm({
+        nome: "",
+        ip: "",
+        porta: "5060",
+        tipo: "STFC",
+        techprefix: "",
+        registrar: false,
+        login: "",
+        senha: "",
+      });
     }
   }, [open, tronco]);
 
@@ -216,7 +295,9 @@ function TroncoFormDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {!editing && (
         <DialogTrigger asChild>
-          <Button><Plus className="mr-2 h-4 w-4" /> Novo tronco</Button>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" /> Novo tronco
+          </Button>
         </DialogTrigger>
       )}
       <DialogContent className="max-w-lg">
@@ -224,14 +305,29 @@ function TroncoFormDialog({
           <DialogTitle>{editing ? `Editar tronco ${tronco!.nome}` : "Novo tronco"}</DialogTitle>
           <DialogDescription>Configuração dos endpoints, aors e registros PJSIP.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            mut.mutate();
+          }}
+          className="space-y-3"
+        >
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label>Nome *</Label>
-              <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required maxLength={50} />
+            <div className="space-y-1">
+              <Label>Nome *</Label>
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                required
+                maxLength={50}
+              />
             </div>
-            <div className="space-y-1"><Label>Tipo</Label>
+            <div className="space-y-1">
+              <Label>Tipo</Label>
               <Select value={form.tipo} onValueChange={(v: any) => setForm({ ...form, tipo: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="STFC">STFC</SelectItem>
                   <SelectItem value="E164">E164</SelectItem>
@@ -240,33 +336,60 @@ function TroncoFormDialog({
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 space-y-1"><Label>IP / DNS *</Label>
-              <Input value={form.ip} onChange={(e) => setForm({ ...form, ip: e.target.value })} required />
+            <div className="col-span-2 space-y-1">
+              <Label>IP / DNS *</Label>
+              <Input
+                value={form.ip}
+                onChange={(e) => setForm({ ...form, ip: e.target.value })}
+                required
+              />
             </div>
-            <div className="space-y-1"><Label>Porta</Label>
-              <Input value={form.porta} onChange={(e) => setForm({ ...form, porta: e.target.value })} placeholder="5060" />
+            <div className="space-y-1">
+              <Label>Porta</Label>
+              <Input
+                value={form.porta}
+                onChange={(e) => setForm({ ...form, porta: e.target.value })}
+                placeholder="5060"
+              />
             </div>
           </div>
           <div className="space-y-1">
             <Label>Techprefix (só números)</Label>
-            <Input value={form.techprefix} onChange={(e) => setForm({ ...form, techprefix: e.target.value.replace(/\D/g, "") })} maxLength={20} />
+            <Input
+              value={form.techprefix}
+              onChange={(e) => setForm({ ...form, techprefix: e.target.value.replace(/\D/g, "") })}
+              maxLength={20}
+            />
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <Switch checked={form.registrar} onCheckedChange={(v) => setForm({ ...form, registrar: v })} />
+            <Switch
+              checked={form.registrar}
+              onCheckedChange={(v) => setForm({ ...form, registrar: v })}
+            />
             Registrar (envia REGISTER para operadora)
           </label>
           {form.registrar && (
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1"><Label>Login</Label>
-                <Input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} />
+              <div className="space-y-1">
+                <Label>Login</Label>
+                <Input
+                  value={form.login}
+                  onChange={(e) => setForm({ ...form, login: e.target.value })}
+                />
               </div>
-              <div className="space-y-1"><Label>Senha</Label>
-                <Input value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
+              <div className="space-y-1">
+                <Label>Senha</Label>
+                <Input
+                  value={form.senha}
+                  onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={mut.isPending || !form.nome || !form.ip}>
               {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
             </Button>

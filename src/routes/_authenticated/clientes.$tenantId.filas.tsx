@@ -8,8 +8,14 @@ import { ListOrdered, RefreshCw, Plus, Pencil, Trash2, Users } from "lucide-reac
 import { RecordingBadge } from "@/components/recording-badge";
 import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
 import {
-  listFilas, createFila, updateFila, deleteFila,
-  getFilaAgentes, addFilaAgente, removeFilaAgente, setFilaAgentePenalty,
+  listFilas,
+  createFila,
+  updateFila,
+  deleteFila,
+  getFilaAgentes,
+  addFilaAgente,
+  removeFilaAgente,
+  setFilaAgentePenalty,
   listRamais,
   type Fila,
   listPesquisaSatisfacao,
@@ -22,17 +28,39 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/filas")({
@@ -73,23 +101,27 @@ function FilasPage() {
   const delFn = useServerFn(deleteFila);
   const delMut = useMutation({
     mutationFn: (name: string) => delFn({ data: { name, tenant_id: tenantId } }),
-    onSuccess: () => { toast.success("Fila removida"); qc.invalidateQueries({ queryKey: ["filas", tenantId] }); },
+    onSuccess: () => {
+      toast.success("Fila removida");
+      qc.invalidateQueries({ queryKey: ["filas", tenantId] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const toggleFilaAtivoFn = useServerFn(toggleFilaAtivo);
   const toggleAtivoMut = useMutation({
-    mutationFn: ({ name, ativo }: { name: string; ativo: boolean; }) =>
-      toggleFilaAtivoFn({ data: { name, ativo, tenant_id: tenantId }}),
+    mutationFn: ({ name, ativo }: { name: string; ativo: boolean }) =>
+      toggleFilaAtivoFn({ data: { name, ativo, tenant_id: tenantId } }),
     onSuccess: () => {
-       toast.success("Fila atualizada");
-       qc.invalidateQueries({
-         queryKey: ["filas", tenantId],
+      toast.success("Fila atualizada");
+      qc.invalidateQueries({
+        queryKey: ["filas", tenantId],
       });
     },
     onError: (e: Error) => {
       toast.error(e.message);
-   }});
+    },
+  });
 
   const count = data?.filas.length ?? 0;
   const atLimit = max > 0 && count >= max;
@@ -98,8 +130,12 @@ function FilasPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><ListOrdered className="h-6 w-6" /> Filas</h1>
-          <p className="text-sm text-muted-foreground">{count} {max > 0 ? `/ ${max}` : ""} filas cadastradas.</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <ListOrdered className="h-6 w-6" /> Filas
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {count} {max > 0 ? `/ ${max}` : ""} filas cadastradas.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
@@ -108,8 +144,17 @@ function FilasPage() {
           <FilaFormDialog tenantId={tenantId} disabled={atLimit} />
         </div>
       </div>
-      {atLimit && ( <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700"> Limite de {max} {max === 1 ? "fila" : "filas" } atingido para este cliente.</div>)}
-      {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{(error as Error).message}</div>}
+      {atLimit && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700">
+          {" "}
+          Limite de {max} {max === 1 ? "fila" : "filas"} atingido para este cliente.
+        </div>
+      )}
+      {error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {(error as Error).message}
+        </div>
+      )}
       <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
@@ -126,39 +171,68 @@ function FilasPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-10">Carregando…</TableCell></TableRow>}
-            {!isLoading && filas.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Nenhuma fila.</TableCell></TableRow>}
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-10">
+                  Carregando…
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && filas.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                  Nenhuma fila.
+                </TableCell>
+              </TableRow>
+            )}
             {filas.map((f) => (
               <TableRow key={f.name} className={f.ativo ? "" : "opacity-60"}>
                 <TableCell className="font-medium">{f.display_name}</TableCell>
                 <TableCell>{f.description ?? "-"}</TableCell>
-                <TableCell>{f.strategy ? (STRATEGY_LABELS[f.strategy] || f.strategy) : "-"}</TableCell>
+                <TableCell>
+                  {f.strategy ? STRATEGY_LABELS[f.strategy] || f.strategy : "-"}
+                </TableCell>
                 <TableCell>{f.timeout ?? "-"}</TableCell>
                 <TableCell>{f.fila_timeout ?? "-"}</TableCell>
                 <TableCell>{f.membros}</TableCell>
-                <TableCell><RecordingBadge state={f.gravacao} showLabel /></TableCell>
                 <TableCell>
-                    <ToggleAtivoBadge
-                        ativo={f.ativo}
-                        isPending={toggleAtivoMut.isPending}
-                        onToggle={() => { toggleAtivoMut.mutate({ name: f.name, ativo: !f.ativo })}} />
+                  <RecordingBadge state={f.gravacao} showLabel />
+                </TableCell>
+                <TableCell>
+                  <ToggleAtivoBadge
+                    ativo={f.ativo}
+                    isPending={toggleAtivoMut.isPending}
+                    onToggle={() => {
+                      toggleAtivoMut.mutate({ name: f.name, ativo: !f.ativo });
+                    }}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="sm" onClick={() => setAgentesDe(f)}>
                       <Users className="h-4 w-4 mr-1" /> Agentes
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setEditing(f)}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setEditing(f)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remover fila {f.display_name}?</AlertDialogTitle>
-                          <AlertDialogDescription>Remove os agentes e a configuração da fila.</AlertDialogDescription>
+                          <AlertDialogDescription>
+                            Remove os agentes e a configuração da fila.
+                          </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => delMut.mutate(f.name)}>Remover</AlertDialogAction>
+                          <AlertDialogAction onClick={() => delMut.mutate(f.name)}>
+                            Remover
+                          </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -169,13 +243,30 @@ function FilasPage() {
           </TableBody>
         </Table>
       </div>
-      {agentesDe && <AgentesDialog tenantId={tenantId} fila={agentesDe} onClose={() => setAgentesDe(null)} />}
-      {editing && <FilaFormDialog tenantId={tenantId} fila={editing} open onOpenChange={(v) => !v && setEditing(null)} />}
+      {agentesDe && (
+        <AgentesDialog tenantId={tenantId} fila={agentesDe} onClose={() => setAgentesDe(null)} />
+      )}
+      {editing && (
+        <FilaFormDialog
+          tenantId={tenantId}
+          fila={editing}
+          open
+          onOpenChange={(v) => !v && setEditing(null)}
+        />
+      )}
     </div>
   );
 }
 
-function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fila; onClose: () => void }) {
+function AgentesDialog({
+  tenantId,
+  fila,
+  onClose,
+}: {
+  tenantId: number;
+  fila: Fila;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const fn = useServerFn(getFilaAgentes);
   const { data, isLoading } = useQuery({
@@ -200,7 +291,10 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
 
   const addFn = useServerFn(addFilaAgente);
   const addMut = useMutation({
-    mutationFn: () => addFn({ data: { tenant_id: tenantId, name: fila.name, ramal: novoRamal, penalty: novaPrioridade } }),
+    mutationFn: () =>
+      addFn({
+        data: { tenant_id: tenantId, name: fila.name, ramal: novoRamal, penalty: novaPrioridade },
+      }),
     onSuccess: () => {
       toast.success("Agente adicionado");
       invalidateAll();
@@ -212,8 +306,12 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
 
   const removeFn = useServerFn(removeFilaAgente);
   const removeMut = useMutation({
-    mutationFn: (agenteId: string) => removeFn({ data: { tenant_id: tenantId, agente_id: agenteId } }),
-    onSuccess: () => { toast.success("Agente removido"); invalidateAll(); },
+    mutationFn: (agenteId: string) =>
+      removeFn({ data: { tenant_id: tenantId, agente_id: agenteId } }),
+    onSuccess: () => {
+      toast.success("Agente removido");
+      invalidateAll();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -221,7 +319,10 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
   const penaltyMut = useMutation({
     mutationFn: (vars: { agenteId: string; penalty: number }) =>
       penaltyFn({ data: { tenant_id: tenantId, agente_id: vars.agenteId, penalty: vars.penalty } }),
-    onSuccess: () => { toast.success("Prioridade atualizada"); invalidateAll(); },
+    onSuccess: () => {
+      toast.success("Prioridade atualizada");
+      invalidateAll();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -232,10 +333,14 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{fila.display_name} — Agentes</DialogTitle>
-          <DialogDescription>Alterações aqui têm efeito imediato na fila (via AMI).</DialogDescription>
+          <DialogDescription>
+            Alterações aqui têm efeito imediato na fila (via AMI).
+          </DialogDescription>
         </DialogHeader>
 
-        {isLoading && <div className="py-6 text-center text-sm text-muted-foreground">Carregando…</div>}
+        {isLoading && (
+          <div className="py-6 text-center text-sm text-muted-foreground">Carregando…</div>
+        )}
         {!isLoading && (
           <div className="rounded-md border">
             <Table>
@@ -254,11 +359,15 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
                     <TableCell className="font-mono">{a.ramal ?? "-"}</TableCell>
                     <TableCell>
                       <Input
-                        type="number" min={0} max={100} defaultValue={a.penalty ?? 0}
+                        type="number"
+                        min={0}
+                        max={100}
+                        defaultValue={a.penalty ?? 0}
                         className="h-8 w-20"
                         onBlur={(e) => {
                           const v = Number(e.target.value);
-                          if (v !== (a.penalty ?? 0)) penaltyMut.mutate({ agenteId: a.id, penalty: v });
+                          if (v !== (a.penalty ?? 0))
+                            penaltyMut.mutate({ agenteId: a.id, penalty: v });
                         }}
                       />
                     </TableCell>
@@ -270,7 +379,11 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
                   </TableRow>
                 ))}
                 {agentes.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center py-4 text-muted-foreground">Sem agentes.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                      Sem agentes.
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
@@ -281,18 +394,30 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
           <div className="text-sm font-medium">Adicionar agente</div>
           <div className="grid grid-cols-[1fr_100px_36px] gap-2 items-center">
             <Select value={novoRamal} onValueChange={setNovoRamal}>
-              <SelectTrigger><SelectValue placeholder="Selecione o ramal" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o ramal" />
+              </SelectTrigger>
               <SelectContent>
                 {ramais.map((r) => (
                   <SelectItem key={r.id} value={String(r.ramal)}>
-                    {(r.ramal_nome ? r.ramal_nome.replace(/-/g, " ") : "(sem nome)")} — {r.ramal}
+                    {r.ramal_nome ? r.ramal_nome.replace(/-/g, " ") : "(sem nome)"} — {r.ramal}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Input type="number" min={0} max={100} value={novaPrioridade}
-                   onChange={(e) => setNovaPrioridade(Number(e.target.value))} />
-            <Button type="button" size="icon" disabled={!novoRamal || addMut.isPending} onClick={() => addMut.mutate()}>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={novaPrioridade}
+              onChange={(e) => setNovaPrioridade(Number(e.target.value))}
+            />
+            <Button
+              type="button"
+              size="icon"
+              disabled={!novoRamal || addMut.isPending}
+              onClick={() => addMut.mutate()}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -303,11 +428,21 @@ function AgentesDialog({ tenantId, fila, onClose }: { tenantId: number; fila: Fi
 }
 
 function FilaFormDialog({
-  tenantId, disabled, fila, open: co, onOpenChange,
-}: { tenantId: number; disabled?: boolean; fila?: Fila; open?: boolean; onOpenChange?: (v: boolean) => void }) {
+  tenantId,
+  disabled,
+  fila,
+  open: co,
+  onOpenChange,
+}: {
+  tenantId: number;
+  disabled?: boolean;
+  fila?: Fila;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = co ?? internalOpen;
-  const setOpen = (v: boolean) => onOpenChange ? onOpenChange(v) : setInternalOpen(v);
+  const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setInternalOpen(v));
   const editing = !!fila;
 
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
@@ -359,7 +494,8 @@ function FilaFormDialog({
         tenant_id: tenantId,
         display_name: form.display_name,
         description: form.description,
-        strategy: form.strategy as "ringall" | "rrmemory" | "leastrecent" | "fewestcalls" | "random",
+        strategy: form.strategy as
+          "ringall" | "rrmemory" | "leastrecent" | "fewestcalls" | "random",
         timeout: Number(form.timeout) || 0,
         fila_timeout: Number(form.fila_timeout) || 0,
         retry: Number(form.retry) || 0,
@@ -380,59 +516,103 @@ function FilaFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {!editing && <DialogTrigger asChild><Button disabled={disabled}><Plus className="mr-2 h-4 w-4" /> Nova fila</Button></DialogTrigger>}
+      {!editing && (
+        <DialogTrigger asChild>
+          <Button disabled={disabled}>
+            <Plus className="mr-2 h-4 w-4" /> Nova fila
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? `Editar fila ${fila!.display_name}` : "Nova fila"}</DialogTitle>
           <DialogDescription>
-            {editing ? "Configuração da fila." : 'Depois de criar, adicione os agentes pelo botão "Agentes".'}
+            {editing
+              ? "Configuração da fila."
+              : 'Depois de criar, adicione os agentes pelo botão "Agentes".'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); mut.mutate(); }} className="space-y-3">
-          <div className="space-y-1"><Label>Nome *</Label>
-            <Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} required maxLength={120} />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            mut.mutate();
+          }}
+          className="space-y-3"
+        >
+          <div className="space-y-1">
+            <Label>Nome *</Label>
+            <Input
+              value={form.display_name}
+              onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+              required
+              maxLength={120}
+            />
           </div>
-          <div className="space-y-1"><Label>Descrição</Label>
-            <Input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={255} />
+          <div className="space-y-1">
+            <Label>Descrição</Label>
+            <Input
+              value={form.description ?? ""}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              maxLength={255}
+            />
           </div>
           <div className="space-y-1">
             <Label>Estratégia</Label>
-              <Select value={form.strategy} onValueChange={(v) => setForm({ ...form, strategy: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione a estratégia" /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(STRATEGY_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Chama ramal ocupado?</Label>
-               <Select value={form.ringinuse} onValueChange={(v) => setForm({ ...form, ringinuse: v as "no" | "yes" })}>
-                <SelectTrigger><SelectValue placeholder="Selecione a opção" /></SelectTrigger>
-                <SelectContent><SelectItem value="no">Não</SelectItem><SelectItem value="yes">Sim</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full flex items-center gap-2 rounded-md border p-3">
-              <Switch checked={form.gravacao} onCheckedChange={(v) => setForm({ ...form, gravacao: v })} />
+            <Select value={form.strategy} onValueChange={(v) => setForm({ ...form, strategy: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a estratégia" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(STRATEGY_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Chama ramal ocupado?</Label>
+            <Select
+              value={form.ringinuse}
+              onValueChange={(v) => setForm({ ...form, ringinuse: v as "no" | "yes" })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a opção" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no">Não</SelectItem>
+                <SelectItem value="yes">Sim</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full flex items-center gap-2 rounded-md border p-3">
+            <Switch
+              checked={form.gravacao}
+              onCheckedChange={(v) => setForm({ ...form, gravacao: v })}
+            />
             <div>
               <p className="font-medium text-sm">Gravar chamadas</p>
               <p className="text-xs text-muted-foreground">
                 Grava automaticamente as conversas que passarem por esta fila.
-               </p>
-              </div>
-             </div>
+              </p>
+            </div>
+          </div>
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={form.pesquisa}
-                onCheckedChange={(v) => setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null, })}
+                onCheckedChange={(v) =>
+                  setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
+                }
               />
-             <div>
-               <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-               <p className="text-xs text-muted-foreground"> Executa uma pesquisa ao finalizar a chamada.</p>
-             </div>
+              <div>
+                <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+                <p className="text-xs text-muted-foreground">
+                  {" "}
+                  Executa uma pesquisa ao finalizar a chamada.
+                </p>
+              </div>
             </div>
             {form.pesquisa && (
               <Select
@@ -440,32 +620,80 @@ function FilaFormDialog({
                 onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
               >
                 <SelectTrigger>
-                   <SelectValue placeholder="Selecione uma pesquisa" />
+                  <SelectValue placeholder="Selecione uma pesquisa" />
                 </SelectTrigger>
 
                 <SelectContent>
-                  {pesquisas.map((p) => ( <SelectItem key={p.id} value={String(p.id)}> {p.nome_pesquisa}</SelectItem>))}
-                  {pesquisas.length === 0 && ( <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>)}
-                 </SelectContent>
+                  {pesquisas.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {" "}
+                      {p.nome_pesquisa}
+                    </SelectItem>
+                  ))}
+                  {pesquisas.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhuma pesquisa encontrada
+                    </div>
+                  )}
+                </SelectContent>
               </Select>
-             )}
+            )}
           </div>
-            <div className="grid grid-cols-3 gap-3 border-t pt-3">
-            <div className="space-y-1"><Label title="Tempo de toque máximo no agente">Timeout Agente</Label>
-              <Input type="number" min={0} max={3600} placeholder="15" value={form.timeout === null || form.timeout === undefined ? "" : form.timeout}
-                     onChange={(e) => setForm({ ...form, timeout: e.target.value == "" ? null : Number(e.target.value) })} />
+          <div className="grid grid-cols-3 gap-3 border-t pt-3">
+            <div className="space-y-1">
+              <Label title="Tempo de toque máximo no agente">Timeout Agente</Label>
+              <Input
+                type="number"
+                min={0}
+                max={3600}
+                placeholder="15"
+                value={form.timeout === null || form.timeout === undefined ? "" : form.timeout}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    timeout: e.target.value == "" ? null : Number(e.target.value),
+                  })
+                }
+              />
             </div>
-            <div className="space-y-1"><Label title="Tempo de espera para rediscar no Agente">Intervalo (s)</Label>
-            <Input type="number" min={0} max={3600} placeholder="5" value={form.retry === null || form.retry === undefined ? "" : form.retry}
-                   onChange={(e) => setForm({ ...form, retry: e.target.value == "" ? null : Number(e.target.value) })} />
+            <div className="space-y-1">
+              <Label title="Tempo de espera para rediscar no Agente">Intervalo (s)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={3600}
+                placeholder="5"
+                value={form.retry === null || form.retry === undefined ? "" : form.retry}
+                onChange={(e) =>
+                  setForm({ ...form, retry: e.target.value == "" ? null : Number(e.target.value) })
+                }
+              />
             </div>
-            <div className="space-y-1"><Label title="Tempo máximo da fila">Timeout fila</Label>
-            <Input type="number" min={0} max={86400} placeholder="30" value={form.fila_timeout === null || form.fila_timeout === undefined ? "" : form.fila_timeout}
-                   onChange={(e) => setForm({ ...form, fila_timeout: e.target.value == "" ? null :Number(e.target.value) })} />
+            <div className="space-y-1">
+              <Label title="Tempo máximo da fila">Timeout fila</Label>
+              <Input
+                type="number"
+                min={0}
+                max={86400}
+                placeholder="30"
+                value={
+                  form.fila_timeout === null || form.fila_timeout === undefined
+                    ? ""
+                    : form.fila_timeout
+                }
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    fila_timeout: e.target.value == "" ? null : Number(e.target.value),
+                  })
+                }
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={mut.isPending || !form.display_name}>
               {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
             </Button>

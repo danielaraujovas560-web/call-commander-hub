@@ -6,6 +6,7 @@ import { listRamais, listFilas, listUras } from "@/lib/ramais.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/")({
   head: () => ({ meta: [{ title: "Cliente — Painel PABX" }] }),
@@ -24,19 +25,31 @@ function ClienteOverview() {
   const cliente = data?.cliente;
 
   const ramaisFn = useServerFn(listRamais);
-  const { data: ramaisData, isLoading: ramaisLoading, error: ramaisError, } = useQuery({
+  const {
+    data: ramaisData,
+    isLoading: ramaisLoading,
+    error: ramaisError,
+  } = useQuery({
     queryKey: ["ramais", tenantId],
     queryFn: () => ramaisFn({ data: { tenant_id: tenantId } }),
   });
 
   const filasFn = useServerFn(listFilas);
-  const { data: filasData, isLoading: filasLoading, error: filasError, } = useQuery({
+  const {
+    data: filasData,
+    isLoading: filasLoading,
+    error: filasError,
+  } = useQuery({
     queryKey: ["filas", tenantId],
     queryFn: () => filasFn({ data: { tenant_id: tenantId } }),
   });
 
   const urasFn = useServerFn(listUras);
-  const { data: urasData, isLoading: urasLoading, error: urasError, } = useQuery({
+  const {
+    data: urasData,
+    isLoading: urasLoading,
+    error: urasError,
+  } = useQuery({
     queryKey: ["uras", tenantId],
     queryFn: () => urasFn({ data: { tenant_id: tenantId } }),
   });
@@ -59,14 +72,16 @@ function ClienteOverview() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Building2 className="h-6 w-6" />
-            {isLoading ? "Carregando…" : cliente?.razao_social ?? "Cliente não encontrado"}
+            {isLoading ? "Carregando…" : (cliente?.razao_social ?? "Cliente não encontrado")}
           </h1>
           <p className="text-sm text-muted-foreground">
             ID/Tenant: <span className="font-mono">{tenantId}</span>
             {cliente?.cnpj ? ` · CNPJ ${cliente.cnpj}` : ""}
           </p>
         </div>
-        <Badge variant="outline" className="font-mono">Tenant #{tenantId}</Badge>
+        <Badge variant="outline" className="font-mono">
+          Tenant #{tenantId}
+        </Badge>
       </div>
 
       {error && (
@@ -77,15 +92,21 @@ function ClienteOverview() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Email</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">Email</CardTitle>
+          </CardHeader>
           <CardContent className="font-mono text-sm break-all">{cliente?.email ?? "—"}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">CNPJ/CPF</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">CNPJ/CPF</CardTitle>
+          </CardHeader>
           <CardContent className="font-mono text-sm">{cliente?.cnpj ?? "—"}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Cota de ramais</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">Cota de ramais</CardTitle>
+          </CardHeader>
           <CardContent className="text-2xl font-bold">{cotaRamal}</CardContent>
         </Card>
       </div>
@@ -99,13 +120,49 @@ function ClienteOverview() {
   );
 }
 
-function RamaisChart({ criadosRamal, vagosRamal, cotaRamal }: { criadosRamal: number; vagosRamal: number; cotaRamal: number }) {
+function RamaisChart({
+  criadosRamal,
+  vagosRamal,
+  cotaRamal,
+}: {
+  criadosRamal: number;
+  vagosRamal: number;
+  cotaRamal: number;
+}) {
   const size = 140;
   const stroke = 18;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pctCriado = cotaRamal > 0 ? criadosRamal / cotaRamal : 0;
-  const dash = c * pctCriado;
+
+  const [animacao, setAnimacao] = useState(0);
+
+  useEffect(() => {
+    let frame: number;
+
+    const inicio = performance.now();
+    const duracao = 800;
+
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const animate = (agora: number) => {
+      const progresso = Math.min((agora - inicio) / duracao, 1);
+
+      setAnimacao(pctCriado * easeOutCubic(progresso));
+
+      if (progresso < 1) {
+        frame = requestAnimationFrame(animate);
+      }
+    };
+
+    frame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(frame);
+  }, [pctCriado]);
+
+  const dash = c * animacao;
+
+  const criadosAnimados = Math.round(criadosRamal * (animacao / pctCriado || 0));
 
   return (
     <Card>
@@ -141,17 +198,21 @@ function RamaisChart({ criadosRamal, vagosRamal, cotaRamal }: { criadosRamal: nu
             className="fill-foreground font-semibold"
             style={{ fontSize: 22 }}
           >
-            {criadosRamal}/{cotaRamal}
+            {criadosAnimados}/{cotaRamal}
           </text>
         </svg>
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
-            <span>Ativos: <strong>{criadosRamal}</strong></span>
+            <span>
+              Ativos: <strong>{criadosRamal}</strong>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-muted" />
-            <span>Vagos: <strong>{vagosRamal}</strong></span>
+            <span>
+              Vagos: <strong>{vagosRamal}</strong>
+            </span>
           </div>
         </div>
       </CardContent>
@@ -159,13 +220,49 @@ function RamaisChart({ criadosRamal, vagosRamal, cotaRamal }: { criadosRamal: nu
   );
 }
 
-function FilasChart({ criadosFila, vagosFila, cotaFila }: { criadosFila: number; vagosFila: number; cotaFila: number }) {
+function FilasChart({
+  criadosFila,
+  vagosFila,
+  cotaFila,
+}: {
+  criadosFila: number;
+  vagosFila: number;
+  cotaFila: number;
+}) {
   const size = 140;
   const stroke = 18;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pctCriado = cotaFila > 0 ? criadosFila / cotaFila : 0;
-  const dash = c * pctCriado;
+
+  const [animacao, setAnimacao] = useState(0);
+
+  useEffect(() => {
+    let frame: number;
+
+    const inicio = performance.now();
+    const duracao = 800;
+
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const animate = (agora: number) => {
+      const progresso = Math.min((agora - inicio) / duracao, 1);
+
+      setAnimacao(pctCriado * easeOutCubic(progresso));
+
+      if (progresso < 1) {
+        frame = requestAnimationFrame(animate);
+      }
+    };
+
+    frame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(frame);
+  }, [pctCriado]);
+
+  const dash = c * animacao;
+
+  const criadosAnimados = Math.round(criadosFila * (animacao / pctCriado || 0));
 
   return (
     <Card>
@@ -201,17 +298,21 @@ function FilasChart({ criadosFila, vagosFila, cotaFila }: { criadosFila: number;
             className="fill-foreground font-semibold"
             style={{ fontSize: 22 }}
           >
-            {criadosFila}/{cotaFila}
+            {criadosAnimados}/{cotaFila}
           </text>
         </svg>
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
-            <span>Ativas: <strong>{criadosFila}</strong></span>
+            <span>
+              Ativas: <strong>{criadosFila}</strong>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-muted" />
-            <span>Vagas: <strong>{vagosFila}</strong></span>
+            <span>
+              Vagas: <strong>{vagosFila}</strong>
+            </span>
           </div>
         </div>
       </CardContent>
@@ -219,13 +320,48 @@ function FilasChart({ criadosFila, vagosFila, cotaFila }: { criadosFila: number;
   );
 }
 
-function UrasChart({ criadosUra, vagosUra, cotaUra }: { criadosUra: number; vagosUra: number; cotaUra: number }) {
+function UrasChart({
+  criadosUra,
+  vagosUra,
+  cotaUra,
+}: {
+  criadosUra: number;
+  vagosUra: number;
+  cotaUra: number;
+}) {
   const size = 140;
   const stroke = 18;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pctCriado = cotaUra > 0 ? criadosUra / cotaUra : 0;
-  const dash = c * pctCriado;
+  const [animacao, setAnimacao] = useState(0);
+
+  useEffect(() => {
+    let frame: number;
+
+    const inicio = performance.now();
+    const duracao = 800;
+
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const animate = (agora: number) => {
+      const progresso = Math.min((agora - inicio) / duracao, 1);
+
+      setAnimacao(pctCriado * easeOutCubic(progresso));
+
+      if (progresso < 1) {
+        frame = requestAnimationFrame(animate);
+      }
+    };
+
+    frame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(frame);
+  }, [pctCriado]);
+
+  const dash = c * animacao;
+
+  const criadosAnimados = Math.round(criadosUra * (animacao / pctCriado || 0));
 
   return (
     <Card>
@@ -261,17 +397,21 @@ function UrasChart({ criadosUra, vagosUra, cotaUra }: { criadosUra: number; vago
             className="fill-foreground font-semibold"
             style={{ fontSize: 22 }}
           >
-            {criadosUra}/{cotaUra}
+            {criadosAnimados}/{cotaUra}
           </text>
         </svg>
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
-            <span>Ativas: <strong>{criadosUra}</strong></span>
+            <span>
+              Ativas: <strong>{criadosUra}</strong>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm bg-muted" />
-            <span>Vagas: <strong>{vagosUra}</strong></span>
+            <span>
+              Vagas: <strong>{vagosUra}</strong>
+            </span>
           </div>
         </div>
       </CardContent>

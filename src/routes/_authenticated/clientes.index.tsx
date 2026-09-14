@@ -63,15 +63,16 @@ function ClientesPage() {
   const updateClienteFn = useServerFn(updateCliente);
 
   const toggleAtivoMut = useMutation({
-    mutationFn: ({ id, ativo }: { id: string; ativo: boolean; }) =>
-      updateClienteFn({ data: { id, ativo }}),
+    mutationFn: ({ id, ativo }: { id: string; ativo: boolean }) =>
+      updateClienteFn({ data: { id, ativo } }),
     onSuccess: () => {
-       toast.success("Cliente atualizado");
-       invalidate();
+      toast.success("Cliente atualizado");
+      invalidate();
     },
     onError: (e: Error) => {
       toast.error(e.message);
-   }});
+    },
+  });
 
   const clientes = data?.clientes ?? [];
 
@@ -123,10 +124,7 @@ function ClientesPage() {
 
             {!isLoading && clientes.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center text-muted-foreground py-10"
-                >
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                   Nenhum cliente cadastrado ainda.
                 </TableCell>
               </TableRow>
@@ -140,23 +138,21 @@ function ClientesPage() {
                 <TableCell className="font-mono text-xs">{c.email}</TableCell>
                 <TableCell>
                   {isAdmin ? (
-                    <ToggleAtivoBadge 
-                        ativo={c.ativo}
-                        isPending={toggleAtivoMut.isPending}
-                        onToggle={() => toggleAtivoMut.mutate({ id: c.id, ativo: !c.ativo })} />
-                     ) : (
-                       <Badge variant={c.ativo ? "default" : "secondary"}>
-                          {c.ativo ? "Ativo" : "Inativo"}
-                       </Badge>
-                    )}
+                    <ToggleAtivoBadge
+                      ativo={c.ativo}
+                      isPending={toggleAtivoMut.isPending}
+                      onToggle={() => toggleAtivoMut.mutate({ id: c.id, ativo: !c.ativo })}
+                    />
+                  ) : (
+                    <Badge variant={c.ativo ? "default" : "secondary"}>
+                      {c.ativo ? "Ativo" : "Inativo"}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
                     <Button asChild size="sm" variant="outline">
-                      <Link
-                        to="/clientes/$tenantId"
-                        params={{ tenantId: String(c.tenant_id) }}
-                      >
+                      <Link to="/clientes/$tenantId" params={{ tenantId: String(c.tenant_id) }}>
                         <LogIn className="mr-1 h-3 w-3" />
                         Acessar
                       </Link>
@@ -179,13 +175,7 @@ function ClientesPage() {
   );
 }
 
-function SettingsClient({
-  cliente,
-  onDone,
-}: {
-  cliente: Cliente;
-  onDone: () => void;
-}) {
+function SettingsClient({ cliente, onDone }: { cliente: Cliente; onDone: () => void }) {
   const fn = useServerFn(updateClienteConfiguracoes);
   const [open, setOpen] = useState(false);
 
@@ -200,10 +190,10 @@ function SettingsClient({
   });
 
   const mut = useMutation({
-    mutationFn: () => 
-      fn({ 
-        data: { 
-          id: cliente.id, 
+    mutationFn: () =>
+      fn({
+        data: {
+          id: cliente.id,
           quantidade_ramais: Number(form.quantidade_ramais),
           quantidade_filas: Number(form.quantidade_filas),
           quantidade_uras: Number(form.quantidade_uras),
@@ -218,7 +208,9 @@ function SettingsClient({
   });
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
         setOpen(o);
 
         if (o) {
@@ -237,14 +229,14 @@ function SettingsClient({
       </DialogTrigger>
 
       <DialogContent
-         className="max-w-lg"
-         onKeyDown={(e) => {
-           if (e.key === "Enter") {
-             e.preventDefault();
-             mut.mutate();
-           } 
-         }}
-       >
+        className="max-w-lg"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            mut.mutate();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Configurações do cliente</DialogTitle>
           <DialogDescription>Id #{cliente.tenant_id}</DialogDescription>
@@ -258,7 +250,10 @@ function SettingsClient({
               min="0"
               value={form.quantidade_ramais}
               onChange={(e) =>
-                setForm({ ...form, quantidade_ramais: e.target.value === "" ? "" : Number(e.target.value) })
+                setForm({
+                  ...form,
+                  quantidade_ramais: e.target.value === "" ? "" : Number(e.target.value),
+                })
               }
             />
           </div>
@@ -270,7 +265,10 @@ function SettingsClient({
               min="0"
               value={form.quantidade_filas}
               onChange={(e) =>
-                setForm({ ...form, quantidade_filas: e.target.value === "" ? "" : Number(e.target.value) })
+                setForm({
+                  ...form,
+                  quantidade_filas: e.target.value === "" ? "" : Number(e.target.value),
+                })
               }
             />
           </div>
@@ -282,7 +280,10 @@ function SettingsClient({
               min="0"
               value={form.quantidade_uras}
               onChange={(e) =>
-                setForm({ ...form, quantidade_uras: e.target.value === "" ? "" : Number(e.target.value) })
+                setForm({
+                  ...form,
+                  quantidade_uras: e.target.value === "" ? "" : Number(e.target.value),
+                })
               }
             />
           </div>
@@ -296,13 +297,7 @@ function SettingsClient({
     </Dialog>
   );
 }
-function DeleteButton({
-  cliente,
-  onDone,
-}: {
-  cliente: Cliente;
-  onDone: () => void;
-}) {
+function DeleteButton({ cliente, onDone }: { cliente: Cliente; onDone: () => void }) {
   const [open, setOpen] = useState(false);
   const fn = useServerFn(deleteCliente);
   const mut = useMutation({
@@ -367,11 +362,7 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
   });
 
   const disabled =
-    !form.cnpj ||
-    !form.razao_social ||
-    !form.email ||
-    !form.tenant_id ||
-    mut.isPending;
+    !form.cnpj || !form.razao_social || !form.email || !form.tenant_id || mut.isPending;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -381,20 +372,19 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
         </Button>
       </DialogTrigger>
       <DialogContent
-         className="max-w-lg"
-         onKeyDown={(e) => {
-           if (e.key === "Enter") {
-             e.preventDefault();
-             mut.mutate();
-           }
-         }}
-       >
+        className="max-w-lg"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            mut.mutate();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Cadastrar cliente</DialogTitle>
           <DialogDescription>
-            Cadastra a empresa e o tenant do PABX. O login de acesso é criado
-            separadamente em <strong>Administração → Usuários</strong> e
-            vinculado por este Tenant ID.
+            Cadastra a empresa e o tenant do PABX. O login de acesso é criado separadamente em{" "}
+            <strong>Administração → Usuários</strong> e vinculado por este Tenant ID.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
@@ -441,13 +431,7 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
   );
 }
 
-function EditClienteDialog({
-  cliente,
-  onDone,
-}: {
-  cliente: Cliente;
-  onDone: () => void;
-}) {
+function EditClienteDialog({ cliente, onDone }: { cliente: Cliente; onDone: () => void }) {
   const fn = useServerFn(updateCliente);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -461,8 +445,7 @@ function EditClienteDialog({
     mutationFn: () => {
       const patch: any = { id: cliente.id };
       if (form.cnpj !== cliente.cnpj) patch.cnpj = form.cnpj;
-      if (form.razao_social !== cliente.razao_social)
-        patch.razao_social = form.razao_social;
+      if (form.razao_social !== cliente.razao_social) patch.razao_social = form.razao_social;
       if (form.email !== cliente.email) patch.email = form.email;
       const novoAtivoBool = form.ativo === 1;
       if (novoAtivoBool !== Boolean(cliente.ativo)) {
@@ -488,7 +471,7 @@ function EditClienteDialog({
             cnpj: cliente.cnpj,
             razao_social: cliente.razao_social,
             email: cliente.email,
-	    ativo: cliente.ativo ? 1 : 0,
+            ativo: cliente.ativo ? 1 : 0,
           });
         }
       }}
@@ -499,14 +482,14 @@ function EditClienteDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
-         className="max-w-lg"
-         onKeyDown={(e) => {
-           if (e.key === "Enter") {
-             e.preventDefault();
-             mut.mutate();
-           }
-         }}
-       >
+        className="max-w-lg"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            mut.mutate();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Editar cliente</DialogTitle>
           <DialogDescription>Tenant #{cliente.tenant_id}</DialogDescription>
@@ -521,10 +504,7 @@ function EditClienteDialog({
           </div>
           <div className="col-span-2">
             <Label>CPF / CNPJ</Label>
-            <Input
-              value={form.cnpj}
-              onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
-            />
+            <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
           </div>
           <div className="col-span-2">
             <Label>Email</Label>

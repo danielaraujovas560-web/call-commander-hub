@@ -4,6 +4,10 @@ const { promisify } = require("util");
 const execFileAsync = promisify(execFile);
 const IPTABLES = "/usr/sbin/iptables";
 
+function iptables(args) {
+  return execFileAsync("sudo", [IPTABLES, ...args]);
+}
+
 // Use a mesma conexão/pool do seu Agent.
 // Ajuste este require para o arquivo onde seu pool está exportado.
 const pool = require("./db");
@@ -16,9 +20,7 @@ const failures = new Map();
 function normalizeIp(remoteAddress) {
   if (!remoteAddress) return null;
 
-  const match = String(remoteAddress).match(
-    /(?:IPV4|IPV6)\/[^/]+\/(.+?)\/\d+$/
-  );
+  const match = String(remoteAddress).match(/(?:IPV4|IPV6)\/[^/]+\/(.+?)\/\d+$/);
 
   if (match) return match[1];
 
@@ -35,7 +37,7 @@ async function isWhitelisted(ip) {
       WHERE ip = ?
         AND tipo = 'WHITELIST'
       LIMIT 1`,
-    [ip]
+    [ip],
   );
 
   return rows.length > 0;
@@ -48,7 +50,7 @@ async function isBlacklisted(ip) {
       WHERE ip = ?
         AND tipo = 'BLACKLIST'
       LIMIT 1`,
-    [ip]
+    [ip],
   );
 
   return rows.length > 0;
@@ -72,15 +74,7 @@ async function ensureChain() {
 
 async function addDropRule(ip) {
   try {
-    await execFileAsync("sudo", [
-      IPTABLES,
-      "-C",
-      CHAIN,
-      "-s",
-      ip,
-      "-j",
-      "DROP",
-    ]);
+    await execFileAsync("sudo", [IPTABLES, "-C", CHAIN, "-s", ip, "-j", "DROP"]);
 
     console.log(`[firewall] ${ip} já está bloqueado no iptables`);
     return;
@@ -88,15 +82,7 @@ async function addDropRule(ip) {
     // Regra ainda não existe.
   }
 
-  await execFileAsync("sudo", [
-    IPTABLES,
-    "-A",
-    CHAIN,
-    "-s",
-    ip,
-    "-j",
-    "DROP",
-  ]);
+  await execFileAsync("sudo", [IPTABLES, "-A", CHAIN, "-s", ip, "-j", "DROP"]);
 
   console.log(`[firewall] DROP aplicado: ${ip}`);
 }
@@ -120,7 +106,7 @@ async function blockIp(ip, motivo = "Falhas de autenticação") {
     `INSERT INTO firewall_ips
       (ip, tipo, motivo, origem)
      VALUES (?, 'BLACKLIST', ?, 'AUTO')`,
-    [ip, motivo]
+    [ip, motivo],
   );
 
   await addDropRule(ip);
@@ -145,15 +131,10 @@ async function handleAuthFailure(ip, eventName) {
 
   failures.set(ip, count);
 
-  console.log(
-    `[firewall] ${eventName}: ${ip} (${count}/${MAX_FAILURES})`
-  );
+  console.log(`[firewall] ${eventName}: ${ip} (${count}/${MAX_FAILURES})`);
 
   if (count >= MAX_FAILURES) {
-    await blockIp(
-      ip,
-      `10 falhas consecutivas de autenticação (${eventName})`
-    );
+    await blockIp(ip, `10 falhas consecutivas de autenticação (${eventName})`);
   }
 }
 
@@ -161,21 +142,16 @@ async function restoreBlacklist() {
   const [rows] = await pool.query(
     `SELECT ip
        FROM firewall_ips
-      WHERE tipo = 'BLACKLIST'`
+      WHERE tipo = 'BLACKLIST'`,
   );
 
-  console.log(
-    `[firewall] restaurando ${rows.length} IP(s) da BLACKLIST...`
-  );
+  console.log(`[firewall] restaurando ${rows.length} IP(s) da BLACKLIST...`);
 
   for (const row of rows) {
     try {
       await addDropRule(row.ip);
     } catch (e) {
-      console.error(
-        `[firewall] erro ao restaurar ${row.ip}:`,
-        e.message
-      );
+      console.error(`[firewall] erro ao restaurar ${row.ip}:`, e.message);
     }
   }
 }
@@ -189,6 +165,37 @@ function resetAuthFailures(ip) {
   }
 }
 
+async function bloquearIp(ip) {
+  const normalizedIp = normalizeIp(ip);
+
+  await iptables(["-A", "PABX-BLOCK", "-s", normalizedIp, "-j", "DROP"]);
+
+  console.log(`[firewall] IP bloqueado: ${normalizedIp}`);
+}
+
+async function liberarIp(ip) {
+  const normalizedIp = normalizeIp(ip);
+
+  if (!normalizedIp) {
+    throw new Error("IP inválido para liberação");
+  }
+
+  try {
+    await iptables(["-C", CHAIN, "-s", normalizedIp, "-j", "DROP"]);
+
+    await iptables(["-D", CHAIN, "-s", normalizedIp, "-j", "DROP"]);
+
+    console.log(`[firewall] IP liberado: ${normalizedIp}`);
+  } catch (error) {
+    console.error(
+      `[firewall] erro ao liberar ${normalizedIp}:`,
+      error.stderr || error.message || error,
+    );
+
+    throw error;
+  }
+}
+
 module.exports = {
   CHAIN,
   ensureChain,
@@ -197,4 +204,6 @@ module.exports = {
   resetAuthFailures,
   blockIp,
   normalizeIp,
+  bloquearIp,
+  liberarIp,
 };
