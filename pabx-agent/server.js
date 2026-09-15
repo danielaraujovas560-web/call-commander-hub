@@ -26,6 +26,8 @@ const {
 } = require("./ami");
 const { bloquearIp, liberarIp } = require("./firewall");
 const execFileAsync = promisify(execFile);
+const { iniciarMonitor } = require("./ramal-monitor");
+const { connectARI  } = require("./ari");
 
 // Helpers para disparar reloads sem CLI. Falha silenciosa — o painel não deve
 // travar se o AMI cair; mas logamos para investigação.
@@ -177,6 +179,9 @@ async function restoreQueueMembers(queueName = null) {
 }
 
 onAmiConnect(async () => {
+  const ariClient = await connectARI();
+  if (ariClient) iniciarMonitor(ariClient, server, pool.query.bind(pool));
+
   console.log("[queue-restore] AMI conectado.");
 
   // Dá tempo para o Asterisk terminar de inicializar as filas.
@@ -404,6 +409,32 @@ async function requireAdmin(req, res, next) {
     res.status(500).json({ error: String(e.message || e) });
   }
 }
+
+// --------- Verificação tenant ws ARI -------
+app.get("/ws/ramais/token", requireJwt, async (req, res) => {
+  try {
+    const tenantId = await resolveTenantId(req.userId, req.role);
+
+    const ticket = jwt.sign(
+      {
+        sub: req.userId,
+        role: req.role,
+        tenant_id: tenantId,
+        type: "ramal_ws",
+      },
+      JWT_SECRET,
+      {
+        expiresIn: "60s",
+      },
+    );
+
+    res.json({ ticket });
+  } catch (e) {
+    res.status(403).json({
+      error: String(e.message || e),
+    });
+  }
+});
 
 // ---------- Admin: usuários ----------
 app.get("/admin/users", requireJwt, requireAdmin, async (req, res) => {
@@ -1063,11 +1094,13 @@ app.get("/ramais", async (req, res) => {
     const [rows] = await pool.query(
       `SELECT r.ramal, r.nome AS ramal_nome, r.tronco, t.nome AS tronco_nome, r.ddd, r.callerid, r.senha,
               r.fixo, r.movel, r.ddi, r.especial, r.cng, r.endpoint_id,
-              r.gravacao, r.transbordo, r.transbordo_tronco, r.pesquisa, r.pesquisa_id
+              r.gravacao, r.transbordo, r.transbordo_tronco, r.pesquisa, r.pesquisa_id,
+              (SELECT COUNT (*) FROM cdr_ramal c WHERE c.tenant_id = ? AND c.origem = r.endpoint_id AND DATE(date_time) = CURDATE()) AS ligacoes_feitas,
+              (SELECT COUNT (*) FROM cdr_ramal c WHERE c.tenant_id = ? AND c.destino = r.endpoint_id AND DATE(date_time) = CURDATE()) AS ligacoes_recebidas
          FROM ramais r LEFT JOIN troncos t
         ON r.tronco = t.tronco_pjsip AND r.tenant_id = t.tenant_id
         WHERE r.tenant_id = ?  ORDER BY ramal`,
-      [tenant],
+      [tenant, tenant, tenant],
     );
     res.json({
       ramais: rows.map((r) => ({
@@ -1081,6 +1114,9 @@ app.get("/ramais", async (req, res) => {
         gravacao: !!r.gravacao,
         transbordo: !!r.transbordo,
         pesquisa: !!r.pesquisa,
+
+        ligacoes_feitas: Number(r.ligacoes_feitas),
+        ligacoes_recebidas: Number(r.ligacoes_recebidas),
       })),
     });
   } catch (e) {
@@ -3810,6 +3846,6 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: "internal" });
 });
 
-app.listen(Number(PORT), () => {
+const server = app.listen(Number(PORT), () => {
   console.log(`[pabx-agent] ouvindo em http://127.0.0.1:${PORT}`);
 });

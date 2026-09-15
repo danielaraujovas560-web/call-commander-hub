@@ -16,7 +16,6 @@ async function writeAuditLog(
 }
 
 export interface Ramal {
-  id: number;
   ramal: string;
   nome: string | null;
   tronco: string | null;
@@ -33,6 +32,9 @@ export interface Ramal {
   transbordo_tronco: string | null;
   pesquisa: boolean;
   pesquisa_id: number | null;
+
+  ligacoes_feitas: number;
+  ligacoes_recebidas: number;
 }
 
 export interface Tronco {
@@ -203,6 +205,16 @@ export const getMyTenant = createServerFn({ method: "GET" })
       tenants: { tenant_id: number; label: string | null; is_default: boolean }[];
     }>("/my/tenants", { bearerToken: context.token });
     return { tenants: res.tenants ?? [] };
+  });
+
+export const getRamalMonitorTicket = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .handler(async ({ context }) => {
+    const { agentFetch } = await import("./agent.server");
+
+    return await agentFetch<{ ticket: string }>("/ws/ramais/token", {
+      bearerToken: context.token,
+    });
   });
 
 export const generateRamalPassword = createServerFn({ method: "POST" })

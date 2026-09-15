@@ -4,9 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { listRamais, listFilas, listUras } from "@/lib/ramais.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRamalMonitor, estadoRamalLabel } from "@/hooks/use-ramal-monitor";
+import { MonitoramentoRamais } from "@/components/monitoramento-ramais";
 
 export const Route = createFileRoute("/_authenticated/clientes/$tenantId/")({
   head: () => ({ meta: [{ title: "Cliente — Painel PABX" }] }),
@@ -88,7 +96,18 @@ function ClienteOverview() {
           {(error as Error).message}
         </div>
       )}
+    <Tabs defaultValue="visao-geral" className="w-full">
+      <TabsList>
+        <TabsTrigger value="visao-geral">
+          Visão geral
+        </TabsTrigger>
 
+        <TabsTrigger value="dashboard">
+          Dashboard
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="visao-geral" className="mt-6 space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
@@ -115,7 +134,12 @@ function ClienteOverview() {
         <FilasChart criadosFila={criadosFila} vagosFila={vagosFila} cotaFila={cotaFila} />
         <UrasChart criadosUra={criadosUra} vagosUra={vagosUra} cotaUra={cotaUra} />
       </div>
-    </div>
+     </TabsContent>
+      <TabsContent value="dashboard" className="mt-6">
+        <MonitoramentoRamais />
+      </TabsContent>
+    </Tabs>     
+</div>
   );
 }
 
