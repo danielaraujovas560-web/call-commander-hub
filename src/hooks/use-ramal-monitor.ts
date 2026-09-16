@@ -14,6 +14,7 @@ export type RamalStatus = {
   numero: string | null;
   linkedid: string | null;
   desde: string | null;
+  conectadoDesde: string | null;
 };
 
 type RamaisMap = Record<string, RamalStatus>;
@@ -31,6 +32,7 @@ type WsRamalStatus = {
   numero: string | null;
   linkedid: string | null;
   desde: string | null;
+  conectadoDesde: string | null;
   ts: number;
 };
 
@@ -136,6 +138,7 @@ useEffect(() => {
                 numero: mensagem.numero ?? null,
                 linkedid: mensagem.linkedid ?? null,
                 desde: mensagem.desde ?? null,
+                conectadoDesde: mensagem.conectadoDesde ?? null,
               },
             }));
           }

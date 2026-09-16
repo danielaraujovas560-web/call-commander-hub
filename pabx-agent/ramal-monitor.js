@@ -14,6 +14,7 @@ const WebSocketServer = WebSocket.Server;
 const { URL } = require("url");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = process.env;
+const { setCustomDeviceState } = require("./ami");
 
 // ─── Estado em memória ────────────────────────────────────────────────────────
 // { [tenant_id]: { [endpoint]: { state, numero, linkedid, desde } } }
@@ -22,6 +23,9 @@ const estadoRamais = {};
 // ─── Clientes WebSocket conectados ────────────────────────────────────────────
 // { [tenant_id]: Set<WebSocket> }
 const clientes = {};
+
+//-- Ramais em memória para conexão e desconexão --------
+const offlineTimers = new Map();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -48,6 +52,35 @@ async function resolverTenant(endpoint, queryFn) {
     return rows[0]?.tenant_id ?? null;
   } catch {
     return null;
+  }
+}
+
+//Função para disparar o custom:{endpoint} para o AMI
+async function atualizarDisponibilidadeAgente(tenantId, endpoint) {
+  if (!tenantId || !endpoint) return;
+
+  const ramais = estadoRamais[tenantId] ?? {};
+
+  const baseOnline = !!ramais[endpoint];
+  const webOnline = !!ramais[`${endpoint}-web`];
+
+  const estado = baseOnline || webOnline
+    ? "NOT_INUSE"
+    : "UNAVAILABLE";
+
+  try {
+    await setCustomDeviceState(endpoint, estado);
+
+    console.log(
+      `[MONITOR] Custom:${endpoint} -> ${estado} ` +
+      `(base=${baseOnline ? "online" : "offline"}, ` +
+      `web=${webOnline ? "online" : "offline"})`
+    );
+  } catch (err) {
+    console.error(
+      `[MONITOR] erro atualizando Custom:${endpoint}:`,
+      err.message || err
+    );
   }
 }
 
@@ -102,42 +135,108 @@ function limparEstado(tenantId, endpoint) {
 
 async function inicializarRamaisOnline(ariClient, queryFn) {
   try {
+    const [rows] = await queryFn(
+      `SELECT endpoint_id, tenant_id, registrado_desde
+       FROM ramais
+       WHERE endpoint_id IS NOT NULL`
+    );
+
     const endpoints = await ariClient.endpoints.list();
 
-    let online = 0;
+    const endpointsOnline = new Set();
 
     for (const endpoint of endpoints) {
       const nome = endpoint.resource;
+
       if (!nome) continue;
-
-      const tenantId = await resolverTenant(nome, queryFn);
-      if (!tenantId) continue;
-
-      // Só considera endpoint realmente registrado.
+      if (endpoint.technology !== "PJSIP") continue;
       if (endpoint.state !== "online") continue;
 
-      if (!estadoRamais[tenantId]) {
-        estadoRamais[tenantId] = {};
-      }
-
-      estadoRamais[tenantId][nome] = {
-        endpoint: nome,
-        state: "IDLE",
-        numero: null,
-        linkedid: null,
-        desde: null,
-      };
-
-      online++;
+      endpointsOnline.add(nome);
     }
 
-    console.log(`[MONITOR] ${online} ramais online carregados`);
+    // Reconstrói o estado em memória
+    for (const tenantId of Object.keys(estadoRamais)) {
+      estadoRamais[tenantId] = {};
+    }
+
+    let online = 0;
+    let offline = 0;
+
+    for (const row of rows) {
+      const endpoint = String(row.endpoint_id);
+      const tenantId = row.tenant_id;
+
+      if (endpointsOnline.has(endpoint)) {
+        if (!estadoRamais[tenantId]) {
+          estadoRamais[tenantId] = {};
+        }
+
+        let registradoDesde = row.registrado_desde;
+
+        // O ramal está online, mas o banco não tinha
+        // o horário de registro.
+        if (!registradoDesde) {
+          await queryFn(
+            `UPDATE ramais
+             SET registrado_desde = NOW()
+             WHERE endpoint_id = ?`,
+            [endpoint]
+          );
+          const [[ramalAtualizado]] = await queryFn(
+           `SELECT registrado_desde
+            FROM ramais
+            WHERE endpoint_id = ?
+            LIMIT 1`,
+            [endpoint]
+          )
+;
+          registradoDesde = ramalAtualizado?.registrado_desde;
+        }
+
+        estadoRamais[tenantId][endpoint] = {
+          endpoint,
+          state: "IDLE",
+          numero: null,
+          linkedid: null,
+          desde: null,
+          conectadoDesde: new Date(registradoDesde).toISOString(),
+        };
+
+        online++;
+      } else {
+        // Está offline segundo o ARI.
+        // Não mexemos em ultima_conexao aqui,
+        // pois o Agent pode simplesmente ter reiniciado.
+        offline++;
+      }
+    }
+
+    // Depois de reconstruir o estado, atualiza
+    // a disponibilidade lógica de cada agente.
+    for (const row of rows) {
+      const endpoint = String(row.endpoint_id);
+      const tenantId = row.tenant_id;
+
+      await atualizarDisponibilidadeAgente(
+        tenantId,
+        endpoint
+      );
+    }
+
+    console.log(
+      `[MONITOR] inicialização concluída: ` +
+      `${online} ramais online, ${offline} offline`
+    );
   } catch (err) {
-    console.error("[MONITOR] erro ao carregar ramais online:", err);
+    console.error(
+      "[MONITOR] erro ao inicializar ramais:",
+      err
+    );
   }
 }
 
-// ─── Registrar eventos ARI ────────────────────────────────────────────────────
+// ─── Registrar eventos ARI + Função ultima conexão no banco ───────────────────────────────────
 function registrarEventos(ariClient, queryFn) {
 
   // Registro/desregistro do ramal
@@ -145,33 +244,65 @@ function registrarEventos(ariClient, queryFn) {
     const endpoint = event.endpoint;
     if (!endpoint) return;
 
+console.log(
+  "[MONITOR] EVENTO ENDPOINT:",
+  endpoint?.resource,
+  endpoint?.technology,
+  endpoint?.state
+);
+
     const nome = endpoint.resource;
     if (!nome) return;
 
     if (endpoint.technology !== "PJSIP") return;
+    const endpointBase = nome.replace(/-web$/, "");
 
-    const tenantId = await resolverTenant(nome, queryFn);
+    const tenantId = await resolverTenant(endpointBase, queryFn);
     if (!tenantId) return;
 
     if (endpoint.state === "online") {
-      if (!estadoRamais[tenantId]) {
-        estadoRamais[tenantId] = {};
+
+      const chave = `${tenantId}:${endpointBase}`;
+      const timer = offlineTimers.get(chave);
+
+      if (timer) {
+        clearTimeout(timer);
+        offlineTimers.delete(chave);
+       }
+
+      const [[ramal]] = await queryFn(`SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`, [endpointBase]);
+
+      let registradoDesde = ramal?.registrado_desde;
+
+      if (!registradoDesde) {
+        await queryFn(`UPDATE ramais SET registrado_desde = NOW() WHERE endpoint_id = ?`, [endpointBase]);
+        console.log(`[MONITOR] LOGIN ${nome} | registrado_desde preenchido`);
+
+        const [[ramalAtualizado]] = await queryFn(`SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`, [endpointBase]);
+        registradoDesde = ramalAtualizado?.registrado_desde;
       }
 
+      console.log("Horario de registro: ", registradoDesde);
+
+      if (!estadoRamais[tenantId]) estadoRamais[tenantId] = {};
+
       const anterior = estadoRamais[tenantId][nome] ?? {
-        endpoint: nome,
+        endpoint: endpointBase,
         state: "IDLE",
         numero: null,
         linkedid: null,
         desde: null,
+        conectadoDesde: registradoDesde,
       };
 
       estadoRamais[tenantId][nome] = {
         ...anterior,
       };
 
+      await atualizarDisponibilidadeAgente(tenantId, endpointBase);
+
       publicar(tenantId, "RAMAL_STATUS", {
-        endpoint: nome,
+        endpoint: endpointBase,
         ...estadoRamais[tenantId][nome],
       });
 
@@ -180,15 +311,36 @@ function registrarEventos(ariClient, queryFn) {
     }
 
     if (endpoint.state === "offline") {
-      if (estadoRamais[tenantId]?.[nome]) {
-        delete estadoRamais[tenantId][nome];
 
-        publicar(tenantId, "RAMAL_REMOVIDO", {
-          endpoint: nome,
-        });
-      }
+      const chave = `${tenantId}:${endpointBase}`;
+      if (offlineTimers.has(chave)) return;
 
-      console.log(`[MONITOR] ramal desconectado: ${nome}`);
+      const timer = setTimeout(async () => {
+        offlineTimers.delete(chave);
+
+       const ramais = estadoRamais[tenantId] ?? {};
+
+       delete ramais[nome];
+
+       const baseOnline = !!ramais[endpointBase];
+       const webOnline = !!ramais[`${endpointBase}-web`];
+
+       if (baseOnline || webOnline) return;
+
+         await queryFn(`UPDATE ramais SET registrado_desde = NULL, ultima_conexao = NOW() WHERE endpoint_id = ?`, [endpointBase]);
+
+         delete ramais[endpointBase];
+         delete ramais[`${endpointBase}-web`];
+
+         await atualizarDisponibilidadeAgente(tenantId, endpointBase);
+
+         publicar(tenantId, "RAMAL_REMOVIDO", {
+           endpoint: endpointBase,
+         });
+
+       console.log(`[MONITOR] desconexão total: ${endpointBase}`);
+       }, 3000);
+     offlineTimers.set(chave, timer);
     }
   });
 
@@ -369,7 +521,7 @@ function iniciarWebSocket(httpServer) {
     ws.on("error", (err) => {
   console.error("[WS] ===== ERRO WEBSOCKET =====");
   console.error("[WS] tenant:", tenantId);
-  console.error("[WS] erro:", error);
+  console.error("[WS] erro:", err);
   console.error("[WS] time:", new Date().toISOString());
   console.error("[WS] ==========================");
     });
@@ -382,10 +534,12 @@ function iniciarWebSocket(httpServer) {
 // ─── Inicialização ────────────────────────────────────────────────────────────
 
 async function iniciarMonitor(ariClient, httpServer, queryFn) {
+  registrarEventos(ariClient, queryFn);
+
   await inicializarRamaisOnline(ariClient, queryFn);
 
-  registrarEventos(ariClient, queryFn);
   iniciarWebSocket(httpServer);
+
   console.log("[MONITOR] monitoramento de ramais ativo");
 }
 

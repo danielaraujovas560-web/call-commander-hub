@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import JsSIP from "jssip";
 
 export type PhoneState = "idle" | "registering" | "registered" | "failed";
-export type CallState = "idle" | "calling" | "ringing" | "incoming" | "active" | "ended";
+export type CallState =
+  | "idle"
+  | "calling"
+  | "ringing"
+  | "incoming"
+  | "active"
+  | "ended";
 
 export type SipCreds = {
   sip_username: string;
@@ -15,16 +21,36 @@ export function useJsSipPhone(creds: SipCreds | null) {
   const uaRef = useRef<JsSIP.UA | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sessionRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const socketRef = useRef<any>(null);
+
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
+
   const [phoneState, setPhoneState] = useState<PhoneState>("idle");
   const [callState, setCallState] = useState<CallState>("idle");
   const [remoteNumber, setRemoteNumber] = useState("");
   const [callDuration, setCallDuration] = useState(0);
 
   useEffect(() => {
-    if (!creds) return;
+    if (!creds) {
+      setPhoneState("idle");
+      return;
+    }
 
     const socket = new JsSIP.WebSocketInterface(creds.wss_url);
+    socketRef.current = socket;
+
+    const originalOnConnect = socket.onconnect;
+    const originalOnDisconnect = socket.ondisconnect;
+
+    socket.onconnect = () => {
+      originalOnConnect?.();
+    };
+
+    socket.ondisconnect = () => {
+      originalOnDisconnect?.();
+    };
+
     const ua = new JsSIP.UA({
       sockets: [socket],
       uri: `sip:${creds.sip_username}@${creds.sip_domain}`,
@@ -32,61 +58,106 @@ export function useJsSipPhone(creds: SipCreds | null) {
       register: true,
       session_timers: false,
     });
+
     uaRef.current = ua;
 
-    ua.on("registered", () => setPhoneState("registered"));
-    ua.on("unregistered", () => setPhoneState("idle"));
-    ua.on("registrationFailed", () => setPhoneState("failed"));
+    ua.on("connecting", () => {
+    });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ua.on("connected", () => {
+    });
+
+    ua.on("disconnected", () => {
+    });
+
+    ua.on("registered", () => {
+      setPhoneState("registered");
+    });
+
+    ua.on("unregistered", () => {
+      setPhoneState("idle");
+    });
+
+    ua.on("registrationFailed", (event: any) => {
+      console.error(
+        "[SIP] REGISTRATION FAILED",
+        event?.cause || event,
+      );
+      setPhoneState("failed");
+    });
+
     ua.on("newRTCSession", (e: any) => {
       const session = e.session;
 
       if (sessionRef.current) {
-        if (session.direction === "incoming") session.terminate();
+        if (session.direction === "incoming") {
+          session.terminate();
+        }
         return;
       }
-      sessionRef.current = session;
-      setRemoteNumber(session.remote_identity?.uri?.user ?? "");
-      setCallState(session.direction === "incoming" ? "incoming" : "calling");
 
-      session.on("progress", () => setCallState((s) => (s === "calling" ? "ringing" : s)));
-      session.on("accepted", () => setCallState("active"));
-      session.on("confirmed", () => setCallState("active"));
+      sessionRef.current = session;
+
+      setRemoteNumber(
+        session.remote_identity?.uri?.user ?? "",
+      );
+
+      setCallState(
+        session.direction === "incoming"
+          ? "incoming"
+          : "calling",
+      );
+
+      session.on("progress", () => {
+        setCallState((state) =>
+          state === "calling" ? "ringing" : state,
+        );
+      });
+
+      session.on("accepted", () => {
+        setCallState("active");
+      });
+
+      session.on("confirmed", () => {
+        setCallState("active");
+      });
+
       const finish = () => {
         setCallState("ended");
         sessionRef.current = null;
-        setTimeout(() => setCallState("idle"), 1500);
+
+        setTimeout(() => {
+          setCallState("idle");
+        }, 1500);
       };
+
       session.on("ended", finish);
       session.on("failed", finish);
 
-      // Conecta o áudio remoto ao elemento <audio>. Cobre 3 cenários:
-      // 1) conexão já existe (comum em chamadas recebidas) e já tem tracks
-      //    prontas — nesse caso o evento "track" já disparou e passou, então
-      //    puxamos as tracks direto via getReceivers().
-      // 2) conexão já existe mas ainda vai receber tracks — o listener abaixo
-      //    ainda pega isso a tempo.
-      // 3) conexão ainda não existe (comum em chamadas de saída) — esperamos
-      //    o evento "peerconnection" do JsSIP.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attachTrackHandling = (pc: any) => {
         pc.addEventListener("track", (ev: any) => {
-          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = ev.streams[0];
+          if (remoteAudioRef.current && ev.streams?.[0]) {
+            remoteAudioRef.current.srcObject = ev.streams[0];
+          }
         });
+
         const receivers = pc.getReceivers?.() ?? [];
-        const existingTracks = receivers.map((r: any) => r.track).filter(Boolean);
-        if (existingTracks.length) {
-          const remoteStream = new MediaStream(existingTracks);
-          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
+        const tracks = receivers
+          .map((receiver: any) => receiver.track)
+          .filter(Boolean);
+
+        if (tracks.length && remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject =
+            new MediaStream(tracks);
         }
       };
 
       if (session.connection) {
         attachTrackHandling(session.connection);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        session.on("peerconnection", (data: any) => attachTrackHandling(data.peerconnection));
+        session.on("peerconnection", (data: any) => {
+          attachTrackHandling(data.peerconnection);
+        });
       }
     });
 
@@ -94,8 +165,37 @@ export function useJsSipPhone(creds: SipCreds | null) {
     ua.start();
 
     return () => {
-      ua.stop();
-      uaRef.current = null;
+
+      if (sessionRef.current) {
+        try {
+          sessionRef.current.terminate();
+        } catch {}
+
+        sessionRef.current = null;
+      }
+
+      try {
+        ua.stop();
+      } catch {}
+
+      try {
+        if (
+          socket._ws &&
+          socket._ws.readyState !== WebSocket.CLOSED
+        ) {
+          socket.disconnect();
+        }
+      } catch {}
+
+
+      if (uaRef.current === ua) {
+        uaRef.current = null;
+      }
+
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
+
     };
   }, [creds]);
 
@@ -104,31 +204,57 @@ export function useJsSipPhone(creds: SipCreds | null) {
       setCallDuration(0);
       return;
     }
-    const t = setInterval(() => setCallDuration((d) => d + 1), 1000);
-    return () => clearInterval(t);
+
+    const timer = setInterval(() => {
+      setCallDuration((duration) => duration + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, [callState]);
 
   const call = useCallback(
     (number: string) => {
-      if (!uaRef.current || phoneState !== "registered" || !creds) return;
-      uaRef.current.call(`sip:${number}@${creds.sip_domain}`, {
-        mediaConstraints: { audio: true, video: false },
+      const ua = uaRef.current;
 
-        rtcOfferConstraints: {
-         offerToReceiveAudio: true,
-         offerToReceiveVideo: false,
-        },
+      if (
+        !ua ||
+        phoneState !== "registered" ||
+        !creds
+      ) {
+        return;
+      }
 
-         pcConfig: {
-         iceServers: [{ urls: "stun:stun.l.google.com:19302", }],
+      ua.call(
+        `sip:${number}@${creds.sip_domain}`,
+        {
+          mediaConstraints: {
+            audio: true,
+            video: false,
+          },
+          rtcOfferConstraints: {
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: false,
+          },
+          pcConfig: {
+            iceServers: [
+              {
+                urls: "stun:stun.l.google.com:19302",
+              },
+            ],
+          },
         },
-      });
+      );
     },
     [phoneState, creds],
   );
 
   const answer = useCallback(() => {
-    sessionRef.current?.answer({ mediaConstraints: { audio: true, video: false } });
+    sessionRef.current?.answer({
+      mediaConstraints: {
+        audio: true,
+        video: false,
+      },
+    });
   }, []);
 
   const hangup = useCallback(() => {
@@ -139,5 +265,97 @@ export function useJsSipPhone(creds: SipCreds | null) {
     sessionRef.current?.sendDTMF(digit);
   }, []);
 
-  return { phoneState, callState, remoteNumber, callDuration, remoteAudioRef, call, answer, hangup, sendDTMF };
+  const unregister = useCallback(() => {
+    const ua = uaRef.current;
+
+    if (!ua) {
+      return Promise.resolve();
+    }
+
+    if (!ua.isRegistered()) {
+      try {
+        ua.stop();
+      } catch {}
+
+      const socket = socketRef.current;
+
+      try {
+        if (
+          socket?._ws &&
+          socket._ws.readyState !== WebSocket.CLOSED
+        ) {
+          socket.disconnect();
+        }
+      } catch {}
+
+      if (uaRef.current === ua) {
+        uaRef.current = null;
+      }
+
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+      let finalizado = false;
+
+      const finalizar = () => {
+        if (finalizado) return;
+
+        finalizado = true;
+
+        try {
+          ua.stop();
+        } catch {}
+
+        const socket = socketRef.current;
+
+        try {
+          if (
+            socket?._ws &&
+            socket._ws.readyState !== WebSocket.CLOSED
+          ) {
+            socket.disconnect();
+          }
+        } catch {}
+
+        if (uaRef.current === ua) {
+          uaRef.current = null;
+        }
+
+        if (socketRef.current === socket) {
+          socketRef.current = null;
+        }
+
+        resolve();
+      };
+
+      ua.once("unregistered", () => {
+        finalizar();
+      });
+
+      ua.unregister({
+        all: true,
+      });
+
+      setTimeout(() => {
+        if (!finalizado) {
+          console.warn("[SIP] TIMEOUT DO UNREGISTER");
+          finalizar();
+        }
+      }, 3000);
+    });
+  }, []);
+
+  return {
+    phoneState,
+    callState,
+    remoteNumber,
+    callDuration,
+    remoteAudioRef,
+    call,
+    answer,
+    hangup,
+    sendDTMF,
+    unregister,
+  };
 }

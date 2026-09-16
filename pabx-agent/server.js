@@ -139,7 +139,8 @@ async function restoreQueueMembers(queueName = null) {
         fa.interface,
         fa.penalty,
         fa.membername,
-        fa.ramal
+        fa.ramal,
+        fa.state_interface
       FROM filas_agentes fa
       INNER JOIN filas f
       ON f.name = fa.queue
@@ -163,6 +164,7 @@ async function restoreQueueMembers(queueName = null) {
           interface: agente.interface,
           penalty: agente.penalty,
           memberName: agente.membername,
+          stateInterface: agente.state_interface,
         });
       } catch (err) {
         console.error(
@@ -2246,7 +2248,8 @@ app.post("/filas/:name/agentes", async (req, res) => {
     );
     if (!r) return res.status(404).json({ error: "Ramal não encontrado" });
 
-    const iface = `PJSIP/${r.endpoint_id}`;
+    const iface = `Local/${r.endpoint_id}@fila-membro`;
+    const sinterface = `Custom:${r.endpoint_id}`;
 
     const [dup] = await pool.query(
       `SELECT 1 FROM filas_agentes WHERE tenant_id = ? AND queue = ? AND interface = ? LIMIT 1`,
@@ -2254,13 +2257,13 @@ app.post("/filas/:name/agentes", async (req, res) => {
     );
     if (dup.length) return res.status(409).json({ error: "Este ramal já está nesta fila." });
 
-    await queueAdd({ queue: fila.name, interface: iface, penalty, memberName: r.nome });
+    await queueAdd({ queue: fila.name, interface: iface, stateInterface: sinterface, penalty, memberName: r.nome });
 
     const id = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO filas_agentes (id, tenant_id, queue, interface, penalty, membername, ramal)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, tenant, fila.name, iface, penalty ?? null, r.nome, r.ramal],
+      `INSERT INTO filas_agentes (id, tenant_id, queue, interface, state_interface, penalty, membername, ramal)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, tenant, fila.name, iface, sinterface, penalty ?? null, r.nome, r.ramal],
     );
 
     res.json({ ok: true, id });

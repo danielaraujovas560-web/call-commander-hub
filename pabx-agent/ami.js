@@ -140,11 +140,18 @@ function amiAction(action, timeoutMs = 5000) {
   });
 }
 
+
+async function setCustomDeviceState(endpoint, state) {
+  const cmd = `devstate change Custom:${endpoint} ${state}`;
+  return amiCommand(cmd);
+}
+
 // Adiciona um agente numa fila em tempo real (efeito imediato, sem reload).
-function queueAdd({ queue, interface: iface, penalty, memberName }) {
+function queueAdd({ queue, interface: iface, penalty, memberName, stateInterface }) {
   const action = { action: "QueueAdd", queue, interface: iface };
   if (penalty != null) action.penalty = String(penalty);
   if (memberName) action.membername = memberName;
+  if (stateInterface) action.stateInterface = stateInterface;
   return amiAction(action);
 }
 
@@ -346,6 +353,7 @@ module.exports = {
   getEndpointsDeviceState,
   amiCommand,
   amiReady,
+  setCustomDeviceState,
   queueAdd,
   queueRemove,
   queuePenalty,

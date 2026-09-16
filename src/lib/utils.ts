@@ -15,3 +15,12 @@ export function formatarDataHora(dataStr?: string | null): string {
 
   return `${dia}/${mes}/${ano} ${hora}`;
 }
+
+export function formatarHorario(dataStr?: string | null): string {
+  if (!dataStr) return "-";
+
+  return new Date(dataStr).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

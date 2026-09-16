@@ -33,7 +33,7 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
 
 function Softphone({ creds }: { creds: RamalCreds }) {
   const {
-    phoneState, callState, remoteNumber, callDuration, remoteAudioRef, call, answer, hangup, sendDTMF,
+    phoneState, callState, remoteNumber, callDuration, remoteAudioRef, call, answer, hangup, sendDTMF, unregister,
   } = useJsSipPhone(creds);
   const [numero, setNumero] = useState("");
 
@@ -43,7 +43,8 @@ function Softphone({ creds }: { creds: RamalCreds }) {
     return `${m}:${sec}`;
   }
 
-  function handleLogout() {
+ async function handleLogout() {
+    await unregister();  
     setStoredRamalCreds(null);
     window.location.href = "/auth";
   }
