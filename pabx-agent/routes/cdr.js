@@ -51,7 +51,7 @@ cdrFilteredEndpoint(router, "/cdr/pesquisa", {
   select: `p.id, p.linkedid, p.tipo, p.contexto,
            COALESCE(ro.nome, p.origem) AS origem,
            COALESCE(rd.nome, p.destino) AS destino,
-           p.fila AS fila,
+           p.nome_fila AS fila,
            p.pergunta_id, p.nota, p.data`,
   from: `cdr_pesquisa p
          LEFT JOIN pesquisa_satisfacao ps ON ps.id = p.pesquisa_id

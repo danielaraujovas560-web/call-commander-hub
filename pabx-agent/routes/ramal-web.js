@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { JWT_SECRET, WSS_URL, SIP_PORT } = process.env;
 const requireJwt = require("../middleware/jwt");
 const { resolveTenantId } = require("../utils/tenant");
+const { publicar } = require("../ramal-monitor");
 
 router.get("/ws/ramais/token", requireJwt, async (req, res) => {
   try {
@@ -69,6 +70,20 @@ router.get("/config/sip", (req, res) => {
     .split(":")[0]
     .split("/")[0];
   res.json({ host, port: SIP_PORT });
+});
+
+router.post("/api/internal/cdr-updated", (req, res) => {
+const ip = req.ip || req.socket.remoteAddress || "";
+  if (!ip.includes("127.0.0.1") && !ip.includes("::1") && !ip.includes("localhost")) {
+    return res.status(403).json({ error: "Acesso restrito ao localhost" });
+  }
+
+  const { tenantId } = req.body;
+
+  if (tenantId) {
+    publicar(String(tenantId), "CDR_UPDATED", {});
+  }
+  return res.json({ ok: true });
 });
 
 module.exports = router;

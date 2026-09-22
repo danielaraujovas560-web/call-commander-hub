@@ -543,4 +543,4 @@ async function iniciarMonitor(ariClient, httpServer, queryFn) {
   console.log("[MONITOR] monitoramento de ramais ativo");
 }
 
-module.exports = { iniciarMonitor, estadoRamais };
+module.exports = { iniciarMonitor, estadoRamais, publicar };

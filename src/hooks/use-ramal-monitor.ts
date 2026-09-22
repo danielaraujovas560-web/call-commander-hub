@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { getRamalMonitorTicket } from "@/lib/ramais.functions";
 
@@ -53,6 +54,7 @@ export const estadoRamalLabel: Record<RamalState, string> = {
 };
 
 export function useRamalMonitor() {
+  const queryClient = useQueryClient();
   const [ramais, setRamais] = useState<RamaisMap>({});
   const [conectado, setConectado] = useState(false);
 
@@ -97,6 +99,11 @@ useEffect(() => {
       ws.onmessage = (event) => {
         try {
           const mensagem: WsEvento = JSON.parse(event.data);
+
+          if (mensagem.tipo === "CDR_UPDATED") {
+            queryClient.invalidateQueries({ queryKey: ["ramais-monitoramento"] });
+            return;
+          }
 
           if (mensagem.tipo === "ESTADO_INICIAL") {
             console.log(
