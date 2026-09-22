@@ -10,7 +10,7 @@ function iptables(args) {
 
 // Use a mesma conexão/pool do seu Agent.
 // Ajuste este require para o arquivo onde seu pool está exportado.
-const pool = require("./db");
+const pool = require("./config/db");
 
 const CHAIN = "PABX-BLOCK";
 const MAX_FAILURES = 10;

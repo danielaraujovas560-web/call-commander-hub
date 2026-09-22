@@ -4,7 +4,8 @@
   "description": "Mini-agente HTTP local que expõe ramais/troncos do Asterisk (realtime) ao painel Lovable.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "format": "prettier --write"
   },
   "dependencies": {
     "ari-client": "^2.2.0",
@@ -18,5 +19,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.8"
   }
 }
