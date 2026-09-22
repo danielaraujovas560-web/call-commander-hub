@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { login } from "@/lib/auth/login.functions";
@@ -26,6 +26,9 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
+
+const [activeTab, setActiveTab] = useState("admin");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
@@ -37,16 +40,16 @@ function AuthPage() {
           <CardDescription>Acesse sua área para gerir ramais e relatórios</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="admin" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="admin">Administrador</TabsTrigger>
               <TabsTrigger value="ramal">Ramal</TabsTrigger>
             </TabsList>
             <TabsContent value="admin" className="pt-4">
-              <AdminLoginForm />
+              <AdminLoginForm active={activeTab === "admin"} />
             </TabsContent>
             <TabsContent value="ramal" className="pt-4">
-              <RamalLoginForm />
+              <RamalLoginForm active={activeTab === "ramal"} />
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -55,12 +58,30 @@ function AuthPage() {
   );
 }
 
-function AdminLoginForm() {
+function AdminLoginForm({ active }: { active: boolean }) {
   const navigate = useNavigate();
   const loginFn = useServerFn(login);
   const [loading, setLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPass, setLoginPass] = useState("");
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!active) return;
+      if (e.key !== "Enter") return;
+
+      e.preventDefault();
+
+      const button = document.getElementById("admin-login-button");
+      button?.click();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [active]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -87,7 +108,7 @@ function AdminLoginForm() {
         <Label htmlFor="login-pass">Senha</Label>
         <Input id="login-pass" type="password" required value={loginPass} onChange={(e) => setLoginPass(e.target.value)} />
       </div>
-      <Button type="submit" className="w-full" disabled={loading}>
+      <Button id="admin-login-button" type="submit" className="w-full" disabled={loading}>
         {loading ? "Entrando..." : "Entrar"}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
@@ -97,11 +118,29 @@ function AdminLoginForm() {
   );
 }
 
-function RamalLoginForm() {
+function RamalLoginForm({ active }: { active: boolean }) {
   const ramalLoginFn = useServerFn(ramalLogin);
   const [loading, setLoading] = useState(false);
   const [endpointId, setEndpointId] = useState("");
   const [senha, setSenha] = useState("");
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!active) return;
+      if (e.key !== "Enter") return;
+
+      e.preventDefault();
+
+      const button = document.getElementById("ramal-login-button");
+      button?.click();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [active]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -148,7 +187,7 @@ function RamalLoginForm() {
           onChange={(e) => setSenha(e.target.value)}
         />
       </div>
-      <Button type="submit" className="w-full" disabled={loading}>
+      <Button id="ramal-login-button" type="submit" className="w-full" disabled={loading}>
         {loading ? "Entrando..." : "Entrar"}
       </Button>
       <p className="text-center text-xs text-muted-foreground">

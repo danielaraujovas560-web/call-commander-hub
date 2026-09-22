@@ -61,9 +61,13 @@ function Page() {
     return [];
   }, [uraData]);
 
-  const uraOptions = [
-    ...new Map(rowsUra.map((r) => [r.display_name, { value: r.nome, label: r.nome }])).values(),
+  const uraName = [
+    ...new Map(rowsUra.map((r) => [r.nome_ura, { value: r.nome_ura, label: r.nome_ura }])).values(),
   ];
+
+  const uraOptions = [
+    ...new Map(rowsUra.map((r) => [r.opcao, { value: r.opcao, label: r.opcao }])).values(),
+  ].sort((a, b) => {return (Number(a.value) || 0) - (Number(b.value) || 0) || a.label.localeCompare(b.label);});
 
   return (
     <div className="space-y-4">
@@ -79,8 +83,8 @@ function Page() {
         fields={[
           { key: "linkedid", label: "Linked ID" },
           { key: "origem", label: "DID (origem)" },
-          { key: "status", label: "Nome URA", options: uraOptions },
-          { key: "destino", label: "Opção digitada" },
+          { key: "status", label: "Nome URA", options: uraName },
+          { key: "destino", label: "Opção digitada", options: uraOptions },
           { key: "from", label: "De", type: "datetime-local" },
           { key: "to", label: "Até", type: "datetime-local" },
         ]}
@@ -107,7 +111,7 @@ function Page() {
                 <TableRow key={r.id}>
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
                   <TableCell>{r.num_did}</TableCell>
-                  <TableCell className="font-mono">{r.nome}</TableCell>
+                  <TableCell className="font-mono">{r.nome_ura}</TableCell>
                   <TableCell className="font-mono">{r.opcao}</TableCell>
                   <TableCell>
                     {r.dest_op} → {r.destino_nome}

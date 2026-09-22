@@ -528,6 +528,10 @@ function FilaFormDialog({
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
+            if (!form.display_name) {
+               toast.error("Atenção: insira o nome da fila antes de salvar.")
+               return;
+            }
             mut.mutate();
           }
         }}
@@ -696,7 +700,7 @@ function FilaFormDialog({
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={mut.isPending || !form.display_name}>
+            <Button type="submit" onClick={() => mut.mutate()} disabled={mut.isPending || !form.display_name}>
               {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
             </Button>
           </DialogFooter>

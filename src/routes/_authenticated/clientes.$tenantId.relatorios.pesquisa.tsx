@@ -94,6 +94,7 @@ function Page() {
               { key: "linkedid", label: "Linkedid" },
               { key: "origem", label: "Origem" },
               { key: "destino", label: "Destino" },
+              { key: "contexto", label: "Contexto", type: "select", options: [{ label: "Ativa", value: "ATIVA"  }, { label: "Receptiva", value: "RECEPTIVA" }] },
               { key: "from", label: "De", type: "datetime-local" },
               { key: "to", label: "Até", type: "datetime-local" },
             ]}
@@ -109,6 +110,7 @@ function Page() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Linkedid</TableHead>
+                    <TableHead>Contexto</TableHead>
                     <TableHead>Origem</TableHead>
                     <TableHead>Destino</TableHead>
                     <TableHead>Pergunta</TableHead>
@@ -120,6 +122,7 @@ function Page() {
                     <TableRow key={r.id}>
                       <TableCell className="text-xs">{r.data}</TableCell>
                       <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.contexto}</TableCell>
                       <TableCell className="font-mono">{r.origem}</TableCell>
                       <TableCell>{r.destino}</TableCell>
                       <TableCell>#{r.pergunta_id}</TableCell>
@@ -147,6 +150,7 @@ function Page() {
               { key: "linkedid", label: "Linkedid" },
               { key: "origem", label: "Origem" },
               { key: "destino", label: "Destino" },
+              { key: "contexto", label: "Contexto", type: "select", options: [{ label: "Ativa", value: "ATIVA"  }, { label: "Receptiva", value: "RECEPTIVA" }] },
               { key: "status", label: "Fila" },
               { key: "from", label: "De", type: "datetime-local" },
               { key: "to", label: "Até", type: "datetime-local" },
@@ -163,6 +167,7 @@ function Page() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Linkedid</TableHead>
+                    <TableHead>Contexto</TableHead>
                     <TableHead>Origem</TableHead>
                     <TableHead>Destino</TableHead>
                     <TableHead>Fila</TableHead>
@@ -175,6 +180,7 @@ function Page() {
                     <TableRow key={r.id}>
                       <TableCell className="text-xs">{r.data}</TableCell>
                       <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.contexto}</TableCell>
                       <TableCell className="font-mono">{r.origem}</TableCell>
                       <TableCell>{r.destino}</TableCell>
                       <TableCell>{r.fila}</TableCell>

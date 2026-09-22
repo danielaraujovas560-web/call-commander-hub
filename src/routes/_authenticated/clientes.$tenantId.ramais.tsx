@@ -438,7 +438,31 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           Adicionar ramal
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent
+         className="max-w-lg max-h-[85vh] overflow-y-auto" 
+         onKeyDown={(e) => {
+           if (e.key === "Enter") {
+             e.preventDefault();
+             if (!form.ramal) {
+               toast.error("Atenção: insira o número do ramal antes de salvar.");
+               return;
+             }
+             if (!form.ddd) {
+               toast.error("Atenção: insira o DDD do ramal antes de salvar.");
+               return;
+             }
+             if (!form.tronco) {
+               toast.error("Atenção: insira um tronco antes de salvar.");
+               return;
+             }
+             if (form.pesquisa && !form.pesquisa_id) {
+               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+               return;
+             }
+             mut.mutate();
+           }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Novo ramal</DialogTitle>
           <DialogDescription>Criação de um novo ramal.</DialogDescription>
@@ -447,6 +471,22 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
         <form
           onSubmit={(e) => {
             e.preventDefault();
+             if (!form.ramal) {
+               toast.error("Atenção: insira o número do ramal antes de salvar.");
+               return;
+             }
+             if (!form.ddd) {
+               toast.error("Atenção: insira o DDD do ramal antes de salvar.");
+               return;
+             }
+             if (!form.tronco) {
+               toast.error("Atenção: insira um tronco antes de salvar.");
+               return;
+             }
+             if (form.pesquisa && !form.pesquisa_id) {
+               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+               return;
+             }
             mut.mutate();
           }}
           className="grid grid-cols-2 gap-3"
@@ -792,7 +832,23 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent 
+         className="max-w-lg max-h-[85vh] overflow-y-auto"
+         onKeyDown={(e) => {
+           if (e.key === "Enter") {
+             e.preventDefault();
+             if (!form.tronco) {
+               toast.error("Atenção: insira um tronco antes de salvar.");
+               return;
+             }
+             if (form.pesquisa && !form.pesquisa_id) {
+               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+               return;
+             }
+             mut.mutate();
+           }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Editar ramal {ramal.ramal}</DialogTitle>
           <DialogDescription>Edição de um Ramal já existente.</DialogDescription>
@@ -801,6 +857,14 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
         <form
           onSubmit={(e) => {
             e.preventDefault();
+             if (!form.tronco) {
+               toast.error("Atenção: insira um tronco antes de salvar.");
+               return;
+             }
+             if (form.pesquisa && !form.pesquisa_id) {
+               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+               return;
+             }
             mut.mutate();
           }}
           className="grid grid-cols-2 gap-3"
