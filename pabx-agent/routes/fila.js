@@ -279,15 +279,16 @@ router.delete("/filas/:name", async (req, res) => {
       return res.status(404).json({ error: "Fila não encontrada" });
     }
     const f = rows[0];
-    const [rows1] = await coon.query(`SELECT tipo_destino, destino FROM roteamento WHERE destino = ? AND tenant_id = ?`, [name, String(tenant)]);
+    const [rows1] = await conn.query(`SELECT tipo_destino, destino FROM roteamento WHERE destino = ? AND tenant_id = ?`, [name, String(tenant)]);
     if (rows1.length > 0) {
        await conn.rollback();
        return res.status(409).json({ error: "Fila selecionada em roteamento"  });
     }
-    const [rows2] = await coon.query(`SELECT id FROM regra_horario WHERE (tipo_acao_dentro = 'FILA' AND acao_dentro = ? AND tenant_id = ?)) OR (tipo_acao_fora = 'FILA' AND acao_fora = ? AND tenant_id = ?)`, [name, String(tenant)]);
-    if (rows1.length > 0) {
+    const [rows2] = await conn.query(`SELECT regra_identifier FROM regra_horario WHERE (acao_dentro = 'FILA' AND destino_dentro = ? AND tenant_id = ?)) OR (acao_fora = 'FILA' AND destino_fora = ? AND tenant_id = ?)`,
+                   [name, String(tenant), name, String(tenant)]);
+    if (rows2.length > 0) {
        await conn.rollback();
-       return res.status(409).json({ error: "Fila selecionada em roteamento"  });
+       return res.status(409).json({ error: "Fila selecionada em regra de horário"  });
     }
     // Remove os agentes da fila ainda ativa no Asterisk (antes de apagar do
     // banco), para não deixar membros "fantasma" na memória.
