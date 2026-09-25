@@ -1,9 +1,9 @@
-const express        = require("express");
-const router         = express.Router();
+const express = require("express");
+const router = express.Router();
 const { randomUUID } = require("crypto");
-const bcrypt         = require("bcryptjs");
-const pool           = require("../config/db");
-const requireJwt     = require("../middleware/jwt");
+const bcrypt = require("bcryptjs");
+const pool = require("../config/db");
+const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 
 router.get("/admin/users", requireJwt, requireAdmin, async (req, res) => {

@@ -2,14 +2,12 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { randomBytes } = require("crypto");
-const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 const { amiPjsipReload } = require("../utils/ami-commands");
-const { getTenant } = require("../utils/tenant");
-const genPassword = require("../utils/gen-password")
+const genPassword = require("../utils/gen-password");
 
 router.get("/ramais", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -46,7 +44,7 @@ router.get("/ramais", async (req, res) => {
 });
 
 router.post("/ramais", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   let {
     nome,
@@ -175,7 +173,7 @@ router.post("/ramais", async (req, res) => {
 });
 
 router.put("/ramais/:endpoint_id", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const endpointId = req.params.endpoint_id;
   if (!endpointId) {
@@ -290,7 +288,7 @@ router.put("/ramais/:endpoint_id", async (req, res) => {
 });
 
 router.delete("/ramais/:endpoint_id", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const endpointId = req.params.endpoint_id;
   if (!endpointId) {
@@ -323,7 +321,7 @@ router.delete("/ramais/:endpoint_id", async (req, res) => {
 });
 
 router.post("/ramais/generate-password", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const endpointId = req.body.endpoint_id;
   if (!endpointId) return res.status(400).json({ error: "endpoint inválido" });

@@ -6,18 +6,21 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 
 const hmacMiddleware = require("./middleware/hmac");
+const requireJwt = require("./middleware/jwt");
+const tenantMiddleware = require("./middleware/auth-middle");
 const pool = require("./config/db");
 
 // Rotas
+const interno = require("./routes/interno");
 const health = require("./routes/health");
 const tenantRoutes = require("./routes/tenant");
 const authRoutes = require("./routes/auth");
 const auditLogs = require("./routes/audit");
-const adminUsersRoutes  = require("./routes/admin-users");
+const adminUsersRoutes = require("./routes/admin-users");
 const adminTenantRoutes = require("./routes/admin-tenants");
 const dashboard = require("./routes/dashboard");
 const clientes = require("./routes/clientes");
-const ramaisWeb = require("./routes/ramal-web")
+const ramaisWeb = require("./routes/ramal-web");
 const ramais = require("./routes/ramal");
 const troncos = require("./routes/tronco");
 const filas = require("./routes/fila");
@@ -36,22 +39,11 @@ const gravacoes = require("./routes/gravacao");
 const audios = require("./routes/audios");
 const firewall = require("./routes/firewall");
 
-const {
-  amiCommand,
-  queueAdd,
-  queueRefresh,
-  onAmiConnect,
-  getQueueStatus,
-} = require("./ami");
+const { amiCommand, queueAdd, queueRefresh, onAmiConnect, getQueueStatus } = require("./ami");
 const { iniciarMonitor } = require("./ramal-monitor");
-const { connectARI  } = require("./ari");
+const { connectARI } = require("./ari");
 
-const {
-  AGENT_SECRET,
-  JWT_SECRET,
-  PORT = "8787",
-  AUDIO_UPLOAD_LIMIT = "1gb",
-} = process.env;
+const { AGENT_SECRET, JWT_SECRET, PORT = "8787", AUDIO_UPLOAD_LIMIT = "1gb" } = process.env;
 
 if (!AGENT_SECRET || AGENT_SECRET.length < 16) {
   console.error("AGENT_SECRET ausente ou curto demais (>=16 chars). Edite .env e reinicie.");
@@ -202,7 +194,13 @@ app.use(
 
 app.use(hmacMiddleware);
 app.use(health);
+app.use(interno);
 app.use(authRoutes);
+
+// Tudo para baixo, usa JWT
+app.use(requireJwt);
+app.use(tenantMiddleware);
+
 app.use(tenantRoutes);
 app.use(auditLogs);
 app.use(ramaisWeb);

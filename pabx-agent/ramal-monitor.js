@@ -45,10 +45,9 @@ function extrairEndpoint(nomeCanal = "") {
 async function resolverTenant(endpoint, queryFn) {
   if (!endpoint) return null;
   try {
-    const [rows] = await queryFn(
-      "SELECT tenant_id FROM ramais WHERE endpoint_id = ? LIMIT 1",
-      [endpoint]
-    );
+    const [rows] = await queryFn("SELECT tenant_id FROM ramais WHERE endpoint_id = ? LIMIT 1", [
+      endpoint,
+    ]);
     return rows[0]?.tenant_id ?? null;
   } catch {
     return null;
@@ -64,23 +63,18 @@ async function atualizarDisponibilidadeAgente(tenantId, endpoint) {
   const baseOnline = !!ramais[endpoint];
   const webOnline = !!ramais[`${endpoint}-web`];
 
-  const estado = baseOnline || webOnline
-    ? "NOT_INUSE"
-    : "UNAVAILABLE";
+  const estado = baseOnline || webOnline ? "NOT_INUSE" : "UNAVAILABLE";
 
   try {
     await setCustomDeviceState(endpoint, estado);
 
     console.log(
       `[MONITOR] Custom:${endpoint} -> ${estado} ` +
-      `(base=${baseOnline ? "online" : "offline"}, ` +
-      `web=${webOnline ? "online" : "offline"})`
+        `(base=${baseOnline ? "online" : "offline"}, ` +
+        `web=${webOnline ? "online" : "offline"})`,
     );
   } catch (err) {
-    console.error(
-      `[MONITOR] erro atualizando Custom:${endpoint}:`,
-      err.message || err
-    );
+    console.error(`[MONITOR] erro atualizando Custom:${endpoint}:`, err.message || err);
   }
 }
 
@@ -138,7 +132,7 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
     const [rows] = await queryFn(
       `SELECT endpoint_id, tenant_id, registrado_desde
        FROM ramais
-       WHERE endpoint_id IS NOT NULL`
+       WHERE endpoint_id IS NOT NULL`,
     );
 
     const endpoints = await ariClient.endpoints.list();
@@ -181,16 +175,15 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
             `UPDATE ramais
              SET registrado_desde = NOW()
              WHERE endpoint_id = ?`,
-            [endpoint]
+            [endpoint],
           );
           const [[ramalAtualizado]] = await queryFn(
-           `SELECT registrado_desde
+            `SELECT registrado_desde
             FROM ramais
             WHERE endpoint_id = ?
             LIMIT 1`,
-            [endpoint]
-          )
-;
+            [endpoint],
+          );
           registradoDesde = ramalAtualizado?.registrado_desde;
         }
 
@@ -218,38 +211,30 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
       const endpoint = String(row.endpoint_id);
       const tenantId = row.tenant_id;
 
-      await atualizarDisponibilidadeAgente(
-        tenantId,
-        endpoint
-      );
+      await atualizarDisponibilidadeAgente(tenantId, endpoint);
     }
 
     console.log(
-      `[MONITOR] inicialização concluída: ` +
-      `${online} ramais online, ${offline} offline`
+      `[MONITOR] inicialização concluída: ` + `${online} ramais online, ${offline} offline`,
     );
   } catch (err) {
-    console.error(
-      "[MONITOR] erro ao inicializar ramais:",
-      err
-    );
+    console.error("[MONITOR] erro ao inicializar ramais:", err);
   }
 }
 
 // ─── Registrar eventos ARI + Função ultima conexão no banco ───────────────────────────────────
 function registrarEventos(ariClient, queryFn) {
-
   // Registro/desregistro do ramal
   ariClient.on("ContactStatusChange", async (event) => {
     const endpoint = event.endpoint;
     if (!endpoint) return;
 
-console.log(
-  "[MONITOR] EVENTO ENDPOINT:",
-  endpoint?.resource,
-  endpoint?.technology,
-  endpoint?.state
-);
+    console.log(
+      "[MONITOR] EVENTO ENDPOINT:",
+      endpoint?.resource,
+      endpoint?.technology,
+      endpoint?.state,
+    );
 
     const nome = endpoint.resource;
     if (!nome) return;
@@ -261,24 +246,31 @@ console.log(
     if (!tenantId) return;
 
     if (endpoint.state === "online") {
-
       const chave = `${tenantId}:${endpointBase}`;
       const timer = offlineTimers.get(chave);
 
       if (timer) {
         clearTimeout(timer);
         offlineTimers.delete(chave);
-       }
+      }
 
-      const [[ramal]] = await queryFn(`SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`, [endpointBase]);
+      const [[ramal]] = await queryFn(
+        `SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`,
+        [endpointBase],
+      );
 
       let registradoDesde = ramal?.registrado_desde;
 
       if (!registradoDesde) {
-        await queryFn(`UPDATE ramais SET registrado_desde = NOW() WHERE endpoint_id = ?`, [endpointBase]);
+        await queryFn(`UPDATE ramais SET registrado_desde = NOW() WHERE endpoint_id = ?`, [
+          endpointBase,
+        ]);
         console.log(`[MONITOR] LOGIN ${nome} | registrado_desde preenchido`);
 
-        const [[ramalAtualizado]] = await queryFn(`SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`, [endpointBase]);
+        const [[ramalAtualizado]] = await queryFn(
+          `SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`,
+          [endpointBase],
+        );
         registradoDesde = ramalAtualizado?.registrado_desde;
       }
 
@@ -311,42 +303,44 @@ console.log(
     }
 
     if (endpoint.state === "offline") {
-
       const chave = `${tenantId}:${endpointBase}`;
       if (offlineTimers.has(chave)) return;
 
       const timer = setTimeout(async () => {
         offlineTimers.delete(chave);
 
-       const ramais = estadoRamais[tenantId] ?? {};
+        const ramais = estadoRamais[tenantId] ?? {};
 
-       delete ramais[nome];
+        delete ramais[nome];
 
-       const baseOnline = !!ramais[endpointBase];
-       const webOnline = !!ramais[`${endpointBase}-web`];
+        const baseOnline = !!ramais[endpointBase];
+        const webOnline = !!ramais[`${endpointBase}-web`];
 
-       if (baseOnline || webOnline) return;
+        if (baseOnline || webOnline) return;
 
-         await queryFn(`UPDATE ramais SET registrado_desde = NULL, ultima_conexao = NOW() WHERE endpoint_id = ?`, [endpointBase]);
+        await queryFn(
+          `UPDATE ramais SET registrado_desde = NULL, ultima_conexao = NOW() WHERE endpoint_id = ?`,
+          [endpointBase],
+        );
 
-         delete ramais[endpointBase];
-         delete ramais[`${endpointBase}-web`];
+        delete ramais[endpointBase];
+        delete ramais[`${endpointBase}-web`];
 
-         await atualizarDisponibilidadeAgente(tenantId, endpointBase);
+        await atualizarDisponibilidadeAgente(tenantId, endpointBase);
 
-         publicar(tenantId, "RAMAL_REMOVIDO", {
-           endpoint: endpointBase,
-         });
+        publicar(tenantId, "RAMAL_REMOVIDO", {
+          endpoint: endpointBase,
+        });
 
-       console.log(`[MONITOR] desconexão total: ${endpointBase}`);
-       }, 3000);
-     offlineTimers.set(chave, timer);
+        console.log(`[MONITOR] desconexão total: ${endpointBase}`);
+      }, 3000);
+      offlineTimers.set(chave, timer);
     }
   });
 
   // Canal criado — ramal iniciou discagem ou está recebendo chamada
   ariClient.on("ChannelCreated", async (event) => {
-    const canal    = event.channel;
+    const canal = event.channel;
     const endpoint = extrairEndpoint(canal?.name);
     if (!endpoint) return;
 
@@ -377,7 +371,7 @@ console.log(
 
   // Dial — captura o número discado e o progresso
   ariClient.on("Dial", async (event) => {
-    const caller   = event.caller?.name ?? event.caller;
+    const caller = event.caller?.name ?? event.caller;
     const endpoint = extrairEndpoint(typeof caller === "string" ? caller : caller?.name);
     if (!endpoint) return;
 
@@ -389,20 +383,20 @@ console.log(
     // Primeira vez que o Dial dispara: dialstatus vazio = em progresso
     if (dialstatus === "") {
       atualizarEstado(tenantId, endpoint, {
-        state:  "DIALING",
+        state: "DIALING",
       });
       return;
     }
 
     // Resultado final da discagem
     const stateMap = {
-      ANSWER:      "IN_CALL",
-      PROGRESS:    "RINGING",
-      RINGING:     "RINGING",
-      CANCEL:      "IDLE",
-      BUSY:        "IDLE",
-      NOANSWER:    "IDLE",
-      CONGESTION:  "IDLE",
+      ANSWER: "IN_CALL",
+      PROGRESS: "RINGING",
+      RINGING: "RINGING",
+      CANCEL: "IDLE",
+      BUSY: "IDLE",
+      NOANSWER: "IDLE",
+      CONGESTION: "IDLE",
       CHANUNAVAIL: "IDLE",
     };
 
@@ -410,13 +404,13 @@ console.log(
 
     atualizarEstado(tenantId, endpoint, {
       state,
-      ...(state === "IN_CALL" ? {desde: new Date().toISOString() } : {}),
+      ...(state === "IN_CALL" ? { desde: new Date().toISOString() } : {}),
     });
   });
 
   // Mudança de estado do canal (Ringing, Up, etc.)
   ariClient.on("ChannelStateChange", async (event) => {
-    const canal    = event.channel;
+    const canal = event.channel;
     const endpoint = extrairEndpoint(canal?.name);
     if (!endpoint) return;
     if (canal.name.includes("t1-") || canal.name.includes("Tronco")) return;
@@ -425,10 +419,10 @@ console.log(
     if (!tenantId) return;
 
     const stateMap = {
-      Ring:    "RING",
+      Ring: "RING",
       Ringing: "RINGING",
-      Up:      "IN_CALL",
-      Down:    "IDLE",
+      Up: "IN_CALL",
+      Down: "IDLE",
     };
 
     const state = stateMap[canal.state];
@@ -437,7 +431,7 @@ console.log(
 
   // Canal destruído — chamada encerrada
   ariClient.on("ChannelDestroyed", async (event) => {
-    const canal    = event.channel;
+    const canal = event.channel;
     const endpoint = extrairEndpoint(canal?.name);
     if (!endpoint) return;
     if (canal.name.includes("t1-") || canal.name.includes("Tronco")) return;
@@ -459,11 +453,7 @@ function autenticarTicket(req) {
   try {
     const payload = jwt.verify(ticket, JWT_SECRET);
 
-    if (
-      payload.type !== "ramal_ws" ||
-      payload.sub == null ||
-      payload.tenant_id == null
-    ) {
+    if (payload.type !== "ramal_ws" || payload.sub == null || payload.tenant_id == null) {
       return null;
     }
 
@@ -475,7 +465,6 @@ function autenticarTicket(req) {
     return null;
   }
 }
-
 
 function iniciarWebSocket(httpServer) {
   const wss = new WebSocketServer({ server: httpServer, path: "/ws/ramais" });
@@ -501,29 +490,29 @@ function iniciarWebSocket(httpServer) {
     // Manda o estado atual imediatamente ao conectar
     const estadoAtual = estadoRamais[tenantId] ?? {};
     console.log(
-  "[WS] ESTADO_INICIAL tenant=",
-  tenantId,
-  JSON.stringify(estadoRamais[tenantId] ?? {}, null, 2)
-);
+      "[WS] ESTADO_INICIAL tenant=",
+      tenantId,
+      JSON.stringify(estadoRamais[tenantId] ?? {}, null, 2),
+    );
     ws.send(JSON.stringify({ tipo: "ESTADO_INICIAL", ramais: estadoAtual, ts: Date.now() }));
 
     ws.on("close", (code, reason) => {
       clientes[tenantId]?.delete(ws);
-  console.log("[WS] ===== CONEXÃO FECHADA =====");
-  console.log("[WS] tenant:", tenantId);
-  console.log("[WS] code:", code);
-  console.log("[WS] reason:", reason?.toString());
-  console.log("[WS] readyState:", ws.readyState);
-  console.log("[WS] time:", new Date().toISOString());
-  console.log("[WS] ===========================");
+      console.log("[WS] ===== CONEXÃO FECHADA =====");
+      console.log("[WS] tenant:", tenantId);
+      console.log("[WS] code:", code);
+      console.log("[WS] reason:", reason?.toString());
+      console.log("[WS] readyState:", ws.readyState);
+      console.log("[WS] time:", new Date().toISOString());
+      console.log("[WS] ===========================");
     });
 
     ws.on("error", (err) => {
-  console.error("[WS] ===== ERRO WEBSOCKET =====");
-  console.error("[WS] tenant:", tenantId);
-  console.error("[WS] erro:", err);
-  console.error("[WS] time:", new Date().toISOString());
-  console.error("[WS] ==========================");
+      console.error("[WS] ===== ERRO WEBSOCKET =====");
+      console.error("[WS] tenant:", tenantId);
+      console.error("[WS] erro:", err);
+      console.error("[WS] time:", new Date().toISOString());
+      console.error("[WS] ==========================");
     });
   });
 

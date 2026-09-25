@@ -2,15 +2,13 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { randomBytes } = require("crypto");
-const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 const { amiPjsipReload } = require("../utils/ami-commands");
-const { getTenant } = require("../utils/tenant");
 const slugName = require("../utils/slug");
 const genPassword = require("../utils/gen-password");
 
 router.get("/troncos", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -25,7 +23,7 @@ router.get("/troncos", async (req, res) => {
 });
 
 router.post("/troncos", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const { nome, ip, porta, tipo, techprefix, registrar, login, senha } = req.body || {};
   if (!nome || !ip || !tipo) {
@@ -112,7 +110,7 @@ router.post("/troncos", async (req, res) => {
 });
 
 router.put("/troncos/:pjsip", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const pjsip = req.params.pjsip;
   const { nome, ip, porta, tipo, techprefix, registrar, login, senha } = req.body || {};
@@ -283,7 +281,7 @@ router.put("/troncos/:pjsip", async (req, res) => {
 });
 
 router.delete("/troncos/:pjsip", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const pjsip = req.params.pjsip;
   const conn = await pool.getConnection();

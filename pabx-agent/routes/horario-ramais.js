@@ -1,11 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const { getTenant } = require("../utils/tenant");
 const slugName = require("../utils/slug");
 
 router.get("/horario-ramais", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [regras] = await pool.query(
@@ -28,7 +27,7 @@ router.get("/horario-ramais", async (req, res) => {
 });
 
 router.get("/horario-ramais/:regra/membros", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -46,10 +45,11 @@ router.get("/horario-ramais/:regra/membros", async (req, res) => {
 });
 
 router.post("/horario-ramais", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const { nome, dias, hora_inicial, hora_final } = req.body || {};
-  if (!nome || !dias || !hora_inicial || !hora_final) return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
+  if (!nome || !dias || !hora_inicial || !hora_final)
+    return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
   const b = req.body;
   const ramais = Array.isArray(b.ramais) ? b.ramais : [];
   const slug = slugName(String(b.nome));
@@ -88,10 +88,11 @@ router.post("/horario-ramais", async (req, res) => {
 });
 
 router.put("/horario-ramais/:regra", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const { nome, dias, hora_inicial, hora_final } = req.body || {};
-  if (!nome || !dias || !hora_inicial || !hora_final) return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
+  if (!nome || !dias || !hora_inicial || !hora_final)
+    return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
   const b = req.body;
   const regra = req.params.regra;
   const slug = slugName(String(b.nome));
@@ -129,7 +130,7 @@ router.put("/horario-ramais/:regra", async (req, res) => {
 });
 
 router.put("/horario-ramais/:regra/membros", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const regra = req.params.regra;
   if (!regra) return res.status(400).json({ error: "Regra inválida" });
@@ -160,7 +161,7 @@ router.put("/horario-ramais/:regra/membros", async (req, res) => {
 });
 
 router.delete("/horario-ramais/:regra", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const regra = req.params.regra;

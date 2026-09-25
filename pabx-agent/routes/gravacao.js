@@ -6,9 +6,7 @@ const fsSync = require("fs");
 const path = require("path");
 const authMiddleware = require("../middleware/auth-middle");
 
-const {
-  GRAVACAO_BASE = "/var/spool/asterisk/monitor/",
-} = process.env;
+const { GRAVACAO_BASE = "/var/spool/asterisk/monitor/" } = process.env;
 
 router.get("/gravacoes/:tipo/:linkedid", authMiddleware, async (req, res) => {
   try {

@@ -2,13 +2,11 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { randomBytes } = require("crypto");
-const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
-const { getTenant } = require("../utils/tenant");
 const { queueAdd, queueRemove, queuePenalty } = require("../ami.js");
 
 router.get("/filas/:name/agentes", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const filaName = req.params.name;
   try {
@@ -44,7 +42,7 @@ router.get("/filas/:name/agentes", async (req, res) => {
 });
 
 router.post("/filas/:name/agentes", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const filaName = req.params.name;
   const { ramal, penalty } = req.body || {};
@@ -71,7 +69,13 @@ router.post("/filas/:name/agentes", async (req, res) => {
     );
     if (dup.length) return res.status(409).json({ error: "Este ramal já está nesta fila." });
 
-    await queueAdd({ queue: fila.name, interface: iface, stateInterface: sinterface, penalty, memberName: r.nome });
+    await queueAdd({
+      queue: fila.name,
+      interface: iface,
+      stateInterface: sinterface,
+      penalty,
+      memberName: r.nome,
+    });
 
     const id = crypto.randomUUID();
     await pool.query(
@@ -87,7 +91,7 @@ router.post("/filas/:name/agentes", async (req, res) => {
 });
 
 router.delete("/filas/agentes/:id", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const id = req.params.id;
   try {
@@ -106,7 +110,7 @@ router.delete("/filas/agentes/:id", async (req, res) => {
 });
 
 router.put("/filas/agentes/:id", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const id = req.params.id;
   const { penalty } = req.body || {};

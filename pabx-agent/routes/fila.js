@@ -2,10 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { randomBytes } = require("crypto");
-const requireJwt = require("../middleware/jwt");
-const { requireAdmin } = require("../middleware/admin");
-const { amiQueueReloadParameters,  } = require("../utils/ami-commands");
-const { getTenant } = require("../utils/tenant");
+const { amiQueueReloadParameters } = require("../utils/ami-commands");
 const slugName = require("../utils/slug");
 const { amiCommand, queueAdd, queueRemove, queuePenalty, queueRefresh } = require("../ami.js");
 
@@ -25,7 +22,7 @@ async function ensureMoh(conn, tenant) {
 const QUEUE_STRATEGIES = ["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"];
 
 router.get("/filas", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -54,7 +51,7 @@ router.get("/filas", async (req, res) => {
 });
 
 router.post("/filas", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const {
     display_name,
@@ -129,7 +126,7 @@ router.post("/filas", async (req, res) => {
 });
 
 router.put("/filas/:name", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const name = req.params.name;
   const {
@@ -264,7 +261,7 @@ router.put("/filas/:name", async (req, res) => {
 });
 
 router.delete("/filas/:name", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const name = req.params.name;
   const conn = await pool.getConnection();
@@ -279,16 +276,21 @@ router.delete("/filas/:name", async (req, res) => {
       return res.status(404).json({ error: "Fila não encontrada" });
     }
     const f = rows[0];
-    const [rows1] = await conn.query(`SELECT tipo_destino, destino FROM roteamento WHERE destino = ? AND tenant_id = ?`, [name, String(tenant)]);
+    const [rows1] = await conn.query(
+      `SELECT tipo_destino, destino FROM roteamento WHERE destino = ? AND tenant_id = ?`,
+      [name, String(tenant)],
+    );
     if (rows1.length > 0) {
-       await conn.rollback();
-       return res.status(409).json({ error: "Fila selecionada em roteamento"  });
+      await conn.rollback();
+      return res.status(409).json({ error: "Fila selecionada em roteamento" });
     }
-    const [rows2] = await conn.query(`SELECT regra_identifier FROM regra_horario WHERE (acao_dentro = 'FILA' AND destino_dentro = ? AND tenant_id = ?)) OR (acao_fora = 'FILA' AND destino_fora = ? AND tenant_id = ?)`,
-                   [name, String(tenant), name, String(tenant)]);
+    const [rows2] = await conn.query(
+      `SELECT regra_identifier FROM regra_horario WHERE (acao_dentro = 'FILA' AND destino_dentro = ? AND tenant_id = ?)) OR (acao_fora = 'FILA' AND destino_fora = ? AND tenant_id = ?)`,
+      [name, String(tenant), name, String(tenant)],
+    );
     if (rows2.length > 0) {
-       await conn.rollback();
-       return res.status(409).json({ error: "Fila selecionada em regra de horário"  });
+      await conn.rollback();
+      return res.status(409).json({ error: "Fila selecionada em regra de horário" });
     }
     // Remove os agentes da fila ainda ativa no Asterisk (antes de apagar do
     // banco), para não deixar membros "fantasma" na memória.
@@ -321,7 +323,7 @@ router.delete("/filas/:name", async (req, res) => {
 });
 
 router.put("/filas/:name/ativo", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
 
   const name = req.params.name;

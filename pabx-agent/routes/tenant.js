@@ -1,10 +1,10 @@
-const express    = require("express");
-const router     = express.Router();
-const pool       = require("../config/db");
-const requireJwt = require("../middleware/jwt");
+const express = require("express");
+const router = express.Router();
+const pool = require("../config/db");
 const { resolveTenantId } = require("../utils/tenant");
+const { requireAdmin } = require("../middleware/admin"); // Importante importar o middleware de admin
 
-router.get("/tenant/resolve", requireJwt, async (req, res) => {
+router.get("/tenant/resolve", async (req, res) => {
   try {
     const override = req.query.tenant_id != null ? Number(req.query.tenant_id) : undefined;
     const tenantId = await resolveTenantId(req.userId, req.role, override);
@@ -14,7 +14,7 @@ router.get("/tenant/resolve", requireJwt, async (req, res) => {
   }
 });
 
-router.get("/my/tenants", requireJwt, async (req, res) => {
+router.get("/my/tenants", async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT tenant_id, label, is_default FROM tenants_link
@@ -27,7 +27,7 @@ router.get("/my/tenants", requireJwt, async (req, res) => {
   }
 });
 
-router.post("/tenants", async (req, res) => {
+router.post("/tenants", requireAdmin, async (req, res) => {
   const { id, nome } = req.body || {};
   if (!id || !nome) return res.status(400).json({ error: "id e nome obrigatórios" });
   try {
@@ -42,7 +42,7 @@ router.post("/tenants", async (req, res) => {
   }
 });
 
-router.get("/tenants", async (_req, res) => {
+router.get("/tenants", requireAdmin, async (_req, res) => {
   try {
     const [rows] = await pool.query(`SELECT id, nome FROM tenants ORDER BY id`);
     res.json({ tenants: rows });

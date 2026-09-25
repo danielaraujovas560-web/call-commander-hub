@@ -1,10 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const { getTenant } = require("../utils/tenant");
 
 router.get("/blacklist", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -19,7 +18,7 @@ router.get("/blacklist", async (req, res) => {
 });
 
 router.post("/blacklist", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const { regra, tipo, destino, motivo, data_hora_desbloqueio } = req.body || {};
   if (!regra || !tipo || !destino || !data_hora_desbloqueio) {
@@ -40,7 +39,7 @@ router.post("/blacklist", async (req, res) => {
 });
 
 router.put("/blacklist/:destino/:regra/:tipo", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const destinoAtual = req.params.destino;
   const regraAtual = req.params.regra;
@@ -105,7 +104,7 @@ router.put("/blacklist/:destino/:regra/:tipo", async (req, res) => {
 });
 
 router.delete("/blacklist/:destino/:regra/:tipo", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const destino = req.params.destino;
   const regra = req.params.regra;

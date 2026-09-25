@@ -1,13 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const { getTenant } = require("../utils/tenant");
 const slugName = require("../utils/slug");
 
 const ACAO_ENUM = ["RAMAL", "FILA", "URA", "EXTERNO", "INTERNO", "AUDIO"];
 
 router.get("/regra-horario", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -22,13 +21,26 @@ router.get("/regra-horario", async (req, res) => {
 });
 
 router.post("/regra-horario", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
-  const { nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora } = body || {};
-  if (!nome || !dias || !hora_inicial || !hora_final) return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
-  if (!ACAO_ENUM.includes(String(acao_dentro))) return res.status(400).json({ error: "acao_dentro inválido" });
-  if (!ACAO_ENUM.includes(String(acao_fora))) return res.status(400).json({ error: "acao_fora inválido" });
-  if (!destino_dentro || !destino_fora) return res.status(400).json({ error: "destinos obrigatórios" });
+  const {
+    nome,
+    dias,
+    hora_inicial,
+    hora_final,
+    acao_dentro,
+    destino_dentro,
+    acao_fora,
+    destino_fora,
+  } = body || {};
+  if (!nome || !dias || !hora_inicial || !hora_final)
+    return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
+  if (!ACAO_ENUM.includes(String(acao_dentro)))
+    return res.status(400).json({ error: "acao_dentro inválido" });
+  if (!ACAO_ENUM.includes(String(acao_fora)))
+    return res.status(400).json({ error: "acao_fora inválido" });
+  if (!destino_dentro || !destino_fora)
+    return res.status(400).json({ error: "destinos obrigatórios" });
   const b = req.body;
   const slug = slugName(String(b.nome));
   if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
@@ -57,15 +69,28 @@ router.post("/regra-horario", async (req, res) => {
 });
 
 router.put("/regra-horario/:regra_identifier", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const regraIdentifier = req.params.regra_identifier;
   if (!regraIdentifier) return res.status(400).json({ error: "É obrigatório enviar a regra" });
-  const { nome, dias, hora_inicial, hora_final, acao_dentro, destino_dentro, acao_fora, destino_fora } = body || {};
-  if (!nome || !dias || !hora_inicial || !hora_final) return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
-  if (!ACAO_ENUM.includes(String(acao_dentro))) return res.status(400).json({ error: "acao_dentro inválido" });
-  if (!ACAO_ENUM.includes(String(acao_fora))) return res.status(400).json({ error: "acao_fora inválido" });
-  if (!destino_dentro || !destino_fora) return res.status(400).json({ error: "destinos obrigatórios" });
+  const {
+    nome,
+    dias,
+    hora_inicial,
+    hora_final,
+    acao_dentro,
+    destino_dentro,
+    acao_fora,
+    destino_fora,
+  } = body || {};
+  if (!nome || !dias || !hora_inicial || !hora_final)
+    return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
+  if (!ACAO_ENUM.includes(String(acao_dentro)))
+    return res.status(400).json({ error: "acao_dentro inválido" });
+  if (!ACAO_ENUM.includes(String(acao_fora)))
+    return res.status(400).json({ error: "acao_fora inválido" });
+  if (!destino_dentro || !destino_fora)
+    return res.status(400).json({ error: "destinos obrigatórios" });
   const b = req.body;
   const slug = slugName(String(b.nome));
   if (!slug) return res.status(400).json({ error: "Nome da regra inválida" });
@@ -95,7 +120,7 @@ router.put("/regra-horario/:regra_identifier", async (req, res) => {
 });
 
 router.delete("/regra-horario/:regra_identifier", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const regraHorario = req.params.regra_identifier;
   if (!regraHorario) return res.status(400).json({ error: "É obrigatório enviar a regra" });

@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const { getTenant } = require("../utils/tenant");
 const { getEndpointsDeviceState } = require("../ami");
 
 let _endpointsCache = { at: 0, lastOk: 0, map: {} };
@@ -27,7 +26,7 @@ async function fetchEndpointsMap() {
 }
 
 router.get("/ramais/status", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(`SELECT ramal, endpoint_id FROM ramais WHERE tenant_id = ?`, [
@@ -46,7 +45,7 @@ router.get("/ramais/status", async (req, res) => {
 });
 
 router.get("/troncos/status", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(`SELECT tronco_pjsip FROM troncos WHERE tenant_id = ?`, [
@@ -64,7 +63,7 @@ router.get("/troncos/status", async (req, res) => {
 });
 
 router.get("/troncos/:pjsip/status", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const pjsip = req.params.pjsip;
   try {

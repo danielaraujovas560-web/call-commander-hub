@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 
-const AGENT_SECRET      = process.env.AGENT_SECRET;
-const SIGNATURE_WINDOW  = process.env.SIGNATURE_WINDOW ?? 30;
+const AGENT_SECRET = process.env.AGENT_SECRET;
+const SIGNATURE_WINDOW = process.env.SIGNATURE_WINDOW ?? 30;
 
 const ROTAS_LIVRES = [
   "/auth/",
@@ -42,6 +42,6 @@ function hmacMiddleware(req, res, next) {
     return res.status(401).json({ error: "Invalid signature" });
   }
   next();
-};
+}
 
 module.exports = hmacMiddleware;

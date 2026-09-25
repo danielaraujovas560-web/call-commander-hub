@@ -1,10 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 
-router.get("/dashboard/call-summary", requireJwt, requireAdmin, async (req, res) => {
+router.get("/dashboard/call-summary", requireAdmin, async (req, res) => {
   try {
     const [summaryRows] = await pool.query(`
       SELECT

@@ -1,11 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const requireJwt = require("../middleware/jwt");
-const { getTenant } = require("../utils/tenant");
 
 router.get("/roteamento", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -23,7 +21,7 @@ router.get("/roteamento", async (req, res) => {
 });
 
 router.post("/roteamento", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const { numero, tipo_destino, destino, descricao } = req.body || {};
   if (!numero || !tipo_destino || !destino) {
@@ -46,7 +44,7 @@ router.post("/roteamento", async (req, res) => {
 });
 
 router.put("/roteamento/:numero", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const numeroAtual = req.params.numero;
   const { numero, tipo_destino, destino, descricao } = req.body || {};
@@ -96,7 +94,7 @@ router.put("/roteamento/:numero", async (req, res) => {
 });
 
 router.delete("/roteamento/:numero", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     await pool.query(`DELETE FROM roteamento WHERE id = ? AND tenant_id = ?`, [

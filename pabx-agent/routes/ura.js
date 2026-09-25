@@ -3,15 +3,12 @@ const router = express.Router();
 const pool = require("../config/db");
 const fs = require("fs/promises");
 const path = require("path");
-const { getTenant } = require("../utils/tenant");
 const slugName = require("../utils/slug");
 
-const {
-  SOUNDS_BASE = "/var/lib/asterisk/sounds/",
-} = process.env
+const { SOUNDS_BASE = "/var/lib/asterisk/sounds/" } = process.env;
 
 router.get("/uras", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -37,7 +34,7 @@ router.get("/uras", async (req, res) => {
 });
 
 router.get("/uras/destinos", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [filas] = await pool.query(
@@ -76,7 +73,7 @@ router.get("/uras/destinos", async (req, res) => {
 });
 
 router.post("/uras", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const { nome, audio, max_digits, tentativas, timeout, ativo } = req.body || {};
   if (!nome || !audio || max_digits == null || tentativas == null || timeout == null) {
@@ -114,7 +111,7 @@ router.post("/uras", async (req, res) => {
 });
 
 router.put("/uras/:ura_identifier", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const uraIdentifier = req.params.ura_identifier;
   const { nome, audio, max_digits, tentativas, timeout, ativo } = req.body || {};
@@ -170,7 +167,7 @@ router.put("/uras/:ura_identifier", async (req, res) => {
 });
 
 router.delete("/uras/:ura_identifier", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const uraIdentifier = req.params.ura_identifier;
   try {
@@ -186,7 +183,7 @@ router.delete("/uras/:ura_identifier", async (req, res) => {
 });
 
 router.put("/uras/:ura_identifier/ativo", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const uraIdentifier = req.params.ura_identifier;
   const { ativo } = req.body || {};

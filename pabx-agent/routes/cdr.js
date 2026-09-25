@@ -45,7 +45,12 @@ cdrFilteredEndpoint(router, "/cdr/ura", {
   order: "c.date_time",
   dateCol: "c.date_time",
   tenantCol: "c.tenant_id",
-  filters: { linkedid: "c.linkedid", origem: "c.num_did", destino: "c.opcao", status: "c.nome_ura" },
+  filters: {
+    linkedid: "c.linkedid",
+    origem: "c.num_did",
+    destino: "c.opcao",
+    status: "c.nome_ura",
+  },
 });
 cdrFilteredEndpoint(router, "/cdr/pesquisa", {
   select: `p.id, p.linkedid, p.tipo, p.contexto,
@@ -63,10 +68,10 @@ cdrFilteredEndpoint(router, "/cdr/pesquisa", {
   exactFilters: ["p.tipo"],
   filters: {
     linkedid: "p.linkedid",
-    origem:   "COALESCE(ro.nome, p.origem)",
-    destino:  "COALESCE(rd.nome, p.destino)",
-    status:   "COALESCE(f.display_name, p.fila)",
-    tipo:     "p.tipo",
+    origem: "COALESCE(ro.nome, p.origem)",
+    destino: "COALESCE(rd.nome, p.destino)",
+    status: "COALESCE(f.display_name, p.fila)",
+    tipo: "p.tipo",
     contexto: "p.contexto",
   },
 });

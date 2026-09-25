@@ -2,11 +2,10 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const { randomUUID } = require("crypto");
-const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 const { amiPjsipReload, amiQueueReloadParameters } = require("../utils/ami-commands");
 
-router.get("/clientes", requireJwt, async (req, res) => {
+router.get("/clientes", async (req, res) => {
   try {
     if (req.role === "admin") {
       const [rows] = await pool.query("SELECT * FROM clientes ORDER BY created_at ASC");
@@ -25,7 +24,7 @@ router.get("/clientes", requireJwt, async (req, res) => {
   }
 });
 
-router.post("/clientes", requireJwt, requireAdmin, async (req, res) => {
+router.post("/clientes", requireAdmin, async (req, res) => {
   const { cnpj, razao_social, email, tenant_id, quantidade_ramais = 0 } = req.body || {};
   if (!cnpj || !razao_social || !email || !tenant_id) {
     return res.status(400).json({ error: "cnpj, razao_social, email e tenant_id obrigatórios" });
@@ -57,7 +56,7 @@ router.post("/clientes", requireJwt, requireAdmin, async (req, res) => {
   }
 });
 
-router.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
+router.put("/clientes/:id", requireAdmin, async (req, res) => {
   const { cnpj, razao_social, email, ativo } = req.body || {};
   const sets = [];
   const vals = [];
@@ -105,7 +104,7 @@ router.put("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
   }
 });
 
-router.put("/clientes/:id/configuracoes", requireJwt, requireAdmin, async (req, res) => {
+router.put("/clientes/:id/configuracoes", requireAdmin, async (req, res) => {
   const { quantidade_ramais, quantidade_filas, quantidade_uras } = req.body || {};
   const sets = [];
   const vals = [];
@@ -134,7 +133,7 @@ router.put("/clientes/:id/configuracoes", requireJwt, requireAdmin, async (req, 
   }
 });
 
-router.delete("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
+router.delete("/clientes/:id", requireAdmin, async (req, res) => {
   const clienteId = req.params.id;
   const conn = await pool.getConnection();
   try {
@@ -242,7 +241,7 @@ router.delete("/clientes/:id", requireJwt, requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/clientes/by-tenant/:tenantId", requireJwt, async (req, res) => {
+router.get("/clientes/by-tenant/:tenantId", async (req, res) => {
   const tenantId = Number(req.params.tenantId);
   try {
     if (req.role !== "admin") {

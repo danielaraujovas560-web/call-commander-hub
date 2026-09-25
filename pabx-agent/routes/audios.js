@@ -7,16 +7,12 @@ const path = require("path");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const execFileAsync = promisify(execFile);
-const { getTenant } = require("../utils/tenant");
 const slugName = require("../utils/slug");
 
-const {
-  SOUNDS_BASE = "/var/lib/asterisk/sounds/",
-  SOX_BIN = "sox",
-} = process.env;
+const { SOUNDS_BASE = "/var/lib/asterisk/sounds/", SOX_BIN = "sox" } = process.env;
 
 router.get("/audios", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const dir = path.join(SOUNDS_BASE, `t${tenant}`);
   try {
@@ -46,7 +42,7 @@ router.get("/audios", async (req, res) => {
 });
 
 router.post("/audios", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const { display_name, extensao, conteudo_base64 } = req.body || {};
   const ext = String(extensao || "")
@@ -139,7 +135,7 @@ router.post("/audios", async (req, res) => {
 });
 
 router.put("/audios/:audio_identifier", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const audioIdentifier = req.params.audio_identifier;
   const { display_name } = req.body || {};
@@ -175,7 +171,7 @@ router.put("/audios/:audio_identifier", async (req, res) => {
 });
 
 router.delete("/audios/:audio_identifier", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const audioIdentifier = req.params.audio_identifier;
   if (!audioIdentifier) return res.status(400).json({ error: "Áudio não encontrado" });

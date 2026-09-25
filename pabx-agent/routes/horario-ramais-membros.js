@@ -1,10 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const { getTenant } = require("../utils/tenant");
 
 router.get("/horario-ramais/:regra/membros", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -22,7 +21,7 @@ router.get("/horario-ramais/:regra/membros", async (req, res) => {
 });
 
 router.put("/horario-ramais/:regra/membros", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const regra = req.params.regra;
   if (!regra) return res.status(400).json({ error: "Regra inválida" });

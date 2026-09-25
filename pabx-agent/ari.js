@@ -10,11 +10,7 @@ async function connectARI() {
   try {
     console.log("[ARI] conectando...");
 
-    client = await ari.connect(
-      ARI_URL,
-      ARI_USER,
-      ARI_PASSWORD
-    );
+    client = await ari.connect(ARI_URL, ARI_USER, ARI_PASSWORD);
 
     console.log("[ARI] conectado ao Asterisk");
 
@@ -24,7 +20,7 @@ async function connectARI() {
 
     await client.applications.subscribe({
       applicationName: "pabx-agent",
-      eventSource: ["channel:", "bridge:", "endpoint:", "deviceState:"]
+      eventSource: ["channel:", "bridge:", "endpoint:", "deviceState:"],
     });
 
     console.log("[ARI] recebendo eventos");

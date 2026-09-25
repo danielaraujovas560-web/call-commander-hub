@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const { getTenant } = require("../utils/tenant");
 const slugName = require("../utils/slug");
 
 function validatePesquisaBody(body) {
@@ -29,7 +28,7 @@ function validatePesquisaBody(body) {
 }
 
 router.get("/pesquisa-satisfacao", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
@@ -53,7 +52,7 @@ router.get("/pesquisa-satisfacao", async (req, res) => {
 });
 
 router.post("/pesquisa-satisfacao", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const err = validatePesquisaBody(req.body);
   if (err) return res.status(400).json({ error: err });
@@ -86,7 +85,7 @@ router.post("/pesquisa-satisfacao", async (req, res) => {
 });
 
 router.put("/pesquisa-satisfacao/:id", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const id = Number(req.params.id);
   const err = validatePesquisaBody(req.body);
@@ -153,7 +152,7 @@ router.put("/pesquisa-satisfacao/:id", async (req, res) => {
 });
 
 router.delete("/pesquisa-satisfacao/:id", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const id = Number(req.params.id);
   try {

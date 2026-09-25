@@ -1,10 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-const { getTenant } = require("../utils/tenant");
 
 router.post("/uras/:ura_identifier/opcoes", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const uraIdentifier = req.params.ura_identifier;
   const { digito, tipo_destino, destino } = req.body || {};
@@ -28,7 +27,7 @@ router.post("/uras/:ura_identifier/opcoes", async (req, res) => {
 });
 
 router.put("/uras/:ura_identifier/opcoes/:opcao", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const uraIdentifier = req.params.ura_identifier;
   const oldDigito = req.params.opcao;
@@ -62,7 +61,7 @@ router.put("/uras/:ura_identifier/opcoes/:opcao", async (req, res) => {
 });
 
 router.delete("/uras/:ura_identifier/opcoes/:opcao", async (req, res) => {
-  const tenant = getTenant(req, res);
+  const tenant = req.tenantId;
   if (!tenant) return;
   const uraIdentifier = req.params.ura_identifier;
   const digito = req.params.opcao;

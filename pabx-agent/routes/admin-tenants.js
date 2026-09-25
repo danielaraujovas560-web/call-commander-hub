@@ -1,13 +1,15 @@
-const express        = require("express");
-const router         = express.Router();
+const express = require("express");
+const router = express.Router();
 const { randomUUID } = require("crypto");
-const pool           = require("../config/db");
-const requireJwt     = require("../middleware/jwt");
+const pool = require("../config/db");
+const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 
 router.get("/admin/tenants", requireJwt, requireAdmin, async (req, res) => {
   try {
-     const [rows] = await pool.query(`SELECT c.tenant_id, c.razao_social FROM clientes c JOIN tenants t ON c.tenant_id = t.id`)
+    const [rows] = await pool.query(
+      `SELECT c.tenant_id, c.razao_social FROM clientes c JOIN tenants t ON c.tenant_id = t.id`,
+    );
     res.json({ ok: true, tenants: rows });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });

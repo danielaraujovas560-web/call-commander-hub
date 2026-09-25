@@ -140,7 +140,6 @@ function amiAction(action, timeoutMs = 5000) {
   });
 }
 
-
 async function setCustomDeviceState(endpoint, state) {
   const cmd = `devstate change Custom:${endpoint} ${state}`;
   return amiCommand(cmd);
