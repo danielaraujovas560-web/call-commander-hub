@@ -15,7 +15,7 @@ function ClienteLayout() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["cliente-ativo"],
     queryFn: () => fn(),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 60,
     retry: false,
   });
 
