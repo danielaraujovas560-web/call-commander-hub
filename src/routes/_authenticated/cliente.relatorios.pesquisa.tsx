@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Star, Users, Phone } from "lucide-react";
-import { listCdrPesquisa } from "@/lib/ramais.functions";
+import { Star, Users, Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { listCdrPesquisa } from "@/lib/relatorios.functions";
 import {
   Table,
   TableBody,
@@ -14,8 +14,10 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, notaColors } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
+import { useClienteContext } from "./_cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -32,14 +34,13 @@ function getTodayFilters(): ReportFilterValues {
   };
 }
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/pesquisa")({
+export const Route = createFileRoute("/_authenticated/cliente/relatorios/pesquisa")({
   head: () => ({ meta: [{ title: "Pesquisa de satisfação — Painel PABX" }] }),
   component: Page,
 });
 
 function Page() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
   const [fPesquisaRamal, setFPesquisaRamal] = useState<ReportFilterValues>(() => getTodayFilters());
   const [fPesquisaFila, setFPesquisaFila] = useState<ReportFilterValues>(() => getTodayFilters());
   const [page, setPage] = useState(1);
@@ -50,6 +51,7 @@ function Page() {
     queryKey: ["cdr_pesquisa", tenantId, activeTab, currentFilters, page],
     queryFn: () =>
       fn({ data: { tenant_id: tenantId, tipo: activeTab.toUpperCase(), page, ...currentFilters } }),
+    enabled: !!tenantId,
   });
   const rows = useMemo(() => {
     if (Array.isArray(data?.rows)) return data.rows;
@@ -94,7 +96,15 @@ function Page() {
               { key: "linkedid", label: "Linkedid" },
               { key: "origem", label: "Origem" },
               { key: "destino", label: "Destino" },
-              { key: "contexto", label: "Contexto", type: "select", options: [{ label: "Ativa", value: "ATIVA"  }, { label: "Receptiva", value: "RECEPTIVA" }] },
+              {
+                key: "contexto",
+                label: "Contexto",
+                type: "select",
+                options: [
+                  { label: "Ativa", value: "ATIVA" },
+                  { label: "Receptiva", value: "RECEPTIVA" },
+                ],
+              },
               { key: "from", label: "De", type: "datetime-local" },
               { key: "to", label: "Até", type: "datetime-local" },
             ]}
@@ -134,6 +144,35 @@ function Page() {
                 </TableBody>
               </Table>
             </ReportShell>
+            <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/20">
+              <span className="text-sm text-muted-foreground">
+                Total de registros: <strong>{data?.total ?? rows.length}</strong>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || isLoading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                </Button>
+
+                <span className="text-sm">
+                  Página <strong>{page}</strong> de <strong>{data?.totalPages ?? 1}</strong>
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= (data?.totalPages ?? 1) || isLoading}
+                  onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
+                >
+                  Próxima <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
           </div>
         </TabsContent>
         <TabsContent value="fila" className="w-full space-y-6">
@@ -150,7 +189,15 @@ function Page() {
               { key: "linkedid", label: "Linkedid" },
               { key: "origem", label: "Origem" },
               { key: "destino", label: "Destino" },
-              { key: "contexto", label: "Contexto", type: "select", options: [{ label: "Ativa", value: "ATIVA"  }, { label: "Receptiva", value: "RECEPTIVA" }] },
+              {
+                key: "contexto",
+                label: "Contexto",
+                type: "select",
+                options: [
+                  { label: "Ativa", value: "ATIVA" },
+                  { label: "Receptiva", value: "RECEPTIVA" },
+                ],
+              },
               { key: "status", label: "Fila" },
               { key: "from", label: "De", type: "datetime-local" },
               { key: "to", label: "Até", type: "datetime-local" },
@@ -193,6 +240,35 @@ function Page() {
                 </TableBody>
               </Table>
             </ReportShell>
+            <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/20">
+              <span className="text-sm text-muted-foreground">
+                Total de registros: <strong>{data?.total ?? rows.length}</strong>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || isLoading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                </Button>
+
+                <span className="text-sm">
+                  Página <strong>{page}</strong> de <strong>{data?.totalPages ?? 1}</strong>
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= (data?.totalPages ?? 1) || isLoading}
+                  onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
+                >
+                  Próxima <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

@@ -1,0 +1,104 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireAuth } from "@/lib/auth/require-auth";
+import { resolveTenantId } from "./tenant.server";
+import { authenticatedAgentFetch } from "./agent.server";
+
+export const PesquisaPerguntaInput = z.object({
+  id: z.number().int().positive().optional(),
+  ordem: z.coerce.number().int().positive("A ordem deve ser maior que zero"),
+  audio: z.coerce.string().trim().min(1, "Áudio obrigatório"),
+  max_digit: z.coerce.number().int().positive(),
+});
+
+export const PesquisaSatisfacaoInput = z.object({
+  nome_pesquisa: z.coerce.string().trim().min(1, "nome_pesquisa obrigatório").max(100),
+  quantidade_op: z.coerce.number().int().positive("quantidade_op deve ser maior que zero"),
+  ativo: z.boolean().default(true),
+  perguntas: z.array(PesquisaPerguntaInput).min(1, "perguntas obrigatórias"),
+});
+
+export interface PesquisaSatisfacao {
+  id: number;
+  tenant_id: number;
+  nome_pesquisa: string;
+  quantidade_op: number;
+  ativo: boolean;
+  perguntas: Array<{
+    id?: number;
+    ordem: number;
+    audio: string;
+    max_digit: number;
+  }>;
+}
+
+export const listPesquisaSatisfacao = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    // Bate no app.get("/pesquisa-satisfacao") do seu back
+    const res = await authenticatedAgentFetch<{ pesquisas: PesquisaSatisfacao[] }>(
+      context,
+      "/pesquisa-satisfacao",
+      {
+        tenantId,
+      },
+    );
+    return { pesquisas: res.pesquisas ?? [] };
+  });
+
+export const createPesquisaSatisfacao = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) => PesquisaSatisfacaoInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    const { tenant_id: _i, ...body } = data;
+    // Bate no app.post("/pesquisa-satisfacao") do seu back
+    return await authenticatedAgentFetch<{ ok: true; id: number }>(
+      context,
+      "/pesquisa-satisfacao",
+      {
+        method: "POST",
+        tenantId,
+        body,
+      },
+    );
+  });
+
+export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    PesquisaSatisfacaoInput.extend({ id: z.number().int().positive() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    const { id, tenant_id: _i, ...body } = data;
+    return await authenticatedAgentFetch<{ ok: true }>(context, `/pesquisa-satisfacao/${id}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
+  });
+
+export const deletePesquisaSatisfacao = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.number().int().positive(),
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    // Bate no app.delete("/pesquisa-satisfacao/:id") do seu back
+    return await authenticatedAgentFetch<{ ok: true }>(context, `/pesquisa-satisfacao/${data.id}`, {
+      method: "DELETE",
+      tenantId,
+    });
+  });

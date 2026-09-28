@@ -9,9 +9,9 @@ import {
   createRoteamento,
   updateRoteamento,
   deleteRoteamento,
-  listUraDestinos,
   type RoteamentoItem,
-} from "@/lib/ramais.functions";
+} from "@/lib/roteamento.functions";
+import { listUraDestinos } from "@/lib/uras.functions.ts";
 import {
   DestinoPicker,
   emptyDestino,
@@ -55,6 +55,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { useClienteContext } from "./_cliente-context";
 
 // Roteamento pode apontar para qualquer ação (inclui HORARIO_ATENDIMENTO
 // para redirecionar a chamada pra regra que decide dentro/fora).
@@ -73,20 +74,20 @@ function getAcaoLabel(tipo: string): string {
   return ACOES_ROTEAMENTO.find((a) => a.value === tipo)?.label ?? tipo;
 }
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/roteamento")({
+export const Route = createFileRoute("/_authenticated/cliente/roteamento")({
   head: () => ({ meta: [{ title: "Roteamento — Cliente — Painel PABX" }] }),
   component: RoteamentoPage,
 });
 
 function RoteamentoPage() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
   const qc = useQueryClient();
   const fn = useServerFn(listRoteamento);
   const { isAdmin } = useIsAdmin();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["roteamento", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const rows = data?.roteamento ?? [];
   const [editing, setEditing] = useState<RoteamentoItem | null>(null);
@@ -95,6 +96,7 @@ function RoteamentoPage() {
   const { data: destinos } = useQuery({
     queryKey: ["ura-destinos", tenantId],
     queryFn: () => destinosFn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   const delFn = useServerFn(deleteRoteamento);

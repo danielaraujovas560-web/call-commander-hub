@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
 // TopoJSON do Brasil com divisão por estados
-const BRAZIL_TOPO_JSON = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson";
+const BRAZIL_TOPO_JSON =
+  "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson";
 
 export interface EstadoData {
   entrada: number;
@@ -27,12 +28,12 @@ export function MapaBrasil({ data, onSelectState }: MapaBrasilProps) {
   // Escala de cores baseada no total de chamadas
   const getColor = (total: number) => {
     if (total === 0) return "#e2e8f0"; // slate-200 (sem chamadas para o estado)
-    if (total < 50) return "#a7f3d0";  // emerald-200
+    if (total < 50) return "#a7f3d0"; // emerald-200
     if (total < 100) return "#6ee7b7"; // emerald-300
     if (total < 200) return "#34d399"; // emerald-400
     if (total < 300) return "#10b981"; // emerald-500
     if (total < 500) return "#059669"; // emerald-600
-    return "#047857";                  // emerald-700
+    return "#047857"; // emerald-700
   };
 
   return (
@@ -65,15 +66,13 @@ export function MapaBrasil({ data, onSelectState }: MapaBrasilProps) {
               geographies.map((geo) => {
                 // Captura a sigla do estado no GeoJSON
                 const uf = String(
-                  geo.properties.sigla ||
-                  geo.properties.UF ||
-                  geo.properties.id ||
-                  geo.id ||
-                  ""
-                ).toUpperCase().trim();
+                  geo.properties.sigla || geo.properties.UF || geo.properties.id || geo.id || "",
+                )
+                  .toUpperCase()
+                  .trim();
 
                 const name = geo.properties.name || geo.properties.nome || uf;
-                
+
                 // Busca no mapaData usando a sigla em caixa alta (ex: "ES")
                 const ufData = data[uf] || { entrada: 0, saida: 0 };
                 const total = ufData.entrada + ufData.saida;
@@ -82,7 +81,9 @@ export function MapaBrasil({ data, onSelectState }: MapaBrasilProps) {
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    onClick={() => { if (onSelectState) onSelectState(uf);}}
+                    onClick={() => {
+                      if (onSelectState) onSelectState(uf);
+                    }}
                     fill={getColor(total)}
                     stroke="#ffffff"
                     strokeWidth={1}

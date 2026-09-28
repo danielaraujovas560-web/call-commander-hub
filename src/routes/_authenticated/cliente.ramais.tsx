@@ -20,14 +20,14 @@ import {
 import {
   listRamais,
   listRamaisStatus,
-  listTroncos,
   createRamal,
   updateRamal,
   deleteRamal,
   type Ramal,
-  listPesquisaSatisfacao,
   generateRamalPassword,
 } from "@/lib/ramais.functions";
+import { listPesquisaSatisfacao } from "@/lib/pesquisa.functions";
+import { listTroncos } from "@/lib/troncos.functions";
 import { getSipConfig } from "@/lib/login-config.functions";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
@@ -71,8 +71,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/ramais")({
+export const Route = createFileRoute("/_authenticated/cliente/ramais")({
   head: () => ({ meta: [{ title: "Ramais — Cliente — Painel PABX" }] }),
   component: RamaisPage,
 });
@@ -80,16 +81,9 @@ export const Route = createFileRoute("/_authenticated/clientes/$tenantId/ramais"
 const listaDDDs = Array.from({ length: 89 }, (_, i) => String(i + 11));
 
 function RamaisPage() {
-  const { tenantId: tenantParam } = Route.useParams();
-  const tenantId = Number(tenantParam);
+  const { tenantId, cliente } = useClienteContext();
 
-  const clienteFn = useServerFn(getClienteByTenant);
-  const { data: clienteData } = useQuery({
-    queryKey: ["cliente", tenantId],
-    queryFn: () => clienteFn({ data: { tenant_id: tenantId } }),
-    retry: false,
-  });
-  const max = clienteData?.cliente?.quantidade_ramais ?? 0;
+  const max = cliente?.quantidade_ramais ?? 0;
 
   const list = useServerFn(listRamais);
   const statusFn = useServerFn(listRamaisStatus);
@@ -99,17 +93,19 @@ function RamaisPage() {
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["ramais", tenantId],
     queryFn: () => list({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   const { data: statusData } = useQuery({
     queryKey: ["ramais-status", tenantId],
     queryFn: () => statusFn({ data: { tenant_id: tenantId } }),
     refetchInterval: 5000, // opcional
+    enabled: !!tenantId,
   });
 
   const del = useServerFn(deleteRamal);
   const delMut = useMutation({
-    mutationFn: (endpoint_id: string) => del({ data: { endpoint_id, tenant_id: tenantId } }),
+    mutationFn: (endpoint_id: string) => del({ data: { endpoint_id, tenant_id: tenantId! } }),
     onSuccess: () => {
       toast.success("Ramal removido");
       queryClient.invalidateQueries({ queryKey: ["ramais", tenantId] });
@@ -210,8 +206,8 @@ function RamaisPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <RamalNewPassword ramal={r} />
-                    <RamalLoginInfoDialog ramal={r} />
+                    <RamalNewPassword ramal={r} tenantId={tenantId} />
+                    <RamalLoginInfoDialog tenantId={tenantId} ramal={r} />
                     <EditRamalDialog
                       key={`${r.endpoint_id}-${r.senha}-${r.transbordo}-${r.transbordo_tronco}`}
                       tenantId={tenantId}
@@ -284,16 +280,14 @@ function ReadOnlyCopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RamalNewPassword({ ramal }: { ramal: Ramal }) {
-  const { tenantId: tenantParam } = Route.useParams();
-  const tenantId = Number(tenantParam);
+function RamalNewPassword({ ramal, tenantId }: { ramal: Ramal; tenantId?: number }) {
   const queryClient = useQueryClient();
   const generate = useServerFn(generateRamalPassword);
   const mut = useMutation({
     mutationFn: () =>
       generate({
         data: {
-          tenant_id: tenantId,
+          tenant_id: tenantId!,
           endpoint_id: ramal.endpoint_id,
         },
       }),
@@ -315,7 +309,7 @@ function RamalNewPassword({ ramal }: { ramal: Ramal }) {
       variant="ghost"
       size="icon"
       onClick={() => mut.mutate()}
-      disabled={mut.isPending}
+      disabled={mut.isPending || !tenantId}
       title="Gerar nova senha"
     >
       <KeyRound className={mut.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
@@ -370,13 +364,13 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
     queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
-    enabled: open,
+    enabled: open && !!tenantId,
   });
 
   const { data: pesquisasData } = useQuery({
     queryKey: ["pesquisas", tenantId],
     queryFn: () => pesquisasFn({ data: { tenant_id: tenantId } }),
-    enabled: open,
+    enabled: open && !!tenantId,
   });
 
   const emptyForm = {
@@ -439,28 +433,28 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
         </Button>
       </DialogTrigger>
       <DialogContent
-         className="max-w-lg max-h-[85vh] overflow-y-auto" 
-         onKeyDown={(e) => {
-           if (e.key === "Enter") {
-             e.preventDefault();
-             if (!form.ramal) {
-               toast.error("Atenção: insira o número do ramal antes de salvar.");
-               return;
-             }
-             if (!form.ddd) {
-               toast.error("Atenção: insira o DDD do ramal antes de salvar.");
-               return;
-             }
-             if (!form.tronco) {
-               toast.error("Atenção: insira um tronco antes de salvar.");
-               return;
-             }
-             if (form.pesquisa && !form.pesquisa_id) {
-               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-               return;
-             }
-             mut.mutate();
-           }
+        className="max-w-lg max-h-[85vh] overflow-y-auto"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (!form.ramal) {
+              toast.error("Atenção: insira o número do ramal antes de salvar.");
+              return;
+            }
+            if (!form.ddd) {
+              toast.error("Atenção: insira o DDD do ramal antes de salvar.");
+              return;
+            }
+            if (!form.tronco) {
+              toast.error("Atenção: insira um tronco antes de salvar.");
+              return;
+            }
+            if (form.pesquisa && !form.pesquisa_id) {
+              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+              return;
+            }
+            mut.mutate();
+          }
         }}
       >
         <DialogHeader>
@@ -471,22 +465,22 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
         <form
           onSubmit={(e) => {
             e.preventDefault();
-             if (!form.ramal) {
-               toast.error("Atenção: insira o número do ramal antes de salvar.");
-               return;
-             }
-             if (!form.ddd) {
-               toast.error("Atenção: insira o DDD do ramal antes de salvar.");
-               return;
-             }
-             if (!form.tronco) {
-               toast.error("Atenção: insira um tronco antes de salvar.");
-               return;
-             }
-             if (form.pesquisa && !form.pesquisa_id) {
-               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-               return;
-             }
+            if (!form.ramal) {
+              toast.error("Atenção: insira o número do ramal antes de salvar.");
+              return;
+            }
+            if (!form.ddd) {
+              toast.error("Atenção: insira o DDD do ramal antes de salvar.");
+              return;
+            }
+            if (!form.tronco) {
+              toast.error("Atenção: insira um tronco antes de salvar.");
+              return;
+            }
+            if (form.pesquisa && !form.pesquisa_id) {
+              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+              return;
+            }
             mut.mutate();
           }}
           className="grid grid-cols-2 gap-3"
@@ -752,13 +746,13 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
     queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
-    enabled: open,
+    enabled: open && !!tenantId,
   });
 
   const { data: pesquisasData } = useQuery({
     queryKey: ["pesquisas", tenantId],
     queryFn: () => pesquisasFn({ data: { tenant_id: tenantId } }),
-    enabled: open,
+    enabled: open && !!tenantId,
   });
 
   const initial = () => ({
@@ -832,21 +826,21 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent 
-         className="max-w-lg max-h-[85vh] overflow-y-auto"
-         onKeyDown={(e) => {
-           if (e.key === "Enter") {
-             e.preventDefault();
-             if (!form.tronco) {
-               toast.error("Atenção: insira um tronco antes de salvar.");
-               return;
-             }
-             if (form.pesquisa && !form.pesquisa_id) {
-               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-               return;
-             }
-             mut.mutate();
-           }
+      <DialogContent
+        className="max-w-lg max-h-[85vh] overflow-y-auto"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (!form.tronco) {
+              toast.error("Atenção: insira um tronco antes de salvar.");
+              return;
+            }
+            if (form.pesquisa && !form.pesquisa_id) {
+              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+              return;
+            }
+            mut.mutate();
+          }
         }}
       >
         <DialogHeader>
@@ -857,14 +851,14 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
         <form
           onSubmit={(e) => {
             e.preventDefault();
-             if (!form.tronco) {
-               toast.error("Atenção: insira um tronco antes de salvar.");
-               return;
-             }
-             if (form.pesquisa && !form.pesquisa_id) {
-               toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-               return;
-             }
+            if (!form.tronco) {
+              toast.error("Atenção: insira um tronco antes de salvar.");
+              return;
+            }
+            if (form.pesquisa && !form.pesquisa_id) {
+              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
+              return;
+            }
             mut.mutate();
           }}
           className="grid grid-cols-2 gap-3"

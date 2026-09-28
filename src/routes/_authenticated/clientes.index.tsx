@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -12,6 +12,7 @@ import {
   updateClienteConfiguracoes,
   type Cliente,
 } from "@/lib/clientes.functions";
+import { setActiveTenantCookie } from "@/lib/tenant.session";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ export const Route = createFileRoute("/_authenticated/clientes/")({
 
 function ClientesPage() {
   const { isAdmin } = useIsAdmin();
+  const navigate = useNavigate();
   const fetchFn = useServerFn(listClientes);
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({
@@ -75,6 +77,19 @@ function ClientesPage() {
   });
 
   const clientes = data?.clientes ?? [];
+
+  const handleAcessarTenant = async (rawTenantId: any) => {
+    const tenantId = Number(rawTenantId);
+
+    try {
+      await setActiveTenantCookie({ data: tenantId });
+      await qc.invalidateQueries({ queryKey: ["activeTenantCookie"] });
+      await qc.invalidateQueries({ queryKey: ["cliente"] });
+      await navigate({ to: "/cliente" });
+    } catch (error) {
+      console.error("Erro ao gravar cookie do tenant:", error);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -151,11 +166,13 @@ function ClientesPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <Button asChild size="sm" variant="outline">
-                      <Link to="/clientes/$tenantId" params={{ tenantId: String(c.tenant_id) }}>
-                        <LogIn className="mr-1 h-3 w-3" />
-                        Acessar
-                      </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAcessarTenant(c.tenant_id)}
+                    >
+                      <LogIn className="mr-1 h-3 w-3" />
+                      Acessar
                     </Button>
                     {isAdmin && (
                       <>

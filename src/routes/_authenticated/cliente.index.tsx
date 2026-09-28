@@ -1,36 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { getClienteByTenant } from "@/lib/clientes.functions";
-import { listRamais, listFilas, listUras } from "@/lib/ramais.functions";
+import { listRamais } from "@/lib/ramais.functions";
+import { listUras } from "@/lib/uras.functions";
+import { listFilas } from "@/lib/filas.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRamalMonitor, estadoRamalLabel } from "@/hooks/use-ramal-monitor";
 import { MonitoramentoRamais } from "@/components/monitoramento-ramais";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/")({
+export const Route = createFileRoute("/_authenticated/cliente/")({
   head: () => ({ meta: [{ title: "Cliente — Painel PABX" }] }),
   component: ClienteOverview,
 });
 
 function ClienteOverview() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
-  const fn = useServerFn(getClienteByTenant);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["cliente", tenantId],
-    queryFn: () => fn({ data: { tenant_id: tenantId } }),
-    retry: false,
-  });
-  const cliente = data?.cliente;
+  const { tenantId, cliente, isLoading, error } = useClienteContext();
 
   const ramaisFn = useServerFn(listRamais);
   const {
@@ -40,6 +29,7 @@ function ClienteOverview() {
   } = useQuery({
     queryKey: ["ramais", tenantId],
     queryFn: () => ramaisFn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   const filasFn = useServerFn(listFilas);
@@ -50,6 +40,7 @@ function ClienteOverview() {
   } = useQuery({
     queryKey: ["filas", tenantId],
     queryFn: () => filasFn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   const urasFn = useServerFn(listUras);
@@ -60,6 +51,7 @@ function ClienteOverview() {
   } = useQuery({
     queryKey: ["uras", tenantId],
     queryFn: () => urasFn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   const cotaRamal = cliente?.quantidade_ramais ?? 0;
@@ -87,7 +79,7 @@ function ClienteOverview() {
           </p>
         </div>
         <Badge variant="outline" className="font-mono">
-          Tenant #{tenantId}
+          Tenant #{tenantId ?? "..."}
         </Badge>
       </div>
 
@@ -96,50 +88,52 @@ function ClienteOverview() {
           {(error as Error).message}
         </div>
       )}
-    <Tabs defaultValue="visao-geral" className="w-full">
-      <TabsList>
-        <TabsTrigger value="visao-geral">
-          Visão geral
-        </TabsTrigger>
+      <Tabs defaultValue="visao-geral" className="w-full">
+        <TabsList>
+          <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
 
-        <TabsTrigger value="dashboard">
-          Dashboard
-        </TabsTrigger>
-      </TabsList>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="visao-geral" className="mt-6 space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Email</CardTitle>
-          </CardHeader>
-          <CardContent className="font-mono text-sm break-all">{cliente?.email ?? "—"}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">CNPJ/CPF</CardTitle>
-          </CardHeader>
-          <CardContent className="font-mono text-sm">{cliente?.cnpj ?? "—"}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Cota de ramais</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-bold">{cotaRamal}</CardContent>
-        </Card>
-      </div>
+        <TabsContent value="visao-geral" className="mt-6 space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">Email</CardTitle>
+              </CardHeader>
+              <CardContent className="font-mono text-sm break-all">
+                {cliente?.email ?? "—"}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">CNPJ/CPF</CardTitle>
+              </CardHeader>
+              <CardContent className="font-mono text-sm">{cliente?.cnpj ?? "—"}</CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">Cota de ramais</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-bold">{cotaRamal}</CardContent>
+            </Card>
+          </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <RamaisChart criadosRamal={criadosRamal} vagosRamal={vagosRamal} cotaRamal={cotaRamal} />
-        <FilasChart criadosFila={criadosFila} vagosFila={vagosFila} cotaFila={cotaFila} />
-        <UrasChart criadosUra={criadosUra} vagosUra={vagosUra} cotaUra={cotaUra} />
-      </div>
-     </TabsContent>
-      <TabsContent value="dashboard" className="mt-6">
-        <MonitoramentoRamais />
-      </TabsContent>
-    </Tabs>     
-</div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <RamaisChart
+              criadosRamal={criadosRamal}
+              vagosRamal={vagosRamal}
+              cotaRamal={cotaRamal}
+            />
+            <FilasChart criadosFila={criadosFila} vagosFila={vagosFila} cotaFila={cotaFila} />
+            <UrasChart criadosUra={criadosUra} vagosUra={vagosUra} cotaUra={cotaUra} />
+          </div>
+        </TabsContent>
+        <TabsContent value="dashboard" className="mt-6">
+          <MonitoramentoRamais tenantId={tenantId} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
 

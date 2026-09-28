@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Workflow } from "lucide-react";
-import { listCdrUra } from "@/lib/ramais.functions";
+import { Workflow, ChevronLeft, ChevronRight } from "lucide-react";
+import { listCdrUra } from "@/lib/relatorios.functions";
 import {
   Table,
   TableBody,
@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { ReportShell } from "@/components/report-shell";
 import {
   ReportFilters,
@@ -19,6 +20,7 @@ import {
   usePersistentFilter,
 } from "@/components/report-filters";
 import { formatarDataHora } from "@/lib/utils";
+import { useClienteContext } from "./_cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -35,14 +37,13 @@ function getTodayFilters(): ReportFilterValues {
   };
 }
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/uras")({
+export const Route = createFileRoute("/_authenticated/cliente/relatorios/uras")({
   head: () => ({ meta: [{ title: "Relatório URAs — Painel PABX" }] }),
   component: Page,
 });
 
 function Page() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
   const [fUra, setFUra] = usePersistentFilter("fUra", tenantId, getTodayFilters());
   const [page, setPage] = useState(1);
   const fn = useServerFn(listCdrUra);
@@ -53,6 +54,7 @@ function Page() {
   } = useQuery({
     queryKey: ["cdr_ura", tenantId, page, fUra],
     queryFn: () => fn({ data: { tenant_id: tenantId, page, ...fUra } }),
+    enabled: !!tenantId,
   });
   const rowsUra = useMemo(() => {
     if (Array.isArray(uraData?.rows)) return uraData.rows;
@@ -67,7 +69,9 @@ function Page() {
 
   const uraOptions = [
     ...new Map(rowsUra.map((r) => [r.opcao, { value: r.opcao, label: r.opcao }])).values(),
-  ].sort((a, b) => {return (Number(a.value) || 0) - (Number(b.value) || 0) || a.label.localeCompare(b.label);});
+  ].sort((a, b) => {
+    return (Number(a.value) || 0) - (Number(b.value) || 0) || a.label.localeCompare(b.label);
+  });
 
   return (
     <div className="space-y-4">
@@ -79,7 +83,10 @@ function Page() {
         tenantId={tenantId}
         initialValues={fUra}
         defaultValues={getTodayFilters()}
-        onApply={(valores) => setFUra({ ...getTodayFilters(), ...valores })}
+        onApply={(valores) => {
+          setPage(1);
+          setFUra({ ...getTodayFilters(), ...valores });
+        }}
         fields={[
           { key: "linkedid", label: "Linked ID" },
           { key: "origem", label: "DID (origem)" },
@@ -122,6 +129,35 @@ function Page() {
             </TableBody>
           </Table>
         </ReportShell>
+        <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/20">
+          <span className="text-sm text-muted-foreground">
+            Total de registros: <strong>{uraData?.total ?? rowsUra.length}</strong>
+          </span>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+            </Button>
+
+            <span className="text-sm">
+              Página <strong>{page}</strong> de <strong>{uraData?.totalPages ?? 1}</strong>
+            </span>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= (uraData?.totalPages ?? 1) || isLoading}
+              onClick={() => setPage((p) => Math.min(uraData?.totalPages ?? 1, p + 1))}
+            >
+              Próxima <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -16,9 +16,7 @@ export function ToggleAtivoBadge({
       disabled={isPending}
       className="cursor-pointer disabled:opacity-50"
     >
-      <Badge variant={ativo ? "default" : "secondary"}>
-         {ativo ? "Ativo" : "Inativo"}
-      </Badge>
+      <Badge variant={ativo ? "default" : "secondary"}>{ativo ? "Ativo" : "Inativo"}</Badge>
     </button>
   );
 }

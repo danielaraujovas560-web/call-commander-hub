@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { getActiveTenantCookie } from "@/lib/tenant.session";
 
 export type Cliente = {
   id: string;
@@ -111,13 +112,18 @@ export const deleteCliente = createServerFn({ method: "POST" })
 // ---------- GET ONE (for cliente detail page) ----------
 export const getClienteByTenant = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => z.object({ tenant_id: z.number().int().positive() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
+  )
   .handler(async ({ data, context }) => {
+    const tenantId = data?.tenant_id ?? (await getActiveTenantCookie());
+    if (!tenantId || isNaN(Number(tenantId))) {
+      return { cliente: null };
+    }
     const { agentFetch } = await import("./agent.server");
-    const res = await agentFetch<{ cliente: Cliente | null }>(
-      `/clientes/by-tenant/${data.tenant_id}`,
-      { bearerToken: context.token },
-    );
+    const res = await agentFetch<{ cliente: Cliente | null }>(`/clientes/by-tenant/${tenantId}`, {
+      bearerToken: context.token,
+    });
     return { cliente: res.cliente };
   });
 

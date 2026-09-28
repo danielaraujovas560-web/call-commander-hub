@@ -26,17 +26,15 @@ export default defineConfig({
       preset: "node-server",
     }),
   ],
+  build: {
+    sourcemap: false,
+  },
   css: {
     transformer: "lightningcss",
   },
   resolve: {
     alias: { "@": `${process.cwd()}/src` },
-    dedupe: [
-      "react",
-      "react-dom",
-      "@tanstack/react-query",
-      "@tanstack/query-core",
-    ],
+    dedupe: ["react", "react-dom", "@tanstack/react-query", "@tanstack/query-core"],
   },
   optimizeDeps: {
     include: [
@@ -51,6 +49,6 @@ export default defineConfig({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: true
+    allowedHosts: true,
   },
 });

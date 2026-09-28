@@ -1,13 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDailyCallSummary } from "@/lib/clientes.functions";
@@ -50,9 +42,7 @@ export function DailyCallSummary() {
         </CardHeader>
 
         <CardContent className="min-h-[220px] flex items-center justify-center">
-          <span className="text-sm text-muted-foreground">
-            Carregando...
-          </span>
+          <span className="text-sm text-muted-foreground">Carregando...</span>
         </CardContent>
       </Card>
     );
@@ -68,9 +58,7 @@ export function DailyCallSummary() {
         </CardHeader>
 
         <CardContent className="min-h-[220px] flex items-center justify-center">
-          <span className="text-sm text-destructive">
-            Erro ao carregar resumo de chamadas.
-          </span>
+          <span className="text-sm text-destructive">Erro ao carregar resumo de chamadas.</span>
         </CardContent>
       </Card>
     );
@@ -82,11 +70,7 @@ export function DailyCallSummary() {
   const totalOntem = Number(data.yesterday?.total ?? 0);
 
   const variacao =
-    totalOntem === 0
-      ? totalHoje > 0
-        ? 100
-        : 0
-      : ((totalHoje - totalOntem) / totalOntem) * 100;
+    totalOntem === 0 ? (totalHoje > 0 ? 100 : 0) : ((totalHoje - totalOntem) / totalOntem) * 100;
 
   const entrada = (data.calls ?? [])
     .filter((row) => row.tipo_chamada === "Entrada")
@@ -118,13 +102,9 @@ export function DailyCallSummary() {
       <CardContent className="space-y-5">
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">
-              Chamadas
-            </p>
+            <p className="text-sm text-muted-foreground">Chamadas</p>
 
-            <p className="text-2xl font-semibold">
-              {totalHoje}
-            </p>
+            <p className="text-2xl font-semibold">{totalHoje}</p>
 
             <p
               className={`text-xs font-medium ${
@@ -141,27 +121,17 @@ export function DailyCallSummary() {
           </div>
 
           <div>
-            <p className="text-sm text-muted-foreground">
-              Duração total
-            </p>
+            <p className="text-sm text-muted-foreground">Duração total</p>
 
-            <p className="text-2xl font-semibold">
-              {formatDuration(duracaoTotal)}
-            </p>
+            <p className="text-2xl font-semibold">{formatDuration(duracaoTotal)}</p>
           </div>
 
           <div>
-            <p className="text-sm text-muted-foreground">
-              Média
-            </p>
+            <p className="text-sm text-muted-foreground">Média</p>
 
-            <p className="text-2xl font-semibold">
-              {formatDuration(Math.round(duracaoMedia))}
-            </p>
+            <p className="text-2xl font-semibold">{formatDuration(Math.round(duracaoMedia))}</p>
 
-            <p className="text-xs text-muted-foreground">
-              por chamada atendida
-            </p>
+            <p className="text-xs text-muted-foreground">por chamada atendida</p>
           </div>
         </div>
 
@@ -176,36 +146,18 @@ export function DailyCallSummary() {
                 bottom: 0,
               }}
             >
-              <CartesianGrid
-                vertical={false}
-                strokeDasharray="3 3"
-              />
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
 
-              <XAxis
-                dataKey="tipo"
-                axisLine={false}
-                tickLine={false}
-              />
+              <XAxis dataKey="tipo" axisLine={false} tickLine={false} />
 
-              <YAxis
-                allowDecimals={false}
-                axisLine={false}
-                tickLine={false}
-              />
+              <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
 
               <Tooltip
                 cursor={{ opacity: 0.08 }}
-                formatter={(value) => [
-                  `${value} chamadas`,
-                  "Quantidade",
-                ]}
+                formatter={(value) => [`${value} chamadas`, "Quantidade"]}
               />
 
-              <Bar
-                dataKey="quantidade"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={55}
-              />
+              <Bar dataKey="quantidade" radius={[6, 6, 0, 0]} maxBarSize={55} />
             </BarChart>
           </ResponsiveContainer>
         </div>

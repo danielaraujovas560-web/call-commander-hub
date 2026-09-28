@@ -34,6 +34,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/use-role";
 import { getClienteByTenant } from "@/lib/clientes.functions";
+import { getActiveTenantCookie } from "@/lib/tenant.session"; // Importado para ler o cookie ativo
 
 interface NavItem {
   to: string;
@@ -56,18 +57,14 @@ const adminNav: NavItem[] = [
   { to: "/admin/servidor", label: "Servidor", icon: Server, adminOnly: true },
 ];
 
-function matchClienteRoute(pathname: string): string | null {
-  const m = pathname.match(/^\/clientes\/(\d+)(?:\/|$)/);
-  return m ? m[1] : null;
-}
-
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAdmin } = useIsAdmin();
 
-  const clienteTenant = matchClienteRoute(pathname);
+  // Se o caminho começar com /cliente, exibe a Sidebar do Cliente
+  const isClienteRoute = pathname === "/cliente" || pathname.startsWith("/cliente/");
 
   async function handleLogout() {
     await queryClient.cancelQueries();
@@ -84,14 +81,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex h-screen overflow-hidden bg-muted/20">
-        {clienteTenant ? (
-          <ClienteSidebar tenantId={Number(clienteTenant)} pathname={pathname} onLogout={handleLogout} />
+        {isClienteRoute ? (
+          <ClienteSidebar pathname={pathname} onLogout={handleLogout} />
         ) : (
-          <MainSidebar
-            pathname={pathname}
-            isAdmin={isAdmin}
-            onLogout={handleLogout}
-          />
+          <MainSidebar pathname={pathname} isAdmin={isAdmin} onLogout={handleLogout} />
         )}
 
         <main className="flex-1 h-full overflow-auto">
@@ -151,58 +144,56 @@ function MainSidebar({
 }
 
 // ---------- cliente-scoped sidebar ----------
-function ClienteSidebar({
-  tenantId,
-  pathname,
-  onLogout,
-}: {
-  tenantId: number;
-  pathname: string;
-  onLogout: () => void;
-}) {
-  const fn = useServerFn(getClienteByTenant);
-  const { data } = useQuery({
-    queryKey: ["cliente", tenantId],
-    queryFn: () => fn({ data: { tenant_id: tenantId } }),
+function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: () => void }) {
+  const fnGetCliente = useServerFn(getClienteByTenant);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["cliente-ativo"],
+    queryFn: () => fnGetCliente(), // Não precisa passar nada no data!
     retry: false,
   });
-  const cliente = data?.cliente;
 
+  const cliente = data?.cliente;
+  const tenantId = cliente?.tenant_id;
+
+  // Rotas atualizadas para a estrutura /cliente/... sem param de URL
   const config = [
-    { to: "/clientes/$tenantId", label: "Visão geral", icon: LayoutDashboard, exact: true },
-    { to: "/clientes/$tenantId/ramais", label: "Ramais", icon: PhoneCall, exact: false },
-    { to: "/clientes/$tenantId/filas", label: "Filas", icon: ListOrdered, exact: false },
-    { to: "/clientes/$tenantId/uras", label: "URAs", icon: Workflow, exact: false },
-    { to: "/clientes/$tenantId/audios", label: "Áudios", icon: Music, exact: false },
-    { to: "/clientes/$tenantId/blacklist", label: "Blacklist", icon: ShieldBan, exact: false },
-    { to: "/clientes/$tenantId/regra-horario", label: "Horário Atendimento", icon: Clock, exact: false },
-    { to: "/clientes/$tenantId/horario-ramais", label: "Horário Ramais", icon: Users, exact: false },
-    { to: "/clientes/$tenantId/pesquisa-satisfacao", label: "Pesquisa Satisfação", icon: ClipboardCheck, exact: false },
-    { to: "/clientes/$tenantId/roteamento", label: "Roteamento", icon: RouterIcon, exact: false },
-    { to: "/clientes/$tenantId/troncos", label: "Troncos", icon: Cable, exact: false },
+    { to: "/cliente", label: "Visão geral", icon: LayoutDashboard, exact: true },
+    { to: "/cliente/ramais", label: "Ramais", icon: PhoneCall, exact: false },
+    { to: "/cliente/filas", label: "Filas", icon: ListOrdered, exact: false },
+    { to: "/cliente/uras", label: "URAs", icon: Workflow, exact: false },
+    { to: "/cliente/audios", label: "Áudios", icon: Music, exact: false },
+    { to: "/cliente/blacklist", label: "Blacklist", icon: ShieldBan, exact: false },
+    { to: "/cliente/regra-horario", label: "Horário Atendimento", icon: Clock, exact: false },
+    { to: "/cliente/horario-ramais", label: "Horário Ramais", icon: Users, exact: false },
+    {
+      to: "/cliente/pesquisa-satisfacao",
+      label: "Pesquisa Satisfação",
+      icon: ClipboardCheck,
+      exact: false,
+    },
+    { to: "/cliente/roteamento", label: "Roteamento", icon: RouterIcon, exact: false },
+    { to: "/cliente/troncos", label: "Troncos", icon: Cable, exact: false },
   ] as const;
 
   const relatorios = [
-    { to: "/clientes/$tenantId/relatorios/geral", label: "Geral", icon: PhoneCall },
-    { to: "/clientes/$tenantId/relatorios/filas", label: "Filas", icon: ListOrdered },
-    { to: "/clientes/$tenantId/relatorios/uras", label: "URAs", icon: Workflow },
-    { to: "/clientes/$tenantId/relatorios/ddd", label: "Por DDD", icon: MapPin },
-    { to: "/clientes/$tenantId/relatorios/pesquisa", label: "Pesq. satisfação", icon: Star },
+    { to: "/cliente/relatorios/geral", label: "Geral", icon: PhoneCall },
+    { to: "/cliente/relatorios/filas", label: "Filas", icon: ListOrdered },
+    { to: "/cliente/relatorios/uras", label: "URAs", icon: Workflow },
+    { to: "/cliente/relatorios/ddd", label: "Por DDD", icon: MapPin },
+    { to: "/cliente/relatorios/pesquisa", label: "Pesq. satisfação", icon: Star },
   ] as const;
-
-  const params = { tenantId: String(tenantId) };
 
   const renderItem = (item: { to: string; label: string; icon: any; exact?: boolean }) => {
     const Icon = item.icon;
-    const resolved = item.to.replace("$tenantId", String(tenantId));
     const active = item.exact
-      ? pathname === resolved
-      : pathname === resolved || pathname.startsWith(resolved + "/");
+      ? pathname === item.to
+      : pathname === item.to || pathname.startsWith(item.to + "/");
+
     return (
       <Link
         key={item.to}
         to={item.to}
-        params={params}
         className={cn(
           "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
           active
@@ -229,7 +220,7 @@ function ClienteSidebar({
           {cliente?.razao_social ?? "Carregando…"}
         </div>
         <Badge variant="outline" className="font-mono text-[10px] w-fit">
-          Tenant #{tenantId}
+          Tenant #{isLoading ? "..." : (tenantId ?? "—")}
         </Badge>
       </div>
 
@@ -247,7 +238,6 @@ function ClienteSidebar({
         </div>
       </nav>
 
-
       <div className="border-t p-3">
         <Button variant="ghost" className="w-full justify-start" onClick={onLogout}>
           <LogOut className="mr-2 h-4 w-4" />
@@ -258,15 +248,7 @@ function ClienteSidebar({
   );
 }
 
-function NavLink({
-  item,
-  pathname,
-  useHref,
-}: {
-  item: NavItem;
-  pathname: string;
-  useHref?: boolean;
-}) {
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const Icon = item.icon;
   const active = item.exact
     ? pathname === item.to
@@ -277,16 +259,6 @@ function NavLink({
       ? "bg-primary text-primary-foreground"
       : "text-foreground/70 hover:bg-accent hover:text-foreground",
   );
-
-  if (useHref) {
-    // dynamic cliente paths — use href to avoid typed-link friction
-    return (
-      <a href={item.to} className={className}>
-        <Icon className="h-4 w-4" />
-        {item.label}
-      </a>
-    );
-  }
 
   return (
     <Link to={item.to} className={className}>

@@ -2,10 +2,9 @@ const express = require("express");
 const router = express.Router();
 const { randomUUID } = require("crypto");
 const pool = require("../config/db");
-const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 
-router.get("/admin/tenants", requireJwt, requireAdmin, async (req, res) => {
+router.get("/admin/tenants", requireAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT c.tenant_id, c.razao_social FROM clientes c JOIN tenants t ON c.tenant_id = t.id`,
@@ -16,7 +15,7 @@ router.get("/admin/tenants", requireJwt, requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
+router.post("/admin/tenant-links", requireAdmin, async (req, res) => {
   const { user_id, tenant_id, label, is_default } = req.body || {};
   if (!user_id || !tenant_id)
     return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });
@@ -40,7 +39,7 @@ router.post("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) =>
   }
 });
 
-router.delete("/admin/tenant-links", requireJwt, requireAdmin, async (req, res) => {
+router.delete("/admin/tenant-links", requireAdmin, async (req, res) => {
   const { user_id, tenant_id } = req.body || {};
   if (!user_id || !tenant_id)
     return res.status(400).json({ error: "user_id e tenant_id obrigatórios" });

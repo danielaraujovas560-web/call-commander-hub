@@ -11,7 +11,7 @@ import {
   deleteBlacklist,
   toggleBlacklistAtivo,
   type BlacklistItem,
-} from "@/lib/ramais.functions";
+} from "@/lib/blacklist.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,20 +41,21 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/blacklist")({
+export const Route = createFileRoute("/_authenticated/cliente/blacklist")({
   head: () => ({ meta: [{ title: "Blacklist — Cliente — Painel PABX" }] }),
   component: BlacklistPage,
 });
 
 function BlacklistPage() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
   const fn = useServerFn(listBlacklist);
   const qc = useQueryClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["blacklist", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const del = useServerFn(deleteBlacklist);
   const delMut = useMutation({

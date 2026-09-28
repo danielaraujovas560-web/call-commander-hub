@@ -9,8 +9,8 @@ import {
   createPesquisaSatisfacao,
   updatePesquisaSatisfacao,
   deletePesquisaSatisfacao,
-  listUraAudios,
-} from "@/lib/ramais.functions";
+} from "@/lib/pesquisa.functions";
+import { listAudios } from "@/lib/audios.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useClienteContext } from "./_cliente-context";
 
 interface PerguntaInput {
   id?: number;
@@ -67,20 +68,20 @@ interface PesquisaSatisfacao {
   perguntas: PerguntaInput[];
 }
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/pesquisa-satisfacao")({
+export const Route = createFileRoute("/_authenticated/cliente/pesquisa-satisfacao")({
   head: () => ({ meta: [{ title: "Pesquisa de Satisfação — Painel PABX" }] }),
   component: Page,
 });
 
 function Page() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
   const qc = useQueryClient();
   const fn = useServerFn(listPesquisaSatisfacao);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["pesquisa_satisfacao", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   const pesquisas = data?.pesquisas ?? [];
@@ -225,9 +226,9 @@ function PesquisaFormDialog({
   const [ativo, setAtivo] = useState(true);
   const [perguntas, setPerguntas] = useState<PerguntaInput[]>([]);
 
-  const audiosFn = useServerFn(listUraAudios);
+  const audiosFn = useServerFn(listAudios);
   const { data: audiosData, isLoading: isLoadingAudios } = useQuery({
-    queryKey: ["ura-audios", tenantId],
+    queryKey: ["audios", tenantId],
     queryFn: () => audiosFn({ data: { tenant_id: tenantId } }),
     enabled: open, // Só roda a query se o dialog estiver aberto
   });
@@ -238,7 +239,14 @@ function PesquisaFormDialog({
     if (open) {
       setNomePesquisa(pesquisa?.nome_pesquisa ?? "");
       setAtivo(pesquisa?.ativo ?? true);
-      setPerguntas(pesquisa?.perguntas ?? [{ ordem: 1, audio: "", max_digit: 1 }]);
+      setPerguntas(
+        pesquisa?.perguntas?.map((p) => ({
+          id: p.id,
+          ordem: Number(p.ordem),
+          audio: p.audio ?? "",
+          max_digit: Number(p.max_digit),
+        })) ?? [{ ordem: 1, audio: "", max_digit: 1 }],
+      );
     }
   }, [open, pesquisa]);
 
@@ -296,6 +304,7 @@ function PesquisaFormDialog({
     !temOrdemDuplicada &&
     perguntas.every(
       (p) =>
+        typeof p.audio === "string" &&
         p.audio.trim().length > 0 &&
         p.ordem !== undefined &&
         p.ordem !== null &&
@@ -400,19 +409,19 @@ function PesquisaFormDialog({
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {listaAudios.map((audio: any, audioIdx: number) => {
-                          // Suporta se retornar um array de strings ou objetos
-                          const audioNome =
-                            typeof audio === "string" ? audio : audio.nome || audio.arquivo;
-                          const audioValor =
-                            typeof audio === "string" ? audio : audio.id?.toString() || audio.nome;
-
-                          return (
-                            <SelectItem key={audioIdx} value={audioValor}>
-                              {audioNome}
+                        <SelectContent>
+                          {listaAudios.map((audio) => (
+                            <SelectItem key={audio.audio_identifier} value={audio.audio_identifier}>
+                              {audio.display_name}
                             </SelectItem>
-                          );
-                        })}
+                          ))}
+
+                          {!isLoadingAudios && listaAudios.length === 0 && (
+                            <div className="p-2 text-xs text-muted-foreground text-center">
+                              Nenhum áudio encontrado
+                            </div>
+                          )}
+                        </SelectContent>
                         {!isLoadingAudios && listaAudios.length === 0 && (
                           <div className="p-2 text-xs text-muted-foreground text-center">
                             Nenhum áudio encontrado

@@ -12,13 +12,12 @@ import {
   addUraOpcao,
   updateUraOpcao,
   deleteUraOpcao,
-  listAudios,
   listUraDestinos,
   toggleUraAtivo,
   type Ura,
-} from "@/lib/ramais.functions";
+} from "@/lib/uras.functions";
+import { listAudios } from "@/lib/audios.functions";
 import { displayFromBackend } from "@/lib/format";
-import { getClienteByTenant } from "@/lib/clientes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,8 +59,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/uras")({
+export const Route = createFileRoute("/_authenticated/cliente/uras")({
   head: () => ({ meta: [{ title: "URAs — Cliente — Painel PABX" }] }),
   component: UrasPage,
 });
@@ -72,23 +72,18 @@ const TIPOS_INTERNOS = [
 ];
 
 function UrasPage() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
+
   const fn = useServerFn(listUras);
   const qc = useQueryClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["uras", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const uras = data?.uras ?? [];
 
-  const clienteFn = useServerFn(getClienteByTenant);
-  const { data: clienteData } = useQuery({
-    queryKey: ["cliente", tenantId],
-    queryFn: () => clienteFn({ data: { tenant_id: tenantId } }),
-    retry: false,
-  });
-  const max = clienteData?.cliente?.quantidade_uras ?? 0;
+  const max = cliente?.quantidade_uras ?? 0;
 
   const [selected, setSelected] = useState<Ura | null>(null);
   const [editing, setEditing] = useState<Ura | null>(null);

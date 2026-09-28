@@ -2,13 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import JsSIP from "jssip";
 
 export type PhoneState = "idle" | "registering" | "registered" | "failed";
-export type CallState =
-  | "idle"
-  | "calling"
-  | "ringing"
-  | "incoming"
-  | "active"
-  | "ended";
+export type CallState = "idle" | "calling" | "ringing" | "incoming" | "active" | "ended";
 
 export type SipCreds = {
   sip_username: string;
@@ -61,14 +55,11 @@ export function useJsSipPhone(creds: SipCreds | null) {
 
     uaRef.current = ua;
 
-    ua.on("connecting", () => {
-    });
+    ua.on("connecting", () => {});
 
-    ua.on("connected", () => {
-    });
+    ua.on("connected", () => {});
 
-    ua.on("disconnected", () => {
-    });
+    ua.on("disconnected", () => {});
 
     ua.on("registered", () => {
       setPhoneState("registered");
@@ -79,10 +70,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
     });
 
     ua.on("registrationFailed", (event: any) => {
-      console.error(
-        "[SIP] REGISTRATION FAILED",
-        event?.cause || event,
-      );
+      console.error("[SIP] REGISTRATION FAILED", event?.cause || event);
       setPhoneState("failed");
     });
 
@@ -98,20 +86,12 @@ export function useJsSipPhone(creds: SipCreds | null) {
 
       sessionRef.current = session;
 
-      setRemoteNumber(
-        session.remote_identity?.uri?.user ?? "",
-      );
+      setRemoteNumber(session.remote_identity?.uri?.user ?? "");
 
-      setCallState(
-        session.direction === "incoming"
-          ? "incoming"
-          : "calling",
-      );
+      setCallState(session.direction === "incoming" ? "incoming" : "calling");
 
       session.on("progress", () => {
-        setCallState((state) =>
-          state === "calling" ? "ringing" : state,
-        );
+        setCallState((state) => (state === "calling" ? "ringing" : state));
       });
 
       session.on("accepted", () => {
@@ -142,13 +122,10 @@ export function useJsSipPhone(creds: SipCreds | null) {
         });
 
         const receivers = pc.getReceivers?.() ?? [];
-        const tracks = receivers
-          .map((receiver: any) => receiver.track)
-          .filter(Boolean);
+        const tracks = receivers.map((receiver: any) => receiver.track).filter(Boolean);
 
         if (tracks.length && remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject =
-            new MediaStream(tracks);
+          remoteAudioRef.current.srcObject = new MediaStream(tracks);
         }
       };
 
@@ -165,7 +142,6 @@ export function useJsSipPhone(creds: SipCreds | null) {
     ua.start();
 
     return () => {
-
       if (sessionRef.current) {
         try {
           sessionRef.current.terminate();
@@ -179,14 +155,10 @@ export function useJsSipPhone(creds: SipCreds | null) {
       } catch {}
 
       try {
-        if (
-          socket._ws &&
-          socket._ws.readyState !== WebSocket.CLOSED
-        ) {
+        if (socket._ws && socket._ws.readyState !== WebSocket.CLOSED) {
           socket.disconnect();
         }
       } catch {}
-
 
       if (uaRef.current === ua) {
         uaRef.current = null;
@@ -195,7 +167,6 @@ export function useJsSipPhone(creds: SipCreds | null) {
       if (socketRef.current === socket) {
         socketRef.current = null;
       }
-
     };
   }, [creds]);
 
@@ -216,34 +187,27 @@ export function useJsSipPhone(creds: SipCreds | null) {
     (number: string) => {
       const ua = uaRef.current;
 
-      if (
-        !ua ||
-        phoneState !== "registered" ||
-        !creds
-      ) {
+      if (!ua || phoneState !== "registered" || !creds) {
         return;
       }
 
-      ua.call(
-        `sip:${number}@${creds.sip_domain}`,
-        {
-          mediaConstraints: {
-            audio: true,
-            video: false,
-          },
-          rtcOfferConstraints: {
-            offerToReceiveAudio: true,
-            offerToReceiveVideo: false,
-          },
-          pcConfig: {
-            iceServers: [
-              {
-                urls: "stun:stun.l.google.com:19302",
-              },
-            ],
-          },
+      ua.call(`sip:${number}@${creds.sip_domain}`, {
+        mediaConstraints: {
+          audio: true,
+          video: false,
         },
-      );
+        rtcOfferConstraints: {
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false,
+        },
+        pcConfig: {
+          iceServers: [
+            {
+              urls: "stun:stun.l.google.com:19302",
+            },
+          ],
+        },
+      });
     },
     [phoneState, creds],
   );
@@ -280,10 +244,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
       const socket = socketRef.current;
 
       try {
-        if (
-          socket?._ws &&
-          socket._ws.readyState !== WebSocket.CLOSED
-        ) {
+        if (socket?._ws && socket._ws.readyState !== WebSocket.CLOSED) {
           socket.disconnect();
         }
       } catch {}
@@ -310,10 +271,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
         const socket = socketRef.current;
 
         try {
-          if (
-            socket?._ws &&
-            socket._ws.readyState !== WebSocket.CLOSED
-          ) {
+          if (socket?._ws && socket._ws.readyState !== WebSocket.CLOSED) {
             socket.disconnect();
           }
         } catch {}

@@ -20,9 +20,7 @@ export function ComingSoonPage({
           {icon}
         </div>
         <h3 className="text-lg font-semibold">{title}</h3>
-        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-          {description}
-        </p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
         <Badge variant="secondary" className="mt-3">
           Em breve
         </Badge>

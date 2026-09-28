@@ -9,10 +9,10 @@ import {
   createRegraHorario,
   updateRegraHorario,
   deleteRegraHorario,
-  listUraDestinos,
   type RegraHorario,
   type AcaoHorario,
-} from "@/lib/ramais.functions";
+} from "@/lib/regra-horario.functions";
+import { listUraDestinos } from "@/lib/uras.functions";
 import {
   DestinoPicker,
   emptyDestino,
@@ -56,8 +56,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/regra-horario")({
+export const Route = createFileRoute("/_authenticated/cliente/regra-horario")({
   head: () => ({ meta: [{ title: "Horário de atendimento — Painel PABX" }] }),
   component: Page,
 });
@@ -100,13 +101,13 @@ const ACOES_REGRA: { value: DestinoTipo; label: string }[] = [
 ];
 
 function Page() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
   const qc = useQueryClient();
   const fn = useServerFn(listRegraHorario);
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["regra_horario", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const regras = data?.regras ?? [];
   const [editing, setEditing] = useState<RegraHorario | null>(null);
@@ -125,6 +126,7 @@ function Page() {
   const { data: destinos } = useQuery({
     queryKey: ["ura-destinos", tenantId],
     queryFn: () => destinosFn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   return (

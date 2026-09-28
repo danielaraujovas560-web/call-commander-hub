@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { ListOrdered, Headset, ChevronLeft, ChevronRight } from "lucide-react";
-import { listCdrFila, downloadGravacao } from "@/lib/ramais.functions";
+import { PhoneCall, Headset, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { listCdrRamal } from "@/lib/relatorios.functions";
+import { downloadGravacao } from "@/lib/ramais.functions";
 import {
   Table,
   TableBody,
@@ -12,11 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
-import { reasonOptions, getReasonLabel, eventOptions, getEventLabel } from "@/lib/report-labels";
+import { statusOptions, getStatusLabel, tipoOptions, contextOptions } from "@/lib/report-labels";
+import { formatarDataHora } from "@/lib/utils";
+import { useClienteContext } from "./_cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -25,6 +28,7 @@ function getTodayFilters(): ReportFilterValues {
   const day = String(now.getDate()).padStart(2, "0");
   const hours = String(now.getHours()).padStart(2, "0");
   const minutes = String(now.getMinutes()).padStart(2, "0");
+
   const todayStr = `${year}-${month}-${day}`;
 
   return {
@@ -33,42 +37,45 @@ function getTodayFilters(): ReportFilterValues {
   };
 }
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/filas")({
-  head: () => ({ meta: [{ title: "Relatório filas — Painel PABX" }] }),
+export const Route = createFileRoute("/_authenticated/cliente/relatorios/geral")({
+  head: () => ({ meta: [{ title: "Relatório geral — Painel PABX" }] }),
   component: Page,
-}); // clientes.$tenantId.relatorios.filas.tsx
+});
 
 function Page() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
-  const [fFila, setFFila] = useState<ReportFilterValues>(() => getTodayFilters());
-  const [page, setPage] = useState(1);
-  const fn = useServerFn(listCdrFila);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["cdr_fila", tenantId, page, fFila],
-    queryFn: () => fn({ data: { tenant_id: tenantId, page, ...fFila } }),
-  });
-  const rows = useMemo<any[]>(() => data?.rows ?? [], [data]);
+  const { tenantId, cliente } = useClienteContext();
 
-  const filaOptions = [
-    ...new Map(
-      rows.map((r: any) => [r.display_name, { value: r.display_name, label: r.display_name }]),
-    ).values(),
-  ];
+  const [fRamais, setFRamais] = useState<ReportFilterValues>(() => ({
+    ...getTodayFilters(),
+    limit: 25,
+  }));
+  const [page, setPage] = useState(1);
+  const fn = useServerFn(listCdrRamal);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["cdr_ramal", tenantId, page, fRamais],
+    queryFn: () => fn({ data: { tenant_id: tenantId, page, ...fRamais } }),
+    enabled: !!tenantId,
+  });
+  const rows = useMemo(() => {
+    if (Array.isArray(data?.rows)) return data.rows;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data)) return data;
+    return [];
+  }, [data]);
 
   const fnDownload = useServerFn(downloadGravacao);
 
-  const executarDownload = async (id: number) => {
+  const executarDownload = async (linkedid: string) => {
     try {
       const response = await fnDownload({
         data: {
-          id: Number(id),
-          tipo: "fila",
+          linkedid: linkedid,
+          tipo: "ramal",
           tenant_id: tenantId,
         },
       });
 
-      let nomeArquivo = `call-${id}.wav`;
+      let nomeArquivo = `call-${linkedid}.wav`;
       let blob: Blob;
 
       if (response instanceof Response) {
@@ -85,6 +92,7 @@ function Page() {
       } else {
         blob = new Blob([response as any], { type: "audio/wav" });
       }
+
       // Executa o download com o nome real dinâmico
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -99,26 +107,27 @@ function Page() {
       alert("Não foi possível baixar o áudio.");
     }
   };
-
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold flex items-center gap-2">
-        <ListOrdered className="h-6 w-6" /> Relatório — Filas
+        <PhoneCall className="h-6 w-6" /> Relatório — Geral
       </h1>
       <ReportFilters
-        storageKey="fFila"
+        storageKey="fRamais"
         tenantId={tenantId}
-        initialValues={fFila}
+        initialValues={fRamais}
         defaultValues={getTodayFilters()}
         onApply={(valores) => {
           setPage(1);
-          setFFila(valores);
+          setFRamais(valores);
         }}
         fields={[
           { key: "linkedid", label: "Linked ID" },
-          { key: "origem", label: "Agente" },
-          { key: "fila", label: "Fila", options: filaOptions },
-          { key: "status", label: "Evento", options: eventOptions },
+          { key: "origem", label: "Origem" },
+          { key: "destino", label: "Destino" },
+          { key: "status", label: "Status", options: statusOptions },
+          { key: "tipo", label: "Tipo", options: tipoOptions },
+          { key: "contexto", label: "Contexto", options: contextOptions },
           { key: "from", label: "De", type: "datetime-local" },
           { key: "to", label: "Até", type: "datetime-local" },
         ]}
@@ -133,10 +142,13 @@ function Page() {
             <TableHeader>
               <TableRow>
                 <TableHead>Linked ID</TableHead>
-                <TableHead>Fila</TableHead>
-                <TableHead>Agente</TableHead>
-                <TableHead>Evento</TableHead>
-                <TableHead>Motivo</TableHead>
+                <TableHead>Origem</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Tronco</TableHead>
+                <TableHead>Contexto</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="w-24">Duração</TableHead>
+                <TableHead className="w-40">Status</TableHead>
                 <TableHead>Data/Hora</TableHead>
                 <TableHead className="w-16 text-center pr-4">
                   <Headset className="mx-auto h-4 w-4 text-muted-foreground" />
@@ -145,24 +157,27 @@ function Page() {
             </TableHeader>
             <TableBody>
               {rows.map((r: any) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.linkedid} className="h-10">
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
-                  <TableCell>{r.display_name}</TableCell>
-                  <TableCell>{r.agente}</TableCell>
-                  <TableCell>
-                    <Badge variant={r.evento === "AGENTE_ATENDEU" ? "default" : "secondary"}>
-                      {getEventLabel(r.evento)}
+                  <TableCell className="font-mono">{r.agente}</TableCell>
+                  <TableCell className="font-mono">{r.destino}</TableCell>
+                  <TableCell>{r.tronco || "-"}</TableCell>
+                  <TableCell>{r.context}</TableCell>
+                  <TableCell>{r.tipo_chamada}</TableCell>
+                  <TableCell className="w-24 font-mono whitespace-nowrap">{r.duracao}</TableCell>
+                  <TableCell className="w-40 whitespace-nowrap">
+                    <Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>
+                      {getStatusLabel(r.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs">{getReasonLabel(r.motivo)}</TableCell>
-                  <TableCell className="text-xs">{r.time_data}</TableCell>
+                  <TableCell className="text-xs">{formatarDataHora(r.date_time)}</TableCell>
                   <TableCell className="w-14 text-center pr-4">
-                    {r.nome_gravacao && r.evento === "AGENTE_ATENDEU" ? (
+                    {r.nome_gravacao && r.status === "ANSWER" ? (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 p-0"
-                        onClick={() => executarDownload(r.id)}
+                        onClick={() => executarDownload(r.linkedid)}
                         title="Baixar gravação"
                       >
                         <Headset className="h-4 w-4" />

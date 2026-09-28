@@ -11,7 +11,7 @@ import {
   updateTronco,
   deleteTronco,
   type Tronco,
-} from "@/lib/ramais.functions";
+} from "@/lib/troncos.functions";
 import { OnlineBadge } from "@/components/online-badge";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
@@ -54,37 +54,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/troncos")({
+export const Route = createFileRoute("/_authenticated/cliente/troncos")({
   head: () => ({ meta: [{ title: "Troncos — Cliente — Painel PABX" }] }),
   component: TroncosPage,
 });
 
 function TroncosPage() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
   const { isAdmin } = useIsAdmin();
+  const { tenantId, cliente, isLoading, error } = useClienteContext();
   const qc = useQueryClient();
+
+  // 1. Busca de Troncos (Ajustado com tenantId, queryKey e enabled)
   const fn = useServerFn(listTroncos);
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
+  const {
+    data,
+    refetch,
+    isFetching,
+    isLoading: isLoadingTroncos,
+  } = useQuery({
     queryKey: ["troncos", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
+
   const troncos = data?.troncos ?? [];
+
+  // 2. Status dos Troncos (Adicionado o enabled)
   const statusFn = useServerFn(listTroncosStatus);
   const { data: statusData } = useQuery({
     queryKey: ["troncos-status", tenantId],
     queryFn: () => statusFn({ data: { tenant_id: tenantId } }),
     refetchInterval: 10_000,
+    enabled: !!tenantId,
   });
+
   const [editing, setEditing] = useState<Tronco | null>(null);
 
+  // 3. Mutation de Delete (Invalida a mesma chave corretamente)
   const delFn = useServerFn(deleteTronco);
   const delMut = useMutation({
     mutationFn: (tronco_pjsip: string) => delFn({ data: { tronco_pjsip, tenant_id: tenantId } }),
     onSuccess: () => {
       toast.success("Tronco removido");
       qc.invalidateQueries({ queryKey: ["troncos", tenantId] });
+      qc.invalidateQueries({ queryKey: ["troncos-status", tenantId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

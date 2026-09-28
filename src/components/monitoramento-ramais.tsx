@@ -1,25 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatarHorario } from "@/lib/utils";
-import {
-  Users,
-  Phone,
-  PhoneCall,
-  PhoneOutgoing,
-  PhoneIncoming,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Users, Phone, PhoneCall, PhoneOutgoing, PhoneIncoming } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { listRamais } from "@/lib/ramais.functions";
-import {
-  useRamalMonitor,
-  type RamalState,
-} from "@/hooks/use-ramal-monitor";
+import { useRamalMonitor, type RamalState } from "@/hooks/use-ramal-monitor";
 
 function formatarDuracao(desde: string | null, agora: number) {
   if (!desde) return "—";
@@ -29,18 +14,21 @@ function formatarDuracao(desde: string | null, agora: number) {
   const horas = Math.floor(s / 3600);
   const minutos = Math.floor((s % 3600) / 60);
   const segundos = s % 60;
-  if (horas > 0)
-    return [horas, minutos, segundos].map((n) => String(n).padStart(2, "0")).join(":");
+  if (horas > 0) return [horas, minutos, segundos].map((n) => String(n).padStart(2, "0")).join(":");
   return [minutos, segundos].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
 function descricaoChamada(state: RamalState, numero: string | null) {
   switch (state) {
-    case "DIALING":  return { titulo: "Discando",       numero };
+    case "DIALING":
+      return { titulo: "Discando", numero };
     case "RING":
-    case "RINGING":  return { titulo: "Chamando",       numero };
-    case "IN_CALL":  return { titulo: "Em atendimento", numero };
-    default:         return { titulo: "Livre",          numero: null };
+    case "RINGING":
+      return { titulo: "Chamando", numero };
+    case "IN_CALL":
+      return { titulo: "Em atendimento", numero };
+    default:
+      return { titulo: "Livre", numero: null };
   }
 }
 
@@ -48,23 +36,27 @@ type IndicadorVariant = "livre" | "discando" | "tocando" | "em-ligacao";
 
 function indicadorVariant(state: RamalState): IndicadorVariant {
   switch (state) {
-    case "IN_CALL":          return "em-ligacao";
-    case "DIALING":          return "discando";
+    case "IN_CALL":
+      return "em-ligacao";
+    case "DIALING":
+      return "discando";
     case "RING":
-    case "RINGING":          return "tocando";
-    default:                 return "livre";
+    case "RINGING":
+      return "tocando";
+    default:
+      return "livre";
   }
 }
 
 const INDICADOR_COR: Record<IndicadorVariant, string> = {
-  "livre":      "bg-emerald-500",
-  "discando":   "bg-blue-500",
-  "tocando":    "bg-amber-500",
+  livre: "bg-emerald-500",
+  discando: "bg-blue-500",
+  tocando: "bg-amber-500",
   "em-ligacao": "bg-muted-foreground/40",
 };
 
-export function MonitoramentoRamais() {
-  const { ramais, resumo, conectado } = useRamalMonitor();
+export function MonitoramentoRamais({ tenantId }: { tenantId?: number }) {
+  const { ramais, resumo, conectado } = useRamalMonitor(tenantId);
   const [agora, setAgora] = useState(() => Date.now());
 
   useEffect(() => {
@@ -73,36 +65,81 @@ export function MonitoramentoRamais() {
   }, []);
 
   const { data: ramaisData } = useQuery({
-    queryKey: ["ramais-monitoramento"],
-    queryFn: () => listRamais({ data: { tenant_id: undefined } }),
+    queryKey: ["ramais-monitoramento", tenantId],
+    queryFn: () => listRamais({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
 
   const dadosPorEndpoint = useMemo(() => {
-    return Object.fromEntries(
-      (ramaisData?.ramais ?? [])
-        .filter((r) => r.endpoint_id)
-        .map((r) => [
-          r.endpoint_id,
-          { nome: r.ramal_nome, ramal: r.ramal, feitas: r.ligacoes_feitas, recebidas: r.ligacoes_recebidas },
-        ]),
-    );
+    const map: Record<string, { nome: string; ramal: string; feitas: number; recebidas: number }> =
+      {};
+
+    (ramaisData?.ramais ?? []).forEach((r) => {
+      const info = {
+        nome: r.ramal_nome,
+        ramal: r.ramal,
+        feitas: r.ligacoes_feitas,
+        recebidas: r.ligacoes_recebidas,
+      };
+
+      if (r.endpoint_id) map[r.endpoint_id] = info;
+      if (r.ramal) map[r.ramal] = info;
+    });
+
+    return map;
   }, [ramaisData]);
 
   const listaRamais = useMemo(() => {
     return Object.values(ramais)
       .map((r) => {
         const d = dadosPorEndpoint[r.endpoint];
-        return { ...r, nome: d?.nome ?? null, ramal: d?.ramal ?? r.endpoint, feitas: d?.feitas ?? 0, recebidas: d?.recebidas ?? 0 };
+        return {
+          ...r,
+          nome: d?.nome ?? null,
+          ramal: d?.ramal ?? r.endpoint,
+          feitas: d?.feitas ?? 0,
+          recebidas: d?.recebidas ?? 0,
+        };
       })
       .sort((a, b) => (a.nome ?? a.ramal).localeCompare(b.nome ?? b.ramal, "pt-BR"));
   }, [ramais, dadosPorEndpoint]);
 
   const cards = [
-    { label: "Total",      valor: resumo.total,    icon: <Users className="h-5 w-5" />,                       bg: "bg-primary/10",      cor: "" },
-    { label: "Livres",     valor: resumo.livres,   icon: <Phone className="h-5 w-5 text-emerald-600" />,      bg: "bg-emerald-500/10",  cor: "" },
-    { label: "Discando",   valor: resumo.discando, icon: <PhoneOutgoing className="h-5 w-5 text-blue-600" />, bg: "bg-blue-500/10",     cor: "" },
-    { label: "Tocando",    valor: resumo.tocando,  icon: <PhoneIncoming className="h-5 w-5 text-amber-600" />,bg: "bg-amber-500/10",    cor: "" },
-    { label: "Em ligação", valor: resumo.ocupados, icon: <PhoneCall className="h-5 w-5" />,                   bg: "bg-primary/10",      cor: "" },
+    {
+      label: "Total",
+      valor: resumo.total,
+      icon: <Users className="h-5 w-5" />,
+      bg: "bg-primary/10",
+      cor: "",
+    },
+    {
+      label: "Livres",
+      valor: resumo.livres,
+      icon: <Phone className="h-5 w-5 text-emerald-600" />,
+      bg: "bg-emerald-500/10",
+      cor: "",
+    },
+    {
+      label: "Discando",
+      valor: resumo.discando,
+      icon: <PhoneOutgoing className="h-5 w-5 text-blue-600" />,
+      bg: "bg-blue-500/10",
+      cor: "",
+    },
+    {
+      label: "Tocando",
+      valor: resumo.tocando,
+      icon: <PhoneIncoming className="h-5 w-5 text-amber-600" />,
+      bg: "bg-amber-500/10",
+      cor: "",
+    },
+    {
+      label: "Em ligação",
+      valor: resumo.ocupados,
+      icon: <PhoneCall className="h-5 w-5" />,
+      bg: "bg-primary/10",
+      cor: "",
+    },
   ];
 
   return (
@@ -111,10 +148,14 @@ export function MonitoramentoRamais() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Monitoramento de Ramais</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Acompanhamento em tempo real dos ramais conectados.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Acompanhamento em tempo real dos ramais conectados.
+          </p>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <span className={`h-2.5 w-2.5 rounded-full ${conectado ? "bg-emerald-500" : "bg-red-500"}`} />
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${conectado ? "bg-emerald-500" : "bg-red-500"}`}
+          />
           <span className="font-medium">{conectado ? "Monitoramento ativo" : "Desconectado"}</span>
         </div>
       </div>
@@ -140,19 +181,33 @@ export function MonitoramentoRamais() {
       <Card>
         <CardHeader className="border-b px-6 py-4">
           <CardTitle className="text-base">Ramais conectados</CardTitle>
-          <CardDescription>Somente ramais atualmente registrados no PABX são exibidos.</CardDescription>
+          <CardDescription>
+            Somente ramais atualmente registrados no PABX são exibidos.
+          </CardDescription>
         </CardHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Agente</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Login</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground">Feitas</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground">Recebidas</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">Chamada atual</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground">Duração</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">
+                  Agente
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">
+                  Login
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground">
+                  Feitas
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground">
+                  Recebidas
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground">
+                  Chamada atual
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground">
+                  Duração
+                </th>
               </tr>
             </thead>
 
@@ -173,24 +228,24 @@ export function MonitoramentoRamais() {
                 </tr>
               ) : (
                 listaRamais.map((ramal) => {
-                  const chamada  = descricaoChamada(ramal.state, ramal.numero);
+                  const chamada = descricaoChamada(ramal.state, ramal.numero);
                   const variante = indicadorVariant(ramal.state);
-                  const duracao  = ramal.state === "IN_CALL"
-                    ? formatarDuracao(ramal.desde, agora)
-                    : "—";
+                  const duracao =
+                    ramal.state === "IN_CALL" ? formatarDuracao(ramal.desde, agora) : "—";
 
                   return (
-                    <tr
-                      key={ramal.endpoint}
-                      className="border-b last:border-0 hover:bg-muted/30"
-                    >
+                    <tr key={ramal.endpoint} className="border-b last:border-0 hover:bg-muted/30">
                       {/* Agente */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2.5">
-                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${INDICADOR_COR[variante]}`} />
+                          <span
+                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${INDICADOR_COR[variante]}`}
+                          />
                           <span className="font-semibold">{ramal.nome ?? ramal.endpoint}</span>
                           <span className="text-muted-foreground">·</span>
-                          <span className="font-mono text-xs text-muted-foreground">{ramal.ramal}</span>
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {ramal.ramal}
+                          </span>
                         </div>
                       </td>
 

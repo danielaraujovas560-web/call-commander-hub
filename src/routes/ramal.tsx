@@ -4,9 +4,7 @@ import { getStoredRamalCreds, setStoredRamalCreds, type RamalCreds } from "@/lib
 import { useJsSipPhone } from "@/hooks/use-jssip-phone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card, CardContent, CardHeader, CardTitle, CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Phone, PhoneOff, PhoneIncoming, Delete } from "lucide-react";
 
 export const Route = createFileRoute("/ramal")({
@@ -33,18 +31,29 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
 
 function Softphone({ creds }: { creds: RamalCreds }) {
   const {
-    phoneState, callState, remoteNumber, callDuration, remoteAudioRef, call, answer, hangup, sendDTMF, unregister,
+    phoneState,
+    callState,
+    remoteNumber,
+    callDuration,
+    remoteAudioRef,
+    call,
+    answer,
+    hangup,
+    sendDTMF,
+    unregister,
   } = useJsSipPhone(creds);
   const [numero, setNumero] = useState("");
 
   function formatDuration(s: number) {
-    const m = Math.floor(s / 60).toString().padStart(2, "0");
+    const m = Math.floor(s / 60)
+      .toString()
+      .padStart(2, "0");
     const sec = (s % 60).toString().padStart(2, "0");
     return `${m}:${sec}`;
   }
 
- async function handleLogout() {
-    await unregister();  
+  async function handleLogout() {
+    await unregister();
     setStoredRamalCreds(null);
     window.location.href = "/auth";
   }
@@ -57,8 +66,7 @@ function Softphone({ creds }: { creds: RamalCreds }) {
         <CardHeader className="text-center">
           <CardTitle>{creds.nome ?? creds.ramal}</CardTitle>
           <CardDescription>
-            Ramal {creds.ramal} —{" "}
-            {phoneState === "registered" && "Online"}
+            Ramal {creds.ramal} — {phoneState === "registered" && "Online"}
             {phoneState === "registering" && "Conectando…"}
             {phoneState === "failed" && "Falha ao conectar"}
           </CardDescription>
@@ -74,13 +82,23 @@ function Softphone({ creds }: { creds: RamalCreds }) {
               />
               <div className="grid grid-cols-3 gap-2">
                 {KEYS.map((k) => (
-                  <Button key={k} type="button" variant="outline" onClick={() => setNumero((n) => n + k)}>
+                  <Button
+                    key={k}
+                    type="button"
+                    variant="outline"
+                    onClick={() => setNumero((n) => n + k)}
+                  >
                     {k}
                   </Button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setNumero((n) => n.slice(0, -1))}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setNumero((n) => n.slice(0, -1))}
+                >
                   <Delete className="h-4 w-4" />
                 </Button>
                 <Button

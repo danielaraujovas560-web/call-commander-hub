@@ -453,13 +453,13 @@ function autenticarTicket(req) {
   try {
     const payload = jwt.verify(ticket, JWT_SECRET);
 
-    if (payload.type !== "ramal_ws" || payload.sub == null || payload.tenant_id == null) {
+    if (payload.type !== "ramal_ws" || !payload.sub || !payload.tenant_id) {
       return null;
     }
 
     return {
       userId: payload.sub,
-      tenantId: Number(payload.tenant_id),
+      tenantId: String(payload.tenant_id),
     };
   } catch {
     return null;

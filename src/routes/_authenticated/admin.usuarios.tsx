@@ -355,9 +355,7 @@ function TenantCell({
 
   const availableTenants = (tenantsData?.tenants ?? []).filter(
     (tenant) =>
-      !tenants.some(
-        (linkedTenant) => linkedTenant.tenant_id === Number(tenant.tenant_id)
-      )
+      !tenants.some((linkedTenant) => linkedTenant.tenant_id === Number(tenant.tenant_id)),
   );
 
   const addMut = useMutation({

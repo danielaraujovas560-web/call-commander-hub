@@ -14,28 +14,28 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedClienteRouteImport } from './routes/_authenticated/cliente'
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes.index'
-import { Route as AuthenticatedClientesTenantIdRouteImport } from './routes/_authenticated/clientes.$tenantId'
+import { Route as AuthenticatedClienteIndexRouteImport } from './routes/_authenticated/cliente.index'
+import { Route as AuthenticatedClienteUrasRouteImport } from './routes/_authenticated/cliente.uras'
+import { Route as AuthenticatedClienteTroncosRouteImport } from './routes/_authenticated/cliente.troncos'
+import { Route as AuthenticatedClienteRoteamentoRouteImport } from './routes/_authenticated/cliente.roteamento'
+import { Route as AuthenticatedClienteRegraHorarioRouteImport } from './routes/_authenticated/cliente.regra-horario'
+import { Route as AuthenticatedClienteRamaisRouteImport } from './routes/_authenticated/cliente.ramais'
+import { Route as AuthenticatedClientePesquisaSatisfacaoRouteImport } from './routes/_authenticated/cliente.pesquisa-satisfacao'
+import { Route as AuthenticatedClienteHorarioRamaisRouteImport } from './routes/_authenticated/cliente.horario-ramais'
+import { Route as AuthenticatedClienteFilasRouteImport } from './routes/_authenticated/cliente.filas'
+import { Route as AuthenticatedClienteBlacklistRouteImport } from './routes/_authenticated/cliente.blacklist'
+import { Route as AuthenticatedClienteAudiosRouteImport } from './routes/_authenticated/cliente.audios'
 import { Route as AuthenticatedAdminWhitelistRouteImport } from './routes/_authenticated/admin.whitelist'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
 import { Route as AuthenticatedAdminServidorRouteImport } from './routes/_authenticated/admin.servidor'
 import { Route as AuthenticatedAdminBlacklistRouteImport } from './routes/_authenticated/admin.blacklist'
-import { Route as AuthenticatedClientesTenantIdIndexRouteImport } from './routes/_authenticated/clientes.$tenantId.index'
-import { Route as AuthenticatedClientesTenantIdUrasRouteImport } from './routes/_authenticated/clientes.$tenantId.uras'
-import { Route as AuthenticatedClientesTenantIdTroncosRouteImport } from './routes/_authenticated/clientes.$tenantId.troncos'
-import { Route as AuthenticatedClientesTenantIdRoteamentoRouteImport } from './routes/_authenticated/clientes.$tenantId.roteamento'
-import { Route as AuthenticatedClientesTenantIdRegraHorarioRouteImport } from './routes/_authenticated/clientes.$tenantId.regra-horario'
-import { Route as AuthenticatedClientesTenantIdRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.ramais'
-import { Route as AuthenticatedClientesTenantIdPesquisaSatisfacaoRouteImport } from './routes/_authenticated/clientes.$tenantId.pesquisa-satisfacao'
-import { Route as AuthenticatedClientesTenantIdHorarioRamaisRouteImport } from './routes/_authenticated/clientes.$tenantId.horario-ramais'
-import { Route as AuthenticatedClientesTenantIdFilasRouteImport } from './routes/_authenticated/clientes.$tenantId.filas'
-import { Route as AuthenticatedClientesTenantIdBlacklistRouteImport } from './routes/_authenticated/clientes.$tenantId.blacklist'
-import { Route as AuthenticatedClientesTenantIdAudiosRouteImport } from './routes/_authenticated/clientes.$tenantId.audios'
-import { Route as AuthenticatedClientesTenantIdRelatoriosUrasRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.uras'
-import { Route as AuthenticatedClientesTenantIdRelatoriosPesquisaRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.pesquisa'
-import { Route as AuthenticatedClientesTenantIdRelatoriosGeralRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.geral'
-import { Route as AuthenticatedClientesTenantIdRelatoriosFilasRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.filas'
-import { Route as AuthenticatedClientesTenantIdRelatoriosDddRouteImport } from './routes/_authenticated/clientes.$tenantId.relatorios.ddd'
+import { Route as AuthenticatedClienteRelatoriosUrasRouteImport } from './routes/_authenticated/cliente.relatorios.uras'
+import { Route as AuthenticatedClienteRelatoriosPesquisaRouteImport } from './routes/_authenticated/cliente.relatorios.pesquisa'
+import { Route as AuthenticatedClienteRelatoriosGeralRouteImport } from './routes/_authenticated/cliente.relatorios.geral'
+import { Route as AuthenticatedClienteRelatoriosFilasRouteImport } from './routes/_authenticated/cliente.relatorios.filas'
+import { Route as AuthenticatedClienteRelatoriosDddRouteImport } from './routes/_authenticated/cliente.relatorios.ddd'
 
 const RamalRoute = RamalRouteImport.update({
   id: '/ramal',
@@ -61,17 +61,82 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedClienteRoute = AuthenticatedClienteRouteImport.update({
+  id: '/cliente',
+  path: '/cliente',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedClientesIndexRoute =
   AuthenticatedClientesIndexRouteImport.update({
     id: '/clientes/',
     path: '/clientes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedClientesTenantIdRoute =
-  AuthenticatedClientesTenantIdRouteImport.update({
-    id: '/clientes/$tenantId',
-    path: '/clientes/$tenantId',
-    getParentRoute: () => AuthenticatedRouteRoute,
+const AuthenticatedClienteIndexRoute =
+  AuthenticatedClienteIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteUrasRoute =
+  AuthenticatedClienteUrasRouteImport.update({
+    id: '/uras',
+    path: '/uras',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteTroncosRoute =
+  AuthenticatedClienteTroncosRouteImport.update({
+    id: '/troncos',
+    path: '/troncos',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteRoteamentoRoute =
+  AuthenticatedClienteRoteamentoRouteImport.update({
+    id: '/roteamento',
+    path: '/roteamento',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteRegraHorarioRoute =
+  AuthenticatedClienteRegraHorarioRouteImport.update({
+    id: '/regra-horario',
+    path: '/regra-horario',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteRamaisRoute =
+  AuthenticatedClienteRamaisRouteImport.update({
+    id: '/ramais',
+    path: '/ramais',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClientePesquisaSatisfacaoRoute =
+  AuthenticatedClientePesquisaSatisfacaoRouteImport.update({
+    id: '/pesquisa-satisfacao',
+    path: '/pesquisa-satisfacao',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteHorarioRamaisRoute =
+  AuthenticatedClienteHorarioRamaisRouteImport.update({
+    id: '/horario-ramais',
+    path: '/horario-ramais',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteFilasRoute =
+  AuthenticatedClienteFilasRouteImport.update({
+    id: '/filas',
+    path: '/filas',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteBlacklistRoute =
+  AuthenticatedClienteBlacklistRouteImport.update({
+    id: '/blacklist',
+    path: '/blacklist',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteAudiosRoute =
+  AuthenticatedClienteAudiosRouteImport.update({
+    id: '/audios',
+    path: '/audios',
+    getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
 const AuthenticatedAdminWhitelistRoute =
   AuthenticatedAdminWhitelistRouteImport.update({
@@ -97,130 +162,64 @@ const AuthenticatedAdminBlacklistRoute =
     path: '/admin/blacklist',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedClientesTenantIdIndexRoute =
-  AuthenticatedClientesTenantIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdUrasRoute =
-  AuthenticatedClientesTenantIdUrasRouteImport.update({
-    id: '/uras',
-    path: '/uras',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdTroncosRoute =
-  AuthenticatedClientesTenantIdTroncosRouteImport.update({
-    id: '/troncos',
-    path: '/troncos',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdRoteamentoRoute =
-  AuthenticatedClientesTenantIdRoteamentoRouteImport.update({
-    id: '/roteamento',
-    path: '/roteamento',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdRegraHorarioRoute =
-  AuthenticatedClientesTenantIdRegraHorarioRouteImport.update({
-    id: '/regra-horario',
-    path: '/regra-horario',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdRamaisRoute =
-  AuthenticatedClientesTenantIdRamaisRouteImport.update({
-    id: '/ramais',
-    path: '/ramais',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute =
-  AuthenticatedClientesTenantIdPesquisaSatisfacaoRouteImport.update({
-    id: '/pesquisa-satisfacao',
-    path: '/pesquisa-satisfacao',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdHorarioRamaisRoute =
-  AuthenticatedClientesTenantIdHorarioRamaisRouteImport.update({
-    id: '/horario-ramais',
-    path: '/horario-ramais',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdFilasRoute =
-  AuthenticatedClientesTenantIdFilasRouteImport.update({
-    id: '/filas',
-    path: '/filas',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdBlacklistRoute =
-  AuthenticatedClientesTenantIdBlacklistRouteImport.update({
-    id: '/blacklist',
-    path: '/blacklist',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdAudiosRoute =
-  AuthenticatedClientesTenantIdAudiosRouteImport.update({
-    id: '/audios',
-    path: '/audios',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
-  } as any)
-const AuthenticatedClientesTenantIdRelatoriosUrasRoute =
-  AuthenticatedClientesTenantIdRelatoriosUrasRouteImport.update({
+const AuthenticatedClienteRelatoriosUrasRoute =
+  AuthenticatedClienteRelatoriosUrasRouteImport.update({
     id: '/relatorios/uras',
     path: '/relatorios/uras',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+    getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
-const AuthenticatedClientesTenantIdRelatoriosPesquisaRoute =
-  AuthenticatedClientesTenantIdRelatoriosPesquisaRouteImport.update({
+const AuthenticatedClienteRelatoriosPesquisaRoute =
+  AuthenticatedClienteRelatoriosPesquisaRouteImport.update({
     id: '/relatorios/pesquisa',
     path: '/relatorios/pesquisa',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+    getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
-const AuthenticatedClientesTenantIdRelatoriosGeralRoute =
-  AuthenticatedClientesTenantIdRelatoriosGeralRouteImport.update({
+const AuthenticatedClienteRelatoriosGeralRoute =
+  AuthenticatedClienteRelatoriosGeralRouteImport.update({
     id: '/relatorios/geral',
     path: '/relatorios/geral',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+    getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
-const AuthenticatedClientesTenantIdRelatoriosFilasRoute =
-  AuthenticatedClientesTenantIdRelatoriosFilasRouteImport.update({
+const AuthenticatedClienteRelatoriosFilasRoute =
+  AuthenticatedClienteRelatoriosFilasRouteImport.update({
     id: '/relatorios/filas',
     path: '/relatorios/filas',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+    getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
-const AuthenticatedClientesTenantIdRelatoriosDddRoute =
-  AuthenticatedClientesTenantIdRelatoriosDddRouteImport.update({
+const AuthenticatedClienteRelatoriosDddRoute =
+  AuthenticatedClienteRelatoriosDddRouteImport.update({
     id: '/relatorios/ddd',
     path: '/relatorios/ddd',
-    getParentRoute: () => AuthenticatedClientesTenantIdRoute,
+    getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/ramal': typeof RamalRoute
+  '/cliente': typeof AuthenticatedClienteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
-  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
+  '/cliente/audios': typeof AuthenticatedClienteAudiosRoute
+  '/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
+  '/cliente/filas': typeof AuthenticatedClienteFilasRoute
+  '/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
+  '/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
+  '/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
+  '/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
+  '/cliente/roteamento': typeof AuthenticatedClienteRoteamentoRoute
+  '/cliente/troncos': typeof AuthenticatedClienteTroncosRoute
+  '/cliente/uras': typeof AuthenticatedClienteUrasRoute
+  '/cliente/': typeof AuthenticatedClienteIndexRoute
   '/clientes/': typeof AuthenticatedClientesIndexRoute
-  '/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
-  '/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
-  '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
-  '/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
-  '/clientes/$tenantId/pesquisa-satisfacao': typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
-  '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
-  '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
-  '/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
-  '/clientes/$tenantId/troncos': typeof AuthenticatedClientesTenantIdTroncosRoute
-  '/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
-  '/clientes/$tenantId/': typeof AuthenticatedClientesTenantIdIndexRoute
-  '/clientes/$tenantId/relatorios/ddd': typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  '/clientes/$tenantId/relatorios/filas': typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
-  '/clientes/$tenantId/relatorios/geral': typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
-  '/clientes/$tenantId/relatorios/pesquisa': typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  '/clientes/$tenantId/relatorios/uras': typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
+  '/cliente/relatorios/ddd': typeof AuthenticatedClienteRelatoriosDddRoute
+  '/cliente/relatorios/filas': typeof AuthenticatedClienteRelatoriosFilasRoute
+  '/cliente/relatorios/geral': typeof AuthenticatedClienteRelatoriosGeralRoute
+  '/cliente/relatorios/pesquisa': typeof AuthenticatedClienteRelatoriosPesquisaRoute
+  '/cliente/relatorios/uras': typeof AuthenticatedClienteRelatoriosUrasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -231,23 +230,23 @@ export interface FileRoutesByTo {
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
+  '/cliente/audios': typeof AuthenticatedClienteAudiosRoute
+  '/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
+  '/cliente/filas': typeof AuthenticatedClienteFilasRoute
+  '/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
+  '/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
+  '/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
+  '/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
+  '/cliente/roteamento': typeof AuthenticatedClienteRoteamentoRoute
+  '/cliente/troncos': typeof AuthenticatedClienteTroncosRoute
+  '/cliente/uras': typeof AuthenticatedClienteUrasRoute
+  '/cliente': typeof AuthenticatedClienteIndexRoute
   '/clientes': typeof AuthenticatedClientesIndexRoute
-  '/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
-  '/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
-  '/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
-  '/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
-  '/clientes/$tenantId/pesquisa-satisfacao': typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
-  '/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
-  '/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
-  '/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
-  '/clientes/$tenantId/troncos': typeof AuthenticatedClientesTenantIdTroncosRoute
-  '/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
-  '/clientes/$tenantId': typeof AuthenticatedClientesTenantIdIndexRoute
-  '/clientes/$tenantId/relatorios/ddd': typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  '/clientes/$tenantId/relatorios/filas': typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
-  '/clientes/$tenantId/relatorios/geral': typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
-  '/clientes/$tenantId/relatorios/pesquisa': typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  '/clientes/$tenantId/relatorios/uras': typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
+  '/cliente/relatorios/ddd': typeof AuthenticatedClienteRelatoriosDddRoute
+  '/cliente/relatorios/filas': typeof AuthenticatedClienteRelatoriosFilasRoute
+  '/cliente/relatorios/geral': typeof AuthenticatedClienteRelatoriosGeralRoute
+  '/cliente/relatorios/pesquisa': typeof AuthenticatedClienteRelatoriosPesquisaRoute
+  '/cliente/relatorios/uras': typeof AuthenticatedClienteRelatoriosUrasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -255,29 +254,29 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/ramal': typeof RamalRoute
+  '/_authenticated/cliente': typeof AuthenticatedClienteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
   '/_authenticated/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
-  '/_authenticated/clientes/$tenantId': typeof AuthenticatedClientesTenantIdRouteWithChildren
+  '/_authenticated/cliente/audios': typeof AuthenticatedClienteAudiosRoute
+  '/_authenticated/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
+  '/_authenticated/cliente/filas': typeof AuthenticatedClienteFilasRoute
+  '/_authenticated/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
+  '/_authenticated/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
+  '/_authenticated/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
+  '/_authenticated/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
+  '/_authenticated/cliente/roteamento': typeof AuthenticatedClienteRoteamentoRoute
+  '/_authenticated/cliente/troncos': typeof AuthenticatedClienteTroncosRoute
+  '/_authenticated/cliente/uras': typeof AuthenticatedClienteUrasRoute
+  '/_authenticated/cliente/': typeof AuthenticatedClienteIndexRoute
   '/_authenticated/clientes/': typeof AuthenticatedClientesIndexRoute
-  '/_authenticated/clientes/$tenantId/audios': typeof AuthenticatedClientesTenantIdAudiosRoute
-  '/_authenticated/clientes/$tenantId/blacklist': typeof AuthenticatedClientesTenantIdBlacklistRoute
-  '/_authenticated/clientes/$tenantId/filas': typeof AuthenticatedClientesTenantIdFilasRoute
-  '/_authenticated/clientes/$tenantId/horario-ramais': typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
-  '/_authenticated/clientes/$tenantId/pesquisa-satisfacao': typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
-  '/_authenticated/clientes/$tenantId/ramais': typeof AuthenticatedClientesTenantIdRamaisRoute
-  '/_authenticated/clientes/$tenantId/regra-horario': typeof AuthenticatedClientesTenantIdRegraHorarioRoute
-  '/_authenticated/clientes/$tenantId/roteamento': typeof AuthenticatedClientesTenantIdRoteamentoRoute
-  '/_authenticated/clientes/$tenantId/troncos': typeof AuthenticatedClientesTenantIdTroncosRoute
-  '/_authenticated/clientes/$tenantId/uras': typeof AuthenticatedClientesTenantIdUrasRoute
-  '/_authenticated/clientes/$tenantId/': typeof AuthenticatedClientesTenantIdIndexRoute
-  '/_authenticated/clientes/$tenantId/relatorios/ddd': typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  '/_authenticated/clientes/$tenantId/relatorios/filas': typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
-  '/_authenticated/clientes/$tenantId/relatorios/geral': typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
-  '/_authenticated/clientes/$tenantId/relatorios/pesquisa': typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  '/_authenticated/clientes/$tenantId/relatorios/uras': typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
+  '/_authenticated/cliente/relatorios/ddd': typeof AuthenticatedClienteRelatoriosDddRoute
+  '/_authenticated/cliente/relatorios/filas': typeof AuthenticatedClienteRelatoriosFilasRoute
+  '/_authenticated/cliente/relatorios/geral': typeof AuthenticatedClienteRelatoriosGeralRoute
+  '/_authenticated/cliente/relatorios/pesquisa': typeof AuthenticatedClienteRelatoriosPesquisaRoute
+  '/_authenticated/cliente/relatorios/uras': typeof AuthenticatedClienteRelatoriosUrasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -285,29 +284,29 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/ramal'
+    | '/cliente'
     | '/dashboard'
     | '/admin/blacklist'
     | '/admin/servidor'
     | '/admin/usuarios'
     | '/admin/whitelist'
-    | '/clientes/$tenantId'
+    | '/cliente/audios'
+    | '/cliente/blacklist'
+    | '/cliente/filas'
+    | '/cliente/horario-ramais'
+    | '/cliente/pesquisa-satisfacao'
+    | '/cliente/ramais'
+    | '/cliente/regra-horario'
+    | '/cliente/roteamento'
+    | '/cliente/troncos'
+    | '/cliente/uras'
+    | '/cliente/'
     | '/clientes/'
-    | '/clientes/$tenantId/audios'
-    | '/clientes/$tenantId/blacklist'
-    | '/clientes/$tenantId/filas'
-    | '/clientes/$tenantId/horario-ramais'
-    | '/clientes/$tenantId/pesquisa-satisfacao'
-    | '/clientes/$tenantId/ramais'
-    | '/clientes/$tenantId/regra-horario'
-    | '/clientes/$tenantId/roteamento'
-    | '/clientes/$tenantId/troncos'
-    | '/clientes/$tenantId/uras'
-    | '/clientes/$tenantId/'
-    | '/clientes/$tenantId/relatorios/ddd'
-    | '/clientes/$tenantId/relatorios/filas'
-    | '/clientes/$tenantId/relatorios/geral'
-    | '/clientes/$tenantId/relatorios/pesquisa'
-    | '/clientes/$tenantId/relatorios/uras'
+    | '/cliente/relatorios/ddd'
+    | '/cliente/relatorios/filas'
+    | '/cliente/relatorios/geral'
+    | '/cliente/relatorios/pesquisa'
+    | '/cliente/relatorios/uras'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -318,52 +317,52 @@ export interface FileRouteTypes {
     | '/admin/servidor'
     | '/admin/usuarios'
     | '/admin/whitelist'
+    | '/cliente/audios'
+    | '/cliente/blacklist'
+    | '/cliente/filas'
+    | '/cliente/horario-ramais'
+    | '/cliente/pesquisa-satisfacao'
+    | '/cliente/ramais'
+    | '/cliente/regra-horario'
+    | '/cliente/roteamento'
+    | '/cliente/troncos'
+    | '/cliente/uras'
+    | '/cliente'
     | '/clientes'
-    | '/clientes/$tenantId/audios'
-    | '/clientes/$tenantId/blacklist'
-    | '/clientes/$tenantId/filas'
-    | '/clientes/$tenantId/horario-ramais'
-    | '/clientes/$tenantId/pesquisa-satisfacao'
-    | '/clientes/$tenantId/ramais'
-    | '/clientes/$tenantId/regra-horario'
-    | '/clientes/$tenantId/roteamento'
-    | '/clientes/$tenantId/troncos'
-    | '/clientes/$tenantId/uras'
-    | '/clientes/$tenantId'
-    | '/clientes/$tenantId/relatorios/ddd'
-    | '/clientes/$tenantId/relatorios/filas'
-    | '/clientes/$tenantId/relatorios/geral'
-    | '/clientes/$tenantId/relatorios/pesquisa'
-    | '/clientes/$tenantId/relatorios/uras'
+    | '/cliente/relatorios/ddd'
+    | '/cliente/relatorios/filas'
+    | '/cliente/relatorios/geral'
+    | '/cliente/relatorios/pesquisa'
+    | '/cliente/relatorios/uras'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/ramal'
+    | '/_authenticated/cliente'
     | '/_authenticated/dashboard'
     | '/_authenticated/admin/blacklist'
     | '/_authenticated/admin/servidor'
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/admin/whitelist'
-    | '/_authenticated/clientes/$tenantId'
+    | '/_authenticated/cliente/audios'
+    | '/_authenticated/cliente/blacklist'
+    | '/_authenticated/cliente/filas'
+    | '/_authenticated/cliente/horario-ramais'
+    | '/_authenticated/cliente/pesquisa-satisfacao'
+    | '/_authenticated/cliente/ramais'
+    | '/_authenticated/cliente/regra-horario'
+    | '/_authenticated/cliente/roteamento'
+    | '/_authenticated/cliente/troncos'
+    | '/_authenticated/cliente/uras'
+    | '/_authenticated/cliente/'
     | '/_authenticated/clientes/'
-    | '/_authenticated/clientes/$tenantId/audios'
-    | '/_authenticated/clientes/$tenantId/blacklist'
-    | '/_authenticated/clientes/$tenantId/filas'
-    | '/_authenticated/clientes/$tenantId/horario-ramais'
-    | '/_authenticated/clientes/$tenantId/pesquisa-satisfacao'
-    | '/_authenticated/clientes/$tenantId/ramais'
-    | '/_authenticated/clientes/$tenantId/regra-horario'
-    | '/_authenticated/clientes/$tenantId/roteamento'
-    | '/_authenticated/clientes/$tenantId/troncos'
-    | '/_authenticated/clientes/$tenantId/uras'
-    | '/_authenticated/clientes/$tenantId/'
-    | '/_authenticated/clientes/$tenantId/relatorios/ddd'
-    | '/_authenticated/clientes/$tenantId/relatorios/filas'
-    | '/_authenticated/clientes/$tenantId/relatorios/geral'
-    | '/_authenticated/clientes/$tenantId/relatorios/pesquisa'
-    | '/_authenticated/clientes/$tenantId/relatorios/uras'
+    | '/_authenticated/cliente/relatorios/ddd'
+    | '/_authenticated/cliente/relatorios/filas'
+    | '/_authenticated/cliente/relatorios/geral'
+    | '/_authenticated/cliente/relatorios/pesquisa'
+    | '/_authenticated/cliente/relatorios/uras'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -410,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/cliente': {
+      id: '/_authenticated/cliente'
+      path: '/cliente'
+      fullPath: '/cliente'
+      preLoaderRoute: typeof AuthenticatedClienteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/clientes/': {
       id: '/_authenticated/clientes/'
       path: '/clientes'
@@ -417,12 +423,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/clientes/$tenantId': {
-      id: '/_authenticated/clientes/$tenantId'
-      path: '/clientes/$tenantId'
-      fullPath: '/clientes/$tenantId'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/_authenticated/cliente/': {
+      id: '/_authenticated/cliente/'
+      path: '/'
+      fullPath: '/cliente/'
+      preLoaderRoute: typeof AuthenticatedClienteIndexRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/uras': {
+      id: '/_authenticated/cliente/uras'
+      path: '/uras'
+      fullPath: '/cliente/uras'
+      preLoaderRoute: typeof AuthenticatedClienteUrasRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/troncos': {
+      id: '/_authenticated/cliente/troncos'
+      path: '/troncos'
+      fullPath: '/cliente/troncos'
+      preLoaderRoute: typeof AuthenticatedClienteTroncosRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/roteamento': {
+      id: '/_authenticated/cliente/roteamento'
+      path: '/roteamento'
+      fullPath: '/cliente/roteamento'
+      preLoaderRoute: typeof AuthenticatedClienteRoteamentoRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/regra-horario': {
+      id: '/_authenticated/cliente/regra-horario'
+      path: '/regra-horario'
+      fullPath: '/cliente/regra-horario'
+      preLoaderRoute: typeof AuthenticatedClienteRegraHorarioRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/ramais': {
+      id: '/_authenticated/cliente/ramais'
+      path: '/ramais'
+      fullPath: '/cliente/ramais'
+      preLoaderRoute: typeof AuthenticatedClienteRamaisRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/pesquisa-satisfacao': {
+      id: '/_authenticated/cliente/pesquisa-satisfacao'
+      path: '/pesquisa-satisfacao'
+      fullPath: '/cliente/pesquisa-satisfacao'
+      preLoaderRoute: typeof AuthenticatedClientePesquisaSatisfacaoRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/horario-ramais': {
+      id: '/_authenticated/cliente/horario-ramais'
+      path: '/horario-ramais'
+      fullPath: '/cliente/horario-ramais'
+      preLoaderRoute: typeof AuthenticatedClienteHorarioRamaisRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/filas': {
+      id: '/_authenticated/cliente/filas'
+      path: '/filas'
+      fullPath: '/cliente/filas'
+      preLoaderRoute: typeof AuthenticatedClienteFilasRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/blacklist': {
+      id: '/_authenticated/cliente/blacklist'
+      path: '/blacklist'
+      fullPath: '/cliente/blacklist'
+      preLoaderRoute: typeof AuthenticatedClienteBlacklistRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/audios': {
+      id: '/_authenticated/cliente/audios'
+      path: '/audios'
+      fullPath: '/cliente/audios'
+      preLoaderRoute: typeof AuthenticatedClienteAudiosRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
     }
     '/_authenticated/admin/whitelist': {
       id: '/_authenticated/admin/whitelist'
@@ -452,199 +528,109 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBlacklistRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/clientes/$tenantId/': {
-      id: '/_authenticated/clientes/$tenantId/'
-      path: '/'
-      fullPath: '/clientes/$tenantId/'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdIndexRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/uras': {
-      id: '/_authenticated/clientes/$tenantId/uras'
-      path: '/uras'
-      fullPath: '/clientes/$tenantId/uras'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdUrasRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/troncos': {
-      id: '/_authenticated/clientes/$tenantId/troncos'
-      path: '/troncos'
-      fullPath: '/clientes/$tenantId/troncos'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdTroncosRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/roteamento': {
-      id: '/_authenticated/clientes/$tenantId/roteamento'
-      path: '/roteamento'
-      fullPath: '/clientes/$tenantId/roteamento'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRoteamentoRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/regra-horario': {
-      id: '/_authenticated/clientes/$tenantId/regra-horario'
-      path: '/regra-horario'
-      fullPath: '/clientes/$tenantId/regra-horario'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRegraHorarioRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/ramais': {
-      id: '/_authenticated/clientes/$tenantId/ramais'
-      path: '/ramais'
-      fullPath: '/clientes/$tenantId/ramais'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRamaisRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/pesquisa-satisfacao': {
-      id: '/_authenticated/clientes/$tenantId/pesquisa-satisfacao'
-      path: '/pesquisa-satisfacao'
-      fullPath: '/clientes/$tenantId/pesquisa-satisfacao'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/horario-ramais': {
-      id: '/_authenticated/clientes/$tenantId/horario-ramais'
-      path: '/horario-ramais'
-      fullPath: '/clientes/$tenantId/horario-ramais'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdHorarioRamaisRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/filas': {
-      id: '/_authenticated/clientes/$tenantId/filas'
-      path: '/filas'
-      fullPath: '/clientes/$tenantId/filas'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdFilasRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/blacklist': {
-      id: '/_authenticated/clientes/$tenantId/blacklist'
-      path: '/blacklist'
-      fullPath: '/clientes/$tenantId/blacklist'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdBlacklistRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/audios': {
-      id: '/_authenticated/clientes/$tenantId/audios'
-      path: '/audios'
-      fullPath: '/clientes/$tenantId/audios'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdAudiosRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
-    }
-    '/_authenticated/clientes/$tenantId/relatorios/uras': {
-      id: '/_authenticated/clientes/$tenantId/relatorios/uras'
+    '/_authenticated/cliente/relatorios/uras': {
+      id: '/_authenticated/cliente/relatorios/uras'
       path: '/relatorios/uras'
-      fullPath: '/clientes/$tenantId/relatorios/uras'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosUrasRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+      fullPath: '/cliente/relatorios/uras'
+      preLoaderRoute: typeof AuthenticatedClienteRelatoriosUrasRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
     }
-    '/_authenticated/clientes/$tenantId/relatorios/pesquisa': {
-      id: '/_authenticated/clientes/$tenantId/relatorios/pesquisa'
+    '/_authenticated/cliente/relatorios/pesquisa': {
+      id: '/_authenticated/cliente/relatorios/pesquisa'
       path: '/relatorios/pesquisa'
-      fullPath: '/clientes/$tenantId/relatorios/pesquisa'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+      fullPath: '/cliente/relatorios/pesquisa'
+      preLoaderRoute: typeof AuthenticatedClienteRelatoriosPesquisaRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
     }
-    '/_authenticated/clientes/$tenantId/relatorios/geral': {
-      id: '/_authenticated/clientes/$tenantId/relatorios/geral'
+    '/_authenticated/cliente/relatorios/geral': {
+      id: '/_authenticated/cliente/relatorios/geral'
       path: '/relatorios/geral'
-      fullPath: '/clientes/$tenantId/relatorios/geral'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosGeralRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+      fullPath: '/cliente/relatorios/geral'
+      preLoaderRoute: typeof AuthenticatedClienteRelatoriosGeralRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
     }
-    '/_authenticated/clientes/$tenantId/relatorios/filas': {
-      id: '/_authenticated/clientes/$tenantId/relatorios/filas'
+    '/_authenticated/cliente/relatorios/filas': {
+      id: '/_authenticated/cliente/relatorios/filas'
       path: '/relatorios/filas'
-      fullPath: '/clientes/$tenantId/relatorios/filas'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosFilasRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+      fullPath: '/cliente/relatorios/filas'
+      preLoaderRoute: typeof AuthenticatedClienteRelatoriosFilasRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
     }
-    '/_authenticated/clientes/$tenantId/relatorios/ddd': {
-      id: '/_authenticated/clientes/$tenantId/relatorios/ddd'
+    '/_authenticated/cliente/relatorios/ddd': {
+      id: '/_authenticated/cliente/relatorios/ddd'
       path: '/relatorios/ddd'
-      fullPath: '/clientes/$tenantId/relatorios/ddd'
-      preLoaderRoute: typeof AuthenticatedClientesTenantIdRelatoriosDddRouteImport
-      parentRoute: typeof AuthenticatedClientesTenantIdRoute
+      fullPath: '/cliente/relatorios/ddd'
+      preLoaderRoute: typeof AuthenticatedClienteRelatoriosDddRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
     }
   }
 }
 
-interface AuthenticatedClientesTenantIdRouteChildren {
-  AuthenticatedClientesTenantIdAudiosRoute: typeof AuthenticatedClientesTenantIdAudiosRoute
-  AuthenticatedClientesTenantIdBlacklistRoute: typeof AuthenticatedClientesTenantIdBlacklistRoute
-  AuthenticatedClientesTenantIdFilasRoute: typeof AuthenticatedClientesTenantIdFilasRoute
-  AuthenticatedClientesTenantIdHorarioRamaisRoute: typeof AuthenticatedClientesTenantIdHorarioRamaisRoute
-  AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute: typeof AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute
-  AuthenticatedClientesTenantIdRamaisRoute: typeof AuthenticatedClientesTenantIdRamaisRoute
-  AuthenticatedClientesTenantIdRegraHorarioRoute: typeof AuthenticatedClientesTenantIdRegraHorarioRoute
-  AuthenticatedClientesTenantIdRoteamentoRoute: typeof AuthenticatedClientesTenantIdRoteamentoRoute
-  AuthenticatedClientesTenantIdTroncosRoute: typeof AuthenticatedClientesTenantIdTroncosRoute
-  AuthenticatedClientesTenantIdUrasRoute: typeof AuthenticatedClientesTenantIdUrasRoute
-  AuthenticatedClientesTenantIdIndexRoute: typeof AuthenticatedClientesTenantIdIndexRoute
-  AuthenticatedClientesTenantIdRelatoriosDddRoute: typeof AuthenticatedClientesTenantIdRelatoriosDddRoute
-  AuthenticatedClientesTenantIdRelatoriosFilasRoute: typeof AuthenticatedClientesTenantIdRelatoriosFilasRoute
-  AuthenticatedClientesTenantIdRelatoriosGeralRoute: typeof AuthenticatedClientesTenantIdRelatoriosGeralRoute
-  AuthenticatedClientesTenantIdRelatoriosPesquisaRoute: typeof AuthenticatedClientesTenantIdRelatoriosPesquisaRoute
-  AuthenticatedClientesTenantIdRelatoriosUrasRoute: typeof AuthenticatedClientesTenantIdRelatoriosUrasRoute
+interface AuthenticatedClienteRouteChildren {
+  AuthenticatedClienteAudiosRoute: typeof AuthenticatedClienteAudiosRoute
+  AuthenticatedClienteBlacklistRoute: typeof AuthenticatedClienteBlacklistRoute
+  AuthenticatedClienteFilasRoute: typeof AuthenticatedClienteFilasRoute
+  AuthenticatedClienteHorarioRamaisRoute: typeof AuthenticatedClienteHorarioRamaisRoute
+  AuthenticatedClientePesquisaSatisfacaoRoute: typeof AuthenticatedClientePesquisaSatisfacaoRoute
+  AuthenticatedClienteRamaisRoute: typeof AuthenticatedClienteRamaisRoute
+  AuthenticatedClienteRegraHorarioRoute: typeof AuthenticatedClienteRegraHorarioRoute
+  AuthenticatedClienteRoteamentoRoute: typeof AuthenticatedClienteRoteamentoRoute
+  AuthenticatedClienteTroncosRoute: typeof AuthenticatedClienteTroncosRoute
+  AuthenticatedClienteUrasRoute: typeof AuthenticatedClienteUrasRoute
+  AuthenticatedClienteIndexRoute: typeof AuthenticatedClienteIndexRoute
+  AuthenticatedClienteRelatoriosDddRoute: typeof AuthenticatedClienteRelatoriosDddRoute
+  AuthenticatedClienteRelatoriosFilasRoute: typeof AuthenticatedClienteRelatoriosFilasRoute
+  AuthenticatedClienteRelatoriosGeralRoute: typeof AuthenticatedClienteRelatoriosGeralRoute
+  AuthenticatedClienteRelatoriosPesquisaRoute: typeof AuthenticatedClienteRelatoriosPesquisaRoute
+  AuthenticatedClienteRelatoriosUrasRoute: typeof AuthenticatedClienteRelatoriosUrasRoute
 }
 
-const AuthenticatedClientesTenantIdRouteChildren: AuthenticatedClientesTenantIdRouteChildren =
-  {
-    AuthenticatedClientesTenantIdAudiosRoute:
-      AuthenticatedClientesTenantIdAudiosRoute,
-    AuthenticatedClientesTenantIdBlacklistRoute:
-      AuthenticatedClientesTenantIdBlacklistRoute,
-    AuthenticatedClientesTenantIdFilasRoute:
-      AuthenticatedClientesTenantIdFilasRoute,
-    AuthenticatedClientesTenantIdHorarioRamaisRoute:
-      AuthenticatedClientesTenantIdHorarioRamaisRoute,
-    AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute:
-      AuthenticatedClientesTenantIdPesquisaSatisfacaoRoute,
-    AuthenticatedClientesTenantIdRamaisRoute:
-      AuthenticatedClientesTenantIdRamaisRoute,
-    AuthenticatedClientesTenantIdRegraHorarioRoute:
-      AuthenticatedClientesTenantIdRegraHorarioRoute,
-    AuthenticatedClientesTenantIdRoteamentoRoute:
-      AuthenticatedClientesTenantIdRoteamentoRoute,
-    AuthenticatedClientesTenantIdTroncosRoute:
-      AuthenticatedClientesTenantIdTroncosRoute,
-    AuthenticatedClientesTenantIdUrasRoute:
-      AuthenticatedClientesTenantIdUrasRoute,
-    AuthenticatedClientesTenantIdIndexRoute:
-      AuthenticatedClientesTenantIdIndexRoute,
-    AuthenticatedClientesTenantIdRelatoriosDddRoute:
-      AuthenticatedClientesTenantIdRelatoriosDddRoute,
-    AuthenticatedClientesTenantIdRelatoriosFilasRoute:
-      AuthenticatedClientesTenantIdRelatoriosFilasRoute,
-    AuthenticatedClientesTenantIdRelatoriosGeralRoute:
-      AuthenticatedClientesTenantIdRelatoriosGeralRoute,
-    AuthenticatedClientesTenantIdRelatoriosPesquisaRoute:
-      AuthenticatedClientesTenantIdRelatoriosPesquisaRoute,
-    AuthenticatedClientesTenantIdRelatoriosUrasRoute:
-      AuthenticatedClientesTenantIdRelatoriosUrasRoute,
-  }
+const AuthenticatedClienteRouteChildren: AuthenticatedClienteRouteChildren = {
+  AuthenticatedClienteAudiosRoute: AuthenticatedClienteAudiosRoute,
+  AuthenticatedClienteBlacklistRoute: AuthenticatedClienteBlacklistRoute,
+  AuthenticatedClienteFilasRoute: AuthenticatedClienteFilasRoute,
+  AuthenticatedClienteHorarioRamaisRoute:
+    AuthenticatedClienteHorarioRamaisRoute,
+  AuthenticatedClientePesquisaSatisfacaoRoute:
+    AuthenticatedClientePesquisaSatisfacaoRoute,
+  AuthenticatedClienteRamaisRoute: AuthenticatedClienteRamaisRoute,
+  AuthenticatedClienteRegraHorarioRoute: AuthenticatedClienteRegraHorarioRoute,
+  AuthenticatedClienteRoteamentoRoute: AuthenticatedClienteRoteamentoRoute,
+  AuthenticatedClienteTroncosRoute: AuthenticatedClienteTroncosRoute,
+  AuthenticatedClienteUrasRoute: AuthenticatedClienteUrasRoute,
+  AuthenticatedClienteIndexRoute: AuthenticatedClienteIndexRoute,
+  AuthenticatedClienteRelatoriosDddRoute:
+    AuthenticatedClienteRelatoriosDddRoute,
+  AuthenticatedClienteRelatoriosFilasRoute:
+    AuthenticatedClienteRelatoriosFilasRoute,
+  AuthenticatedClienteRelatoriosGeralRoute:
+    AuthenticatedClienteRelatoriosGeralRoute,
+  AuthenticatedClienteRelatoriosPesquisaRoute:
+    AuthenticatedClienteRelatoriosPesquisaRoute,
+  AuthenticatedClienteRelatoriosUrasRoute:
+    AuthenticatedClienteRelatoriosUrasRoute,
+}
 
-const AuthenticatedClientesTenantIdRouteWithChildren =
-  AuthenticatedClientesTenantIdRoute._addFileChildren(
-    AuthenticatedClientesTenantIdRouteChildren,
-  )
+const AuthenticatedClienteRouteWithChildren =
+  AuthenticatedClienteRoute._addFileChildren(AuthenticatedClienteRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedClienteRoute: typeof AuthenticatedClienteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAdminBlacklistRoute: typeof AuthenticatedAdminBlacklistRoute
   AuthenticatedAdminServidorRoute: typeof AuthenticatedAdminServidorRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedAdminWhitelistRoute: typeof AuthenticatedAdminWhitelistRoute
-  AuthenticatedClientesTenantIdRoute: typeof AuthenticatedClientesTenantIdRouteWithChildren
   AuthenticatedClientesIndexRoute: typeof AuthenticatedClientesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedClienteRoute: AuthenticatedClienteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAdminBlacklistRoute: AuthenticatedAdminBlacklistRoute,
   AuthenticatedAdminServidorRoute: AuthenticatedAdminServidorRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedAdminWhitelistRoute: AuthenticatedAdminWhitelistRoute,
-  AuthenticatedClientesTenantIdRoute:
-    AuthenticatedClientesTenantIdRouteWithChildren,
   AuthenticatedClientesIndexRoute: AuthenticatedClientesIndexRoute,
 }
 

@@ -4,12 +4,7 @@ import { cn } from "@/lib/utils";
 export type RecordingState = "enabled" | "disabled";
 
 export function recordingFromState(state?: number | boolean | string | null): RecordingState {
-  if (
-    state === 1 ||
-    state === true ||
-    state === "1" ||
-    String(state).toLowerCase() === "true"
-  ) {
+  if (state === 1 || state === true || state === "1" || String(state).toLowerCase() === "true") {
     return "enabled";
   }
 
@@ -31,10 +26,7 @@ export function RecordingBadge({
 
   const label = s === "enabled" ? "Ativa" : "Desativada";
   const Icon = s === "enabled" ? Mic : MicOff;
-  const color =
-    s === "enabled"
-      ? "text-emerald-500"
-      : "text-muted-foreground";
+  const color = s === "enabled" ? "text-emerald-500" : "text-muted-foreground";
 
   return (
     <span

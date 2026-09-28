@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FileAudio, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { deleteAudio, renameAudio, listAudios, uploadAudio } from "@/lib/ramais.functions";
+import { deleteAudio, renameAudio, listAudios, uploadAudio } from "@/lib/audios.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/audios")({
+export const Route = createFileRoute("/_authenticated/cliente/audios")({
   head: () => ({ meta: [{ title: "Áudios — Cliente — Painel PABX" }] }),
   component: AudiosPage,
 });
@@ -39,8 +40,7 @@ function fileToBase64(file: File) {
 }
 
 function AudiosPage() {
-  const tenantId = Number(Route.useParams().tenantId);
-  const qc = useQueryClient();
+  const { tenantId, cliente } = useClienteContext();
   const listFn = useServerFn(listAudios);
   const uploadFn = useServerFn(uploadAudio);
   const renameFn = useServerFn(renameAudio);
@@ -54,6 +54,7 @@ function AudiosPage() {
   const query = useQuery({
     queryKey: ["audios", tenantId],
     queryFn: () => listFn({ data: { tenant_id: tenantId } }),
+    enable: !!tenantId,
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["audios", tenantId] });

@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { recognize, type Pt } from "@/lib/shape-recognizer";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { RefreshCw, Check } from "lucide-react";
 
@@ -11,7 +16,9 @@ const MATCH_THRESHOLD = 0.75;
 
 function circleTemplate(): Pt[] {
   const pts: Pt[] = [];
-  const cx = SIZE / 2, cy = SIZE / 2, r = SIZE / 2 - 30;
+  const cx = SIZE / 2,
+    cy = SIZE / 2,
+    r = SIZE / 2 - 30;
   for (let i = 0; i <= 32; i++) {
     const a = (i / 32) * 2 * Math.PI;
     pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
@@ -20,7 +27,9 @@ function circleTemplate(): Pt[] {
 }
 
 function starTemplate(): Pt[] {
-  const cx = SIZE / 2, cy = SIZE / 2, r = SIZE / 2 - 30;
+  const cx = SIZE / 2,
+    cy = SIZE / 2,
+    r = SIZE / 2 - 30;
   const verts: Pt[] = [];
   for (let i = 0; i < 5; i++) {
     const a = ((-90 + i * 72) * Math.PI) / 180;
@@ -30,10 +39,34 @@ function starTemplate(): Pt[] {
 }
 
 const SHAPES: Record<string, { label: string; points: Pt[] }> = {
-  triangulo: { label: "um triângulo", points: [{ x: 150, y: 30 }, { x: 30, y: 270 }, { x: 270, y: 270 }, { x: 150, y: 30 }] },
-  quadrado: { label: "um quadrado", points: [{ x: 50, y: 50 }, { x: 250, y: 50 }, { x: 250, y: 250 }, { x: 50, y: 250 }, { x: 50, y: 50 }] },
+  triangulo: {
+    label: "um triângulo",
+    points: [
+      { x: 150, y: 30 },
+      { x: 30, y: 270 },
+      { x: 270, y: 270 },
+      { x: 150, y: 30 },
+    ],
+  },
+  quadrado: {
+    label: "um quadrado",
+    points: [
+      { x: 50, y: 50 },
+      { x: 250, y: 50 },
+      { x: 250, y: 250 },
+      { x: 50, y: 250 },
+      { x: 50, y: 50 },
+    ],
+  },
   circulo: { label: "um círculo", points: circleTemplate() },
-  check: { label: "um check (✓)", points: [{ x: 40, y: 160 }, { x: 110, y: 230 }, { x: 260, y: 40 }] },
+  check: {
+    label: "um check (✓)",
+    points: [
+      { x: 40, y: 160 },
+      { x: 110, y: 230 },
+      { x: 260, y: 40 },
+    ],
+  },
   estrela: { label: "uma estrela", points: starTemplate() },
 };
 const SHAPE_KEYS = Object.keys(SHAPES);
@@ -44,7 +77,13 @@ function pointsToPath(points: Pt[]): string {
 }
 
 export function ShapeConfirmDialog({
-  open, onOpenChange, title, description, confirmLabel = "Apagar", confirming = false, onConfirm,
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel = "Apagar",
+  confirming = false,
+  onConfirm,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -74,7 +113,10 @@ export function ShapeConfirmDialog({
 
   function toLocalPoint(clientX: number, clientY: number): Pt {
     const rect = svgRef.current!.getBoundingClientRect();
-    return { x: ((clientX - rect.left) / rect.width) * SIZE, y: ((clientY - rect.top) / rect.height) * SIZE };
+    return {
+      x: ((clientX - rect.left) / rect.width) * SIZE,
+      y: ((clientY - rect.top) / rect.height) * SIZE,
+    };
   }
 
   function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
@@ -119,7 +161,8 @@ export function ShapeConfirmDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {description ?? "Essa ação é irreversível."} Para confirmar, desenhe <strong>{shape.label}</strong> na área abaixo.
+            {description ?? "Essa ação é irreversível."} Para confirmar, desenhe{" "}
+            <strong>{shape.label}</strong> na área abaixo.
           </DialogDescription>
         </DialogHeader>
 
@@ -132,7 +175,14 @@ export function ShapeConfirmDialog({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
           >
-            <path d={pointsToPath(shape.points)} fill="none" stroke="currentColor" strokeOpacity={0.25} strokeWidth={3} strokeDasharray="6 6" />
+            <path
+              d={pointsToPath(shape.points)}
+              fill="none"
+              stroke="currentColor"
+              strokeOpacity={0.25}
+              strokeWidth={3}
+              strokeDasharray="6 6"
+            />
             <path
               d={pointsToPath(drawing)}
               fill="none"
@@ -145,8 +195,16 @@ export function ShapeConfirmDialog({
         </div>
 
         <div className="flex items-center justify-between text-sm">
-          <span className={matched ? "text-green-600" : attempted ? "text-destructive" : "text-muted-foreground"}>
-            {matched ? "Desenho reconhecido ✓" : attempted ? "Não bateu, tenta de novo" : "Desenhe a forma acima"}
+          <span
+            className={
+              matched ? "text-green-600" : attempted ? "text-destructive" : "text-muted-foreground"
+            }
+          >
+            {matched
+              ? "Desenho reconhecido ✓"
+              : attempted
+                ? "Não bateu, tenta de novo"
+                : "Desenhe a forma acima"}
           </span>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={handleReset}>
@@ -159,7 +217,9 @@ export function ShapeConfirmDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
           <Button variant="destructive" disabled={!matched || confirming} onClick={onConfirm}>
             <Check className="h-4 w-4 mr-1" />
             {confirming ? "Apagando..." : confirmLabel}

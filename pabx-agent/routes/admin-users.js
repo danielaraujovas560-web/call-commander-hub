@@ -3,10 +3,9 @@ const router = express.Router();
 const { randomUUID } = require("crypto");
 const bcrypt = require("bcryptjs");
 const pool = require("../config/db");
-const requireJwt = require("../middleware/jwt");
 const { requireAdmin } = require("../middleware/admin");
 
-router.get("/admin/users", requireJwt, requireAdmin, async (req, res) => {
+router.get("/admin/users", requireAdmin, async (req, res) => {
   try {
     const [profiles] = await pool.query(
       "SELECT id, nome, email, created_at FROM profiles ORDER BY created_at ASC LIMIT 500",
@@ -40,7 +39,7 @@ router.get("/admin/users", requireJwt, requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/admin/users", requireJwt, requireAdmin, async (req, res) => {
+router.post("/admin/users", requireAdmin, async (req, res) => {
   const { email, password, nome, role = "cliente", tenant_id, tenant_label } = req.body || {};
   if (!email || !password || !nome) {
     return res.status(400).json({ error: "email, password e nome obrigatórios" });
@@ -86,7 +85,7 @@ router.post("/admin/users", requireJwt, requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/admin/users/:id/delete", requireJwt, requireAdmin, async (req, res) => {
+router.post("/admin/users/:id/delete", requireAdmin, async (req, res) => {
   const userId = req.params.id;
   if (userId === req.userId) {
     return res.status(400).json({ error: "Você não pode remover sua própria conta." });
@@ -99,7 +98,7 @@ router.post("/admin/users/:id/delete", requireJwt, requireAdmin, async (req, res
   }
 });
 
-router.post("/admin/users/:id/role", requireJwt, requireAdmin, async (req, res) => {
+router.post("/admin/users/:id/role", requireAdmin, async (req, res) => {
   const userId = req.params.id;
   const { role } = req.body || {};
   if (!["admin", "cliente"].includes(role)) return res.status(400).json({ error: "role inválida" });
@@ -122,7 +121,7 @@ router.post("/admin/users/:id/role", requireJwt, requireAdmin, async (req, res) 
   }
 });
 
-router.put("/admin/users/:id", requireJwt, requireAdmin, async (req, res) => {
+router.put("/admin/users/:id", requireAdmin, async (req, res) => {
   const userId = req.params.id;
   const { email, password, nome, role } = req.body || {};
   const conn = await pool.getConnection();

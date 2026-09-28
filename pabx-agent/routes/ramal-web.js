@@ -2,12 +2,10 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET, WSS_URL, SIP_PORT } = process.env;
-const { resolveTenantId } = require("../utils/tenant");
 
 router.get("/ws/ramais/token", async (req, res) => {
+  const tenantId = req.tenantId;
   try {
-    const tenantId = await resolveTenantId(req.userId, req.role);
-
     const ticket = jwt.sign(
       {
         sub: req.userId,
@@ -16,14 +14,12 @@ router.get("/ws/ramais/token", async (req, res) => {
         type: "ramal_ws",
       },
       JWT_SECRET,
-      {
-        expiresIn: "60s",
-      },
+      { expiresIn: "60s" },
     );
 
     res.json({ ticket });
   } catch (e) {
-    res.status(403).json({
+    res.status(500).json({
       error: String(e.message || e),
     });
   }

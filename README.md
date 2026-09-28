@@ -45,14 +45,14 @@ npm run dev
 
 ### Scripts disponíveis
 
-| Script              | O que faz                                            |
-| ------------------- | ---------------------------------------------------- |
-| `npm run dev`       | Servidor de desenvolvimento Vite com HMR             |
-| `npm run build`     | Build de produção (SSR)                              |
-| `npm run build:dev` | Build em modo development (útil para debug)          |
-| `npm run preview`   | Sobe o build de produção localmente                  |
-| `npm run lint`      | ESLint                                               |
-| `npm run format`    | Prettier                                             |
+| Script              | O que faz                                   |
+| ------------------- | ------------------------------------------- |
+| `npm run dev`       | Servidor de desenvolvimento Vite com HMR    |
+| `npm run build`     | Build de produção (SSR)                     |
+| `npm run build:dev` | Build em modo development (útil para debug) |
+| `npm run preview`   | Sobe o build de produção localmente         |
+| `npm run lint`      | ESLint                                      |
+| `npm run format`    | Prettier                                    |
 
 ---
 
@@ -180,13 +180,13 @@ Deploy:
 
 ## 7. Integrações externas em uso
 
-| Integração          | Para quê                                  | Como substituir / hospedar você mesmo                                          |
-| ------------------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
-| **Supabase**        | Postgres, Auth, RLS                       | supabase.com (gerenciado) **ou** Supabase self-hosted (Docker) **ou** Postgres puro + GoTrue + PostgREST |
-| **Lovable Cloud**   | Apenas um “wrapper” do Supabase no editor | Não precisa — leve seu projeto Supabase próprio. Nenhum código depende da Lovable em runtime. |
-| **Lovable AI Gateway** | Não usado neste projeto                | —                                                                              |
-| **mini-agente PABX**| Acesso ao MariaDB do Asterisk             | Já é seu — código em `pabx-agent/`, roda no seu servidor                       |
-| **MariaDB/MySQL**   | Realtime do Asterisk                      | Seu próprio servidor Asterisk                                                  |
+| Integração             | Para quê                                  | Como substituir / hospedar você mesmo                                                                    |
+| ---------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Supabase**           | Postgres, Auth, RLS                       | supabase.com (gerenciado) **ou** Supabase self-hosted (Docker) **ou** Postgres puro + GoTrue + PostgREST |
+| **Lovable Cloud**      | Apenas um “wrapper” do Supabase no editor | Não precisa — leve seu projeto Supabase próprio. Nenhum código depende da Lovable em runtime.            |
+| **Lovable AI Gateway** | Não usado neste projeto                   | —                                                                                                        |
+| **mini-agente PABX**   | Acesso ao MariaDB do Asterisk             | Já é seu — código em `pabx-agent/`, roda no seu servidor                                                 |
+| **MariaDB/MySQL**      | Realtime do Asterisk                      | Seu próprio servidor Asterisk                                                                            |
 
 Não há outras integrações de terceiros (sem Stripe, OpenAI, Resend, etc.).
 
@@ -215,6 +215,6 @@ Não há outras integrações de terceiros (sem Stripe, OpenAI, Resend, etc.).
    `PABX_AGENT_SECRET` no `.env` do painel.
 
 5. **Rodar:** `npm install && npm run dev`. Em produção, `npm run build &&
-   npm run preview` atrás de Nginx.
+npm run preview` atrás de Nginx.
 
 Pronto — a partir daí o sistema é 100% seu, sem dependência da plataforma Lovable.

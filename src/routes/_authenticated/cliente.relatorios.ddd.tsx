@@ -12,7 +12,7 @@ import {
   Icon,
 } from "lucide-react";
 import { PodiumIcon } from "@/components/podium";
-import { listCdrCidadesEntrada, listCdrCidadesSaida } from "@/lib/ramais.functions";
+import { listCdrCidadesEntrada, listCdrCidadesSaida } from "@/lib/relatorios.functions";
 import {
   ReportFilters,
   type ReportFilterValues,
@@ -35,6 +35,7 @@ import { tipoOptionsMapaDDD } from "@/lib/report-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { formatarDataHora } from "@/lib/utils";
+import { useClienteContext } from "./_cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -52,14 +53,13 @@ function getTodayFilters(): ReportFilterValues {
   };
 }
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/relatorios/ddd")({
+export const Route = createFileRoute("/_authenticated/cliente/relatorios/ddd")({
   head: () => ({ meta: [{ title: "Relatório por DDD — Painel PABX" }] }),
   component: Page,
 });
 
 function Page() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
 
   // Filtros independentes
   const [fMapa, setFMapa] = usePersistentFilter("fMapa", tenantId, getTodayFilters());
@@ -87,10 +87,12 @@ function Page() {
   const mapEnt = useQuery({
     queryKey: ["mapa_entrada", tenantId, fMapa],
     queryFn: () => entFn({ data: { tenant_id: tenantId, ...fMapa } }),
+    enabled: !!tenantId,
   });
   const mapSai = useQuery({
     queryKey: ["mapa_saida", tenantId, fMapa],
     queryFn: () => saiFn({ data: { tenant_id: tenantId, ...fMapa } }),
+    enabled: !!tenantId,
   });
 
   const queryDetalheUf = useQuery({
@@ -115,33 +117,39 @@ function Page() {
   const ent = useQuery({
     queryKey: ["cdr_cidades_entrada", tenantId, fEnt, pageEnt],
     queryFn: () => entFn({ data: { tenant_id: tenantId, page: pageEnt, ...fEnt } }),
+    enabled: !!tenantId,
   });
   const sai = useQuery({
     queryKey: ["cdr_cidades_saida", tenantId, fSai, pageSai],
     queryFn: () => saiFn({ data: { tenant_id: tenantId, page: pageSai, ...fSai } }),
+    enabled: !!tenantId,
   });
 
   // --- QUERIES DO RANK DDD ---
   const rankEntrada = useQuery({
     queryKey: ["rank_entrada", tenantId, fRank],
     queryFn: () => entFn({ data: { tenant_id: tenantId, ...fRank, rank: true } }),
+    enabled: !!tenantId,
   });
 
   const rankSaida = useQuery({
     queryKey: ["rank_saida", tenantId, fRank],
     queryFn: () => saiFn({ data: { tenant_id: tenantId, ...fRank, rank: true } }),
+    enabled: !!tenantId,
   });
 
   const rankEntradaAtendidas = useQuery({
     queryKey: ["rank_entrada_atendidas", tenantId, fRankAtendidas],
     queryFn: () =>
       entFn({ data: { tenant_id: tenantId, ...fRankAtendidas, rank: true, status: "ANSWER" } }),
+    enabled: !!tenantId,
   });
 
   const rankSaidaAtendidas = useQuery({
     queryKey: ["rank_saida_atendidas", tenantId, fRankAtendidas],
     queryFn: () =>
       saiFn({ data: { tenant_id: tenantId, ...fRankAtendidas, rank: true, status: "ANSWER" } }),
+    enabled: !!tenantId,
   });
 
   // --- TRATAMENTO DE DADOS (MAPA) ---

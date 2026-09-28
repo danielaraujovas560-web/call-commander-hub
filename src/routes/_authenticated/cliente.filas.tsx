@@ -16,12 +16,11 @@ import {
   addFilaAgente,
   removeFilaAgente,
   setFilaAgentePenalty,
-  listRamais,
   type Fila,
-  listPesquisaSatisfacao,
   toggleFilaAtivo,
-} from "@/lib/ramais.functions";
-import { getClienteByTenant } from "@/lib/clientes.functions";
+} from "@/lib/filas.functions";
+import { listRamais } from "@/lib/ramais.functions";
+import { listPesquisaSatisfacao } from "@/lib/pesquisa.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,8 +61,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/filas")({
+export const Route = createFileRoute("/_authenticated/cliente/filas")({
   head: () => ({ meta: [{ title: "Filas — Cliente — Painel PABX" }] }),
   component: FilasPage,
 });
@@ -77,23 +77,17 @@ const STRATEGY_LABELS: Record<string, string> = {
 };
 
 function FilasPage() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { isAdmin } = useIsAdmin();
+  const { tenantId, cliente } = useClienteContext();
   const qc = useQueryClient();
   const fn = useServerFn(listFilas);
-  const { isAdmin } = useIsAdmin();
 
-  const clienteFn = useServerFn(getClienteByTenant);
-  const { data: clienteData } = useQuery({
-    queryKey: ["cliente", tenantId],
-    queryFn: () => clienteFn({ data: { tenant_id: tenantId } }),
-    retry: false,
-  });
-  const max = clienteData?.cliente?.quantidade_filas ?? 0;
+  const max = cliente?.quantidade_filas ?? 0;
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["filas", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const filas = data?.filas ?? [];
   const [agentesDe, setAgentesDe] = useState<Fila | null>(null);
@@ -272,12 +266,14 @@ function AgentesDialog({
   const { data, isLoading } = useQuery({
     queryKey: ["fila-agentes", tenantId, fila.name],
     queryFn: () => fn({ data: { tenant_id: tenantId, name: fila.name } }),
+    enabled: !!tenantId,
   });
 
   const ramaisFn = useServerFn(listRamais);
   const { data: rd } = useQuery({
     queryKey: ["ramais", tenantId],
     queryFn: () => ramaisFn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const ramais = rd?.ramais ?? [];
 
@@ -529,8 +525,8 @@ function FilaFormDialog({
           if (e.key === "Enter") {
             e.preventDefault();
             if (!form.display_name) {
-               toast.error("Atenção: insira o nome da fila antes de salvar.")
-               return;
+              toast.error("Atenção: insira o nome da fila antes de salvar.");
+              return;
             }
             mut.mutate();
           }
@@ -700,7 +696,11 @@ function FilaFormDialog({
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" onClick={() => mut.mutate()} disabled={mut.isPending || !form.display_name}>
+            <Button
+              type="submit"
+              onClick={() => mut.mutate()}
+              disabled={mut.isPending || !form.display_name}
+            >
               {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
             </Button>
           </DialogFooter>

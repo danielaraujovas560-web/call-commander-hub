@@ -10,10 +10,10 @@ import {
   updateHorarioRamal,
   deleteHorarioRamal,
   getHorarioRamalMembros,
-  listRamais,
   updateHorarioRamalMembros,
   type HorarioRamal,
-} from "@/lib/ramais.functions";
+} from "@/lib/horario-ramais.functions";
+import { listRamais } from "@/lib/ramais.functions";
 import { displayFromBackend } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,8 +48,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useClienteContext } from "./_cliente-context";
 
-export const Route = createFileRoute("/_authenticated/clientes/$tenantId/horario-ramais")({
+export const Route = createFileRoute("/_authenticated/cliente/horario-ramais")({
   head: () => ({ meta: [{ title: "Horário para ramais — Painel PABX" }] }),
   component: Page,
 });
@@ -85,13 +86,13 @@ const parseDias = (d: string) =>
 const trimTime = (t: string) => (t || "").slice(0, 5);
 
 function Page() {
-  const { tenantId: p } = Route.useParams();
-  const tenantId = Number(p);
+  const { tenantId, cliente } = useClienteContext();
   const qc = useQueryClient();
   const fn = useServerFn(listHorarioRamais);
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["horario-ramais", tenantId],
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const regras = data?.regras ?? [];
 
@@ -241,6 +242,7 @@ function MembrosDialog({
   const { data, isLoading } = useQuery({
     queryKey: ["horario-ramais-membros", tenantId, regra.regra],
     queryFn: () => fn({ data: { regra: regra.regra, tenant_id: tenantId } }),
+    enabled: !!tenantId,
   });
   const membros = data?.membros ?? [];
   return (
@@ -312,7 +314,7 @@ function HorarioRamalDialog({
   const { data: ramaisData } = useQuery({
     queryKey: ["ramais", tenantId],
     queryFn: () => ramaisFn({ data: { tenant_id: tenantId } }),
-    enabled: open,
+    enabled: open && !!tenantId,
   });
 
   const membrosFn = useServerFn(getHorarioRamalMembros);

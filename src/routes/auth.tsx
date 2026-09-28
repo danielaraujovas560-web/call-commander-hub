@@ -26,8 +26,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-
-const [activeTab, setActiveTab] = useState("admin");
+  const [activeTab, setActiveTab] = useState("admin");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -102,11 +101,23 @@ function AdminLoginForm({ active }: { active: boolean }) {
     <form onSubmit={handleLogin} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="login-email">E-mail</Label>
-        <Input id="login-email" type="email" required value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
+        <Input
+          id="login-email"
+          type="email"
+          required
+          value={loginEmail}
+          onChange={(e) => setLoginEmail(e.target.value)}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="login-pass">Senha</Label>
-        <Input id="login-pass" type="password" required value={loginPass} onChange={(e) => setLoginPass(e.target.value)} />
+        <Input
+          id="login-pass"
+          type="password"
+          required
+          value={loginPass}
+          onChange={(e) => setLoginPass(e.target.value)}
+        />
       </div>
       <Button id="admin-login-button" type="submit" className="w-full" disabled={loading}>
         {loading ? "Entrando..." : "Entrar"}

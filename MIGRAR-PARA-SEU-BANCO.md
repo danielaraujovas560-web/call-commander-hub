@@ -5,7 +5,7 @@ Este projeto usa dois bancos hoje:
 1. **MariaDB do Asterisk** (já no seu servidor) — dados telefônicos: `ramais`,
    `troncos`, `filas`, `uras`, `cdr*`, `regra_horario`, etc.
    Acesso via `pabx-agent` (HTTP + HMAC).
-2. **Supabase (Lovable Cloud)** — só o *identity plane* do painel:
+2. **Supabase (Lovable Cloud)** — só o _identity plane_ do painel:
    - `profiles` (nome/email do usuário logado)
    - `user_roles` (admin / cliente)
    - `tenants_link` (qual `tenant_id` cada usuário enxerga)
@@ -152,8 +152,8 @@ CREATE TABLE audit_log (
 
 ## 3. Exportar os dados atuais do Supabase
 
-No painel do Lovable Cloud (menu → *Backend → Advanced settings → Export
-data*) você baixa um dump SQL. Para PostgreSQL você importa direto:
+No painel do Lovable Cloud (menu → _Backend → Advanced settings → Export
+data_) você baixa um dump SQL. Para PostgreSQL você importa direto:
 
 ```bash
 psql "postgres://user:pass@seu-host/painel" < dump.sql
@@ -182,26 +182,33 @@ e `jsonwebtoken`:
 
 ```js
 const bcrypt = require("bcryptjs");
-const jwt    = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET; // gere um bem grande
 
 app.post("/auth/login", async (req, res) => {
   const { email, senha } = req.body || {};
   const [rows] = await pool.query(
-    "SELECT id, nome, email, senha_hash FROM profiles WHERE email = ? LIMIT 1", [email]);
+    "SELECT id, nome, email, senha_hash FROM profiles WHERE email = ? LIMIT 1",
+    [email],
+  );
   if (!rows.length) return res.status(401).json({ error: "credenciais inválidas" });
   const u = rows[0];
-  if (!await bcrypt.compare(senha, u.senha_hash))
+  if (!(await bcrypt.compare(senha, u.senha_hash)))
     return res.status(401).json({ error: "credenciais inválidas" });
   const [[role]] = await pool.query(
-    "SELECT role FROM user_roles WHERE user_id = ? ORDER BY role LIMIT 1", [u.id]);
-  const token = jwt.sign({ sub: u.id, role: role?.role || "cliente" },
-                         JWT_SECRET, { expiresIn: "12h" });
+    "SELECT role FROM user_roles WHERE user_id = ? ORDER BY role LIMIT 1",
+    [u.id],
+  );
+  const token = jwt.sign({ sub: u.id, role: role?.role || "cliente" }, JWT_SECRET, {
+    expiresIn: "12h",
+  });
   res.json({ token, user: { id: u.id, nome: u.nome, email: u.email, role: role?.role } });
 });
 
 app.get("/auth/me", requireJwt, async (req, res) => {
-  const [rows] = await pool.query("SELECT id, nome, email FROM profiles WHERE id = ?", [req.userId]);
+  const [rows] = await pool.query("SELECT id, nome, email FROM profiles WHERE id = ?", [
+    req.userId,
+  ]);
   res.json({ user: rows[0], role: req.role });
 });
 
@@ -211,9 +218,12 @@ function requireJwt(req, res, next) {
   if (!m) return res.status(401).json({ error: "sem token" });
   try {
     const p = jwt.verify(m[1], JWT_SECRET);
-    req.userId = p.sub; req.role = p.role;
+    req.userId = p.sub;
+    req.role = p.role;
     next();
-  } catch { res.status(401).json({ error: "token inválido" }); }
+  } catch {
+    res.status(401).json({ error: "token inválido" });
+  }
 }
 ```
 
@@ -230,7 +240,8 @@ exemplo `src/lib/api.ts`:
 const API = import.meta.env.VITE_AGENT_URL;
 export async function apiLogin(email: string, senha: string) {
   const r = await fetch(`${API}/auth/login`, {
-    method: "POST", headers: { "content-type": "application/json" },
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, senha }),
   });
   if (!r.ok) throw new Error("Login falhou");
@@ -242,7 +253,7 @@ export function apiFetch(path: string, init: RequestInit = {}) {
   const tok = localStorage.getItem("pabx_token");
   return fetch(`${API}${path}`, {
     ...init,
-    headers: { ...(init.headers||{}), authorization: `Bearer ${tok}` },
+    headers: { ...(init.headers || {}), authorization: `Bearer ${tok}` },
   });
 }
 ```
@@ -257,7 +268,7 @@ tela `/auth` e por `apiFetch` no lugar das server functions que hoje usam
 
 O `pabx-agent` já usa MariaDB pros dados do Asterisk. Se você:
 
-- **Ficou em MariaDB**: acrescente as tabelas da seção 2.b no *mesmo* banco.
+- **Ficou em MariaDB**: acrescente as tabelas da seção 2.b no _mesmo_ banco.
   Nada muda em `.env`.
 - **Foi pra PostgreSQL**: crie um segundo pool no `server.js`:
   ```js

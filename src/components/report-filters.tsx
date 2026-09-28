@@ -35,14 +35,16 @@ export interface FieldConfig {
 export function usePersistentFilter(
   key: string,
   tenantId: string | number | undefined,
-  defaultValues: ReportFilterValues
+  defaultValues: ReportFilterValues,
 ) {
   // Tenta ler do localStorage na montagem inicial
   const [filtro, setFiltro] = useState<ReportFilterValues>(() => {
     if (typeof window !== "undefined" && tenantId) {
       const saved = localStorage.getItem(`${key}_${tenantId}`);
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
       }
     }
     return defaultValues;
@@ -50,7 +52,7 @@ export function usePersistentFilter(
 
   // Reage se o usuário sair da rota e voltar (espera o tenantId carregar)
   useEffect(() => {
-    if (!tenantId) return; 
+    if (!tenantId) return;
 
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(`${key}_${tenantId}`);
@@ -76,8 +78,8 @@ interface ReportFiltersProps {
   showLimit?: boolean;
   initialValues?: ReportFilterValues;
   defaultValues?: ReportFilterValues;
-  storageKey?: string;         
-  tenantId?: string | number;  
+  storageKey?: string;
+  tenantId?: string | number;
 }
 
 export function ReportFilters({
@@ -89,7 +91,6 @@ export function ReportFilters({
   storageKey,
   tenantId,
 }: ReportFiltersProps) {
-
   const [values, setValues] = useState<ReportFilterValues>(initialValues || {});
   const [limit, setLimit] = useState(initialValues?.limit || 25);
 
@@ -105,7 +106,7 @@ export function ReportFilters({
 
   const handleApply = (newVals: ReportFilterValues) => {
     const finalVals = showLimit ? { ...newVals, limit } : newVals;
-    
+
     if (storageKey && tenantId && typeof window !== "undefined") {
       localStorage.setItem(`${storageKey}_${tenantId}`, JSON.stringify(finalVals));
     }
@@ -143,7 +144,11 @@ export function ReportFilters({
               onChange={(e) => set(f.key, e.target.value)}
             >
               <option value="">Todos</option>
-              {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {f.options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           ) : (
             <Input
@@ -158,9 +163,9 @@ export function ReportFilters({
       {showLimit && (
         <div className="space-y-1">
           <Label className="text-xs">Limite</Label>
-          <select 
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm" 
-            value={String(limit)} 
+          <select
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+            value={String(limit)}
             onChange={(e) => setLimit(Number(e.target.value))}
           >
             <option value="25">25</option>
@@ -172,8 +177,14 @@ export function ReportFilters({
         </div>
       )}
       <div className="flex items-end gap-2 md:col-span-3 lg:col-span-4">
-        <Button type="submit" size="sm"><Filter className="mr-2 h-4 w-4" />Aplicar</Button>
-        <Button type="button" variant="ghost" size="sm" onClick={clear}><X className="mr-2 h-4 w-4" />Limpar</Button>
+        <Button type="submit" size="sm">
+          <Filter className="mr-2 h-4 w-4" />
+          Aplicar
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={clear}>
+          <X className="mr-2 h-4 w-4" />
+          Limpar
+        </Button>
       </div>
     </form>
   );

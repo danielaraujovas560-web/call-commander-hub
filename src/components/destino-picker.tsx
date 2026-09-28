@@ -4,18 +4,18 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { listUraDestinos } from "@/lib/ramais.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { listUraDestinos } from "@/lib/uras.functions";
 import { displayFromBackend } from "@/lib/format";
 
 export type DestinoTipo =
-  | "RAMAL"
-  | "FILA"
-  | "URA"
-  | "EXTERNO"
-  | "INTERNO"
-  | "AUDIO"
-  | "REGRA_HORARIO";
+  "RAMAL" | "FILA" | "URA" | "EXTERNO" | "INTERNO" | "AUDIO" | "REGRA_HORARIO";
 
 export type DestinoValue = {
   tipo: DestinoTipo | "";
@@ -61,7 +61,7 @@ type Props = {
   value: DestinoValue;
   onChange: (v: DestinoValue) => void;
   /** Tipos permitidos, na ordem em que devem aparecer no select. */
-  allow: readonly {value: DestinoTipo; label: string}[];
+  allow: readonly { value: DestinoTipo; label: string }[];
   /** ID da URA atual, para evitar auto-referência ao listar URAs. */
   excludeUraId?: number;
   compact?: boolean;
@@ -85,9 +85,9 @@ export function DestinoPicker({ tenantId, value, onChange, allow, excludeUraId, 
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-             {allow.map(({ value, label }) => (
+            {allow.map(({ value, label }) => (
               <SelectItem key={value} value={value}>
-              {label}
+                {label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -231,10 +231,16 @@ export function renderDestinoLabel(
     const r = data.ramais.find((x) => String(x.value) === destino);
     return r ? `${displayFromBackend(r.label)} (${r.value})` : destino;
   }
-  if (t === "FILA") return displayFromBackend(data.filas.find((x) => String(x.value) === destino)?.label ?? destino);
-  if (t === "URA") return displayFromBackend(data.uras.find((x) => String(x.value) === destino)?.label ?? destino);
+  if (t === "FILA")
+    return displayFromBackend(
+      data.filas.find((x) => String(x.value) === destino)?.label ?? destino,
+    );
+  if (t === "URA")
+    return displayFromBackend(data.uras.find((x) => String(x.value) === destino)?.label ?? destino);
   if (t === "REGRA_HORARIO")
-    return displayFromBackend(data.regras.find((x) => String(x.value) === destino)?.label ?? destino);
+    return displayFromBackend(
+      data.regras.find((x) => String(x.value) === destino)?.label ?? destino,
+    );
   if (t === "INTERNO") return INTERNO_OPTS.find((x) => x.value === destino)?.label ?? destino;
   return destino;
 }

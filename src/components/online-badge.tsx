@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils";
 export type OnlineState = "online" | "offline" | "unknown";
 
 export function statusFromState(state?: string | null): OnlineState {
-  const s = String(state || "").trim().toUpperCase();
+  const s = String(state || "")
+    .trim()
+    .toUpperCase();
   if (!s || s === "UNKNOWN") return "unknown";
   if (s === "INVALID") return "unknown";
   if (s === "UNAVAILABLE") return "offline";
@@ -28,7 +30,11 @@ export function OnlineBadge({
 
   const Icon = s === "online" ? CheckCircle2 : s === "offline" ? XCircle : HelpCircle;
   const color =
-    s === "online" ? "text-emerald-500" : s === "offline" ? "text-red-500" : "text-muted-foreground";
+    s === "online"
+      ? "text-emerald-500"
+      : s === "offline"
+        ? "text-red-500"
+        : "text-muted-foreground";
 
   return (
     <span

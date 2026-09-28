@@ -199,15 +199,17 @@ app.use(authRoutes);
 
 // Tudo para baixo, usa JWT
 app.use(requireJwt);
+app.use(adminUsersRoutes);
+app.use(adminTenantRoutes);
+app.use(firewall);
+app.use(clientes);
+
 app.use(tenantMiddleware);
 
 app.use(tenantRoutes);
 app.use(auditLogs);
-app.use(ramaisWeb);
-app.use(adminUsersRoutes);
-app.use(adminTenantRoutes);
 app.use(dashboard);
-app.use(clientes);
+app.use(ramaisWeb);
 app.use(ramais);
 app.use(troncos);
 app.use(endpointStatus);
@@ -224,7 +226,6 @@ app.use(horarioRamaisMembros);
 app.use(pesquisaSatisfacao);
 app.use(gravacoes);
 app.use(audios);
-app.use(firewall);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

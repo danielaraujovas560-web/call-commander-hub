@@ -16,7 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { createFirewall, deleteFirewall, listFirewall } from "@/lib/ramais.functions";
+import { createFirewall, deleteFirewall, listFirewall } from "@/lib/firewall.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/blacklist")({
   head: () => ({ meta: [{ title: "BlackList — Painel PABX" }] }),

@@ -77,6 +77,17 @@ export function isAgentConfigured() {
   return Boolean(process.env.PABX_AGENT_URL && process.env.PABX_AGENT_SECRET);
 }
 
+export async function authenticatedAgentFetch<T = unknown>(
+  context: { token: string },
+  path: string,
+  options: Omit<Parameters<typeof agentFetch>[1], "bearerToken"> = {},
+) {
+  return agentFetch<T>(path, {
+    ...options,
+    bearerToken: context.token,
+  });
+}
+
 export async function agentDownload(
   path: string,
   options: {
