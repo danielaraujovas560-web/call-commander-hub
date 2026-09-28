@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { resolveTenantId } from "./tenant.server";
-import { authenticatedAgentFetch } from "./agent.server";
+import { authenticatedAgentFetch, authenticatedAgentDownload } from "./agent.server";
 
 async function writeAuditLog(
   token: string,
@@ -67,26 +67,23 @@ const TenantOnly = z
 
 export const listRamais = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .validator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
-    const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await agentFetch<{ ramais: Ramal[] }>(`/ramais?tenant=${tenantId}`, {
+    const res = await authenticatedAgentFetch<{ ramais: Ramal[] }>(context, `/ramais?tenant=${tenantId}`, {
       tenantId,
-      bearerToken: context.token,
     });
     return { tenantId, ramais: res.ramais ?? [] };
   });
 
 export const createRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((input: unknown) => RamalInput.parse(input))
+  .validator((input: unknown) => RamalInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _ignore, ...payload } = data;
 
-    const created = await agentFetch<{ ramal: Ramal }>("/ramais", {
+    const created = await authenticatedAgentFetch<{ ramal: Ramal }>(context, "/ramais", {
       method: "POST",
       tenantId,
       body: payload,
@@ -123,12 +120,11 @@ const RamalUpdateInput = z.object({
 
 export const updateRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((input: unknown) => RamalUpdateInput.parse(input))
+  .validator((input: unknown) => RamalUpdateInput.parse(input))
   .handler(async ({ data: input, context }) => {
-    const { agentFetch } = await import("./agent.server");
     const { endpoint_id, tenant_id, ...patch } = input;
     const tenantId = await resolveTenantId(context.token, tenant_id);
-    const res = await agentFetch<{ ramal: Ramal }>(`/ramais/${endpoint_id}`, {
+    const res = await authenticatedAgentFetch<{ ramal: Ramal }>(context, `/ramais/${endpoint_id}`, {
       method: "PUT",
       tenantId,
       body: patch,
@@ -143,15 +139,14 @@ export const updateRamal = createServerFn({ method: "POST" })
 
 export const deleteRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({ endpoint_id: z.string(), tenant_id: z.number().int().positive().optional() })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await agentFetch(`/ramais/${data.endpoint_id}`, { method: "DELETE", tenantId });
+    await authenticatedAgentFetch(context, `/ramais/${data.endpoint_id}`, { method: "DELETE", tenantId });
     await writeAuditLog(context.token, {
       tenant_id: tenantId,
       action: "ramal.delete",
@@ -199,7 +194,7 @@ export const getRamalMonitorTicket = createServerFn({ method: "GET" })
 
 export const generateRamalPassword = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({ tenant_id: z.number().int().positive().optional(), endpoint_id: z.string().min(1) })
       .parse(d),
@@ -220,7 +215,7 @@ export const generateRamalPassword = createServerFn({ method: "POST" })
 // ---------- Tenant upsert (mariadb) ----------
 export const upsertTenantPabx = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ id: z.number().int().positive(), nome: z.string().min(1).max(50) }).parse(d),
   )
   .handler(async ({ data }) => {
@@ -229,105 +224,10 @@ export const upsertTenantPabx = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ---------- CDR fetchers ----------
-const CdrFilter = z
-  .object({
-    tenant_id: z.number().int().positive().optional(),
-    linkedid: z.string().max(120).optional(),
-    origem: z.string().max(80).optional(),
-    destino: z.string().max(80).optional(),
-    status: z.string().max(80).optional(),
-    tipo: z.string().max(80).optional(),
-    contexto: z.string().max(64).optional(),
-    from: z.string().max(40).optional(),
-    to: z.string().max(40).optional(),
-    limit: z.number().int().optional(),
-    page: z.number().int().positive().optional(),
-    rank: z.boolean().optional(),
-    sigla_estado: z.string().optional(),
-  })
-  .optional()
-  .transform((v) => v ?? {});
-type CdrFilterT = z.infer<typeof CdrFilter>;
-
-function buildQuery(filters: CdrFilterT, tenantId?: number): string {
-  const q = new URLSearchParams();
-
-  // Varre TODAS as chaves que o Zod validou dinamicamente
-  for (const [k, v] of Object.entries(filters)) {
-    // Ignoramos tenant_id pq ele é injetado separadamente no final
-    if (k === "tenant_id" || k === "rank") continue;
-    if (v !== undefined && v !== null && String(v).trim() !== "") {
-      q.set(k, String(v).trim());
-    }
-  }
-  if (filters.rank) q.set("rank", "true");
-  if (tenantId) q.set("tenant", String(tenantId));
-
-  const s = q.toString();
-  return s ? `?${s}` : "";
-}
-
-async function fetchCdr(path: string, token: string, filters: CdrFilterT) {
-  const { agentFetch } = await import("./agent.server");
-  const tenantId = await resolveTenantId(token, filters.tenant_id);
-  const qs = buildQuery(filters, tenantId);
-  const res = await agentFetch<{
-    rows: any[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }>(`${path}${qs}`, { tenantId });
-  return {
-    tenantId,
-    rows: res.rows ?? [],
-    total: res.total,
-    page: res.page,
-    limit: res.limit,
-    totalPages: res.totalPages,
-  };
-}
-
-export const listCdrEntrada = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/entrada", context.token, data));
-
-export const listCdrRamal = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.token, data));
-
-export const listCdrFila = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/fila", context.token, data));
-
-export const listCdrUra = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/ura", context.token, data));
-
-export const listCdrPesquisa = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/pesquisa", context.token, data));
-
-export const listCdrCidadesEntrada = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/cidades/entrada", context.token, data));
-
-export const listCdrCidadesSaida = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.token, data));
-
 // ---------- Status em lote (online/offline) ----------
 export const listRamaisStatus = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .validator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -342,7 +242,7 @@ export const listRamaisStatus = createServerFn({ method: "GET" })
 
 export const downloadGravacao = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         linkedid: z.string(),
@@ -352,11 +252,10 @@ export const downloadGravacao = createServerFn({ method: "GET" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { agentDownload } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     // 1. Faz a requisição para o agente Asterisk
-    const res = await agentDownload(`/gravacoes/${data.tipo}/${data.linkedid}`, {
+    const res = await authenticatedAgentDownload(context, `/gravacoes/${data.tipo}/${data.linkedid}`, {
       tenantId,
     });
 

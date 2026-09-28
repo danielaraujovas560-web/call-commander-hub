@@ -34,7 +34,7 @@ export interface PesquisaSatisfacao {
 
 export const listPesquisaSatisfacao = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -52,7 +52,7 @@ export const listPesquisaSatisfacao = createServerFn({ method: "GET" })
 
 export const createPesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => PesquisaSatisfacaoInput.parse(d))
+  .validator((d: unknown) => PesquisaSatisfacaoInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
@@ -70,7 +70,7 @@ export const createPesquisaSatisfacao = createServerFn({ method: "POST" })
 
 export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     PesquisaSatisfacaoInput.extend({ id: z.number().int().positive() }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -85,7 +85,7 @@ export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
 
 export const deletePesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         id: z.number().int().positive(),

@@ -34,7 +34,7 @@ export interface PesquisaSatisfacao {
 
 export const listPesquisaSatisfacao = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}))
+  .validator((d: unknown) => z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     // Bate no app.get("/pesquisa-satisfacao") do seu back
@@ -46,7 +46,7 @@ export const listPesquisaSatisfacao = createServerFn({ method: "GET" })
 
 export const createPesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => PesquisaSatisfacaoInput.parse(d))
+  .validator((d: unknown) => PesquisaSatisfacaoInput.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -61,7 +61,7 @@ export const createPesquisaSatisfacao = createServerFn({ method: "POST" })
 
 export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     PesquisaSatisfacaoInput.extend({ id: z.number().int().positive() }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -77,7 +77,7 @@ export const updatePesquisaSatisfacao = createServerFn({ method: "POST" })
 
 export const deletePesquisaSatisfacao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         id: z.number().int().positive(),

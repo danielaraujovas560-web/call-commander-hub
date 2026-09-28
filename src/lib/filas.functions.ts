@@ -70,7 +70,7 @@ const TenantOnly = z
 
 export const listFilas = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => TenantOnly.parse(d))
+  .validator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const res = await authenticatedAgentFetch<{ filas: Fila[] }>(
@@ -83,7 +83,7 @@ export const listFilas = createServerFn({ method: "GET" })
 
 export const createFila = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => FilaInput.parse(d))
+  .validator((d: unknown) => FilaInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
@@ -96,7 +96,7 @@ export const createFila = createServerFn({ method: "POST" })
 
 export const updateFila = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => FilaUpdate.parse(d))
+  .validator((d: unknown) => FilaUpdate.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { name, tenant_id: _i, ...body } = data;
@@ -109,7 +109,7 @@ export const updateFila = createServerFn({ method: "POST" })
 
 export const deleteFila = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({ name: z.string().min(1), tenant_id: z.number().int().positive().optional() })
       .parse(d),
@@ -122,7 +122,7 @@ export const deleteFila = createServerFn({ method: "POST" })
 
 export const toggleFilaAtivo = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => ToggleFilaAtivoInput.parse(d))
+  .validator((d: unknown) => ToggleFilaAtivoInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await authenticatedAgentFetch(context, `/filas/${data.name}/ativo`, {
@@ -135,7 +135,7 @@ export const toggleFilaAtivo = createServerFn({ method: "POST" })
 
 export const getFilaAgentes = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tenant_id: z.number().int().positive().optional(),
@@ -155,7 +155,7 @@ export const getFilaAgentes = createServerFn({ method: "GET" })
 
 export const addFilaAgente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tenant_id: z.number().int().positive().optional(),
@@ -180,7 +180,7 @@ export const addFilaAgente = createServerFn({ method: "POST" })
 
 export const removeFilaAgente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tenant_id: z.number().int().positive().optional(),
@@ -199,7 +199,7 @@ export const removeFilaAgente = createServerFn({ method: "POST" })
 
 export const setFilaAgentePenalty = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tenant_id: z.number().int().positive().optional(),

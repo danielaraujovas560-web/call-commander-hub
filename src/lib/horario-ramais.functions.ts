@@ -43,7 +43,7 @@ const MembrosHorarioRamal = z.object({
 
 export const listHorarioRamais = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -58,7 +58,7 @@ export const listHorarioRamais = createServerFn({ method: "GET" })
 
 export const getHorarioRamalMembros = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() })
       .parse(d),
@@ -75,7 +75,7 @@ export const getHorarioRamalMembros = createServerFn({ method: "GET" })
 
 export const createHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => HorarioRamalInput.parse(d))
+  .validator((d: unknown) => HorarioRamalInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
@@ -88,7 +88,7 @@ export const createHorarioRamal = createServerFn({ method: "POST" })
 
 export const updateHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     UpdateHorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -103,7 +103,7 @@ export const updateHorarioRamal = createServerFn({ method: "POST" })
 
 export const updateHorarioRamalMembros = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => MembrosHorarioRamal.extend({ regra: z.string().min(1) }).parse(d))
+  .validator((d: unknown) => MembrosHorarioRamal.extend({ regra: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { regra, tenant_id: _i, ...body } = data;
@@ -120,7 +120,7 @@ export const updateHorarioRamalMembros = createServerFn({ method: "POST" })
 
 export const deleteHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({ regra: z.string().min(1), tenant_id: z.number().int().positive().optional() })
       .parse(d),

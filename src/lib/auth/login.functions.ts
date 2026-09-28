@@ -7,7 +7,7 @@ const LoginInput = z.object({
 });
 
 export const login = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => LoginInput.parse(d))
+  .validator((d: unknown) => LoginInput.parse(d))
   .handler(async ({ data }) => {
     const { agentFetch } = await import("../agent.server");
     const res = await agentFetch<{

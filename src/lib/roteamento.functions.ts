@@ -13,7 +13,7 @@ export interface RoteamentoItem {
 
 export const listRoteamento = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -36,7 +36,7 @@ const RoteamentoInput = z.object({
 
 export const createRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => RoteamentoInput.parse(d))
+  .validator((d: unknown) => RoteamentoInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
@@ -49,7 +49,7 @@ export const createRoteamento = createServerFn({ method: "POST" })
 
 export const updateRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     RoteamentoInput.partial()
       .extend({ numero: z.string().min(1) })
       .parse(d),
@@ -66,7 +66,7 @@ export const updateRoteamento = createServerFn({ method: "POST" })
 
 export const deleteRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({ numero: z.string().min(1), tenant_id: z.number().int().positive().optional() })
       .parse(d),

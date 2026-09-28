@@ -11,7 +11,7 @@ export interface Audio {
 
 export const listAudios = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -26,7 +26,7 @@ export const listAudios = createServerFn({ method: "GET" })
 
 export const uploadAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tenant_id: z.number().int().positive().optional(),
@@ -56,7 +56,7 @@ export const uploadAudio = createServerFn({ method: "POST" })
 
 export const renameAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tenant_id: z.number().int().positive().optional(),
@@ -81,7 +81,7 @@ export const renameAudio = createServerFn({ method: "POST" })
 
 export const deleteAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({ tenant_id: z.number().int().positive().optional(), audio_identifier: AudioName })
       .parse(d),

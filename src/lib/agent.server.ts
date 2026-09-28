@@ -108,15 +108,18 @@ export async function agentDownload(
   const headers: Record<string, string> = {
     "X-Timestamp": timestamp,
     "X-Signature": signature,
-    "Content-Type": "application/json",
   };
 
-  if (options.tenantId != null) headers["X-Tenant-Id"] = String(options.tenantId);
+  if (options.tenantId != null) {
+    headers["X-Tenant-Id"] = String(options.tenantId);
+  }
 
-  if (options.bearerToken) headers["Authorization"] = `Bearer ${options.bearerToken}`;
+  if (options.bearerToken) {
+    headers["Authorization"] = `Bearer ${options.bearerToken}`;
+  }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 15000);
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 30000); // 30s timeout para downloads maiores
 
   try {
     const res = await fetch(`${url}${fullPath}`, {
@@ -133,4 +136,18 @@ export async function agentDownload(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * Wrapper autenticado para download de arquivos/gravações do agente PABX.
+ */
+export async function authenticatedAgentDownload(
+  context: { token: string },
+  path: string,
+  options: Omit<Parameters<typeof agentDownload>[1], "bearerToken"> = {},
+): Promise<Response> {
+  return agentDownload(path, {
+    ...options,
+    bearerToken: context.token,
+  });
 }

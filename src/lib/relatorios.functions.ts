@@ -64,35 +64,35 @@ async function fetchCdr(path: string, token: string, filters: CdrFilterT) {
 
 export const listCdrEntrada = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/entrada", context.token, data));
 
 export const listCdrRamal = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.token, data));
 
 export const listCdrFila = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/fila", context.token, data));
 
 export const listCdrUra = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/ura", context.token, data));
 
 export const listCdrPesquisa = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/pesquisa", context.token, data));
 
 export const listCdrCidadesEntrada = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/cidades/entrada", context.token, data));
 
 export const listCdrCidadesSaida = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => CdrFilter.parse(d))
+  .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.token, data));

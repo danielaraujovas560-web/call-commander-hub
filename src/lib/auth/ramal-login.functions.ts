@@ -7,7 +7,7 @@ const RamalLoginInput = z.object({
 });
 
 export const ramalLogin = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => RamalLoginInput.parse(d))
+  .validator((d: unknown) => RamalLoginInput.parse(d))
   .handler(async ({ data }) => {
     const { agentFetch } = await import("../agent.server");
     return await agentFetch<{

@@ -26,13 +26,31 @@ function cdrFilteredEndpoint(router, path, cfg) {
     if (cfg.dateCol) {
       const from = req.query.from,
         to = req.query.to;
+
       if (from) {
+        let fromStr = String(from).replace("T", " ").trim();
+        if (fromStr.length === 10) {
+          // Se for só data "YYYY-MM-DD", inicia no começo do dia
+          fromStr += " 00:00:00";
+        } else if (fromStr.length === 16) {
+          // Se for "YYYY-MM-DD HH:mm", adiciona :00 nos segundos
+          fromStr += ":00";
+        }
         where.push(`${cfg.dateCol} >= ?`);
-        vals.push(String(from).replace("T", " "));
+        vals.push(fromStr);
       }
+
       if (to) {
+        let toStr = String(to).replace("T", " ").trim();
+        if (toStr.length === 10) {
+          // Se for só data "YYYY-MM-DD", inclui até o fim do dia
+          toStr += " 23:59:59";
+        } else if (toStr.length === 16) {
+          // Se for "YYYY-MM-DD HH:mm", adiciona :59 nos segundos
+          toStr += ":59";
+        }
         where.push(`${cfg.dateCol} <= ?`);
-        vals.push(String(to).replace("T", " "));
+        vals.push(toStr);
       }
     }
     if (req.query.rank === "true") {

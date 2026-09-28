@@ -15,7 +15,7 @@ export interface BlacklistItem {
 
 export const listBlacklist = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -32,7 +32,7 @@ export const listBlacklist = createServerFn({ method: "GET" })
 
 export const createBlacklist = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         destino: z.string().min(1).max(64),
@@ -53,7 +53,7 @@ export const createBlacklist = createServerFn({ method: "POST" })
 
 export const updateBlacklist = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         destinoAtual: z.string().min(1).max(64),
@@ -86,7 +86,7 @@ export const updateBlacklist = createServerFn({ method: "POST" })
 
 export const deleteBlacklist = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         destino: z.string().min(1).max(64),
@@ -119,7 +119,7 @@ const ToggleBlacklistAtivoInput = z.object({
 
 export const toggleBlacklistAtivo = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => ToggleBlacklistAtivoInput.parse(d))
+  .validator((d: unknown) => ToggleBlacklistAtivoInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     await authenticatedAgentFetch(

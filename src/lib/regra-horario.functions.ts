@@ -32,7 +32,7 @@ const RegraHorarioInput = z.object({
 
 export const listRegraHorario = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -47,7 +47,7 @@ export const listRegraHorario = createServerFn({ method: "GET" })
 
 export const createRegraHorario = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => RegraHorarioInput.parse(d))
+  .validator((d: unknown) => RegraHorarioInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
@@ -64,7 +64,7 @@ export const createRegraHorario = createServerFn({ method: "POST" })
 
 export const updateRegraHorario = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     RegraHorarioInput.extend({ regra_identifier: z.string().min(1) }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -83,7 +83,7 @@ export const updateRegraHorario = createServerFn({ method: "POST" })
 
 export const deleteRegraHorario = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         regra_identifier: z.string().min(1),

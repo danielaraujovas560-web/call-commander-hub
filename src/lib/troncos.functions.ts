@@ -19,7 +19,7 @@ export interface Tronco {
 
 export const listTroncos = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -57,7 +57,7 @@ const TroncoUpdate = TroncoInput.partial().extend({
 
 export const createTronco = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => TroncoInput.parse(d))
+  .validator((d: unknown) => TroncoInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
@@ -70,7 +70,7 @@ export const createTronco = createServerFn({ method: "POST" })
 
 export const updateTronco = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => TroncoUpdate.parse(d))
+  .validator((d: unknown) => TroncoUpdate.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tronco_pjsip, tenant_id: _i, ...body } = data;
@@ -83,7 +83,7 @@ export const updateTronco = createServerFn({ method: "POST" })
 
 export const deleteTronco = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tronco_pjsip: z.string().min(1),
@@ -102,7 +102,7 @@ export const deleteTronco = createServerFn({ method: "POST" })
 
 export const getTroncoStatus = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         tronco_pjsip: z.string().min(1),
@@ -121,7 +121,7 @@ export const getTroncoStatus = createServerFn({ method: "GET" })
 
 export const listTroncosStatus = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {

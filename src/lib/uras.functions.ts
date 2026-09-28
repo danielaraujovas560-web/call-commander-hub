@@ -27,7 +27,7 @@ const UraInput = z.object({
 
 export const listUras = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -42,7 +42,7 @@ export const listUras = createServerFn({ method: "GET" })
 
 export const listUraDestinos = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -59,7 +59,7 @@ export const listUraDestinos = createServerFn({ method: "GET" })
 
 export const createUra = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => UraInput.parse(d))
+  .validator((d: unknown) => UraInput.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { tenant_id: _i, ...body } = data;
@@ -72,7 +72,7 @@ export const createUra = createServerFn({ method: "POST" })
 
 export const updateUra = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     UraInput.partial()
       .extend({ ura_identifier: z.string().min(1) })
       .parse(d),
@@ -89,7 +89,7 @@ export const updateUra = createServerFn({ method: "POST" })
 
 export const deleteUra = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         ura_identifier: z.string().min(1),
@@ -108,7 +108,7 @@ export const deleteUra = createServerFn({ method: "POST" })
 
 export const addUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         ura_identifier: z.string().min(1),
@@ -135,7 +135,7 @@ export const addUraOpcao = createServerFn({ method: "POST" })
 
 export const updateUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         ura_identifier: z.string().min(1),
@@ -163,7 +163,7 @@ export const updateUraOpcao = createServerFn({ method: "POST" })
 
 export const deleteUraOpcao = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         ura_identifier: z.string().min(1),
@@ -187,7 +187,7 @@ export const deleteUraOpcao = createServerFn({ method: "POST" })
 
 export const toggleUraAtivo = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         ura_identifier: z.string().min(1).max(64),

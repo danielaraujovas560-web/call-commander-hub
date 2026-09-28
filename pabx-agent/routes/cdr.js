@@ -38,7 +38,7 @@ cdrFilteredEndpoint(router, "/cdr/fila", {
 });
 cdrFilteredEndpoint(router, "/cdr/ura", {
   select:
-    "c.id, c.linkedid, c.num_did, c.nome_ura, c.opcao, c.dest_op, COALESCE(r.nome, f.display_name, u2.nome, c.dest_nome) AS destino_nome, c.date_time",
+    "c.id, c.linkedid, c.num_did, c.id_ura, c.nome_ura, c.opcao, c.dest_op, COALESCE(r.nome, f.display_name, u2.nome, c.dest_nome) AS destino_nome, c.date_time",
   from: `cdr_ura c LEFT JOIN ramais r ON c.dest_op = 'RAMAL' AND r.tenant_id = c.tenant_id AND r.endpoint_id = c.dest_nome
   LEFT JOIN filas f ON c.dest_op = 'FILA' AND f.tenant_id = c.tenant_id AND f.name = c.dest_nome
   LEFT JOIN uras u2 ON c.dest_op = 'URA' AND u2.tenant_id = c.tenant_id AND u2.ura_identifier = c.dest_nome`,

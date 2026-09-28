@@ -44,7 +44,7 @@ const createSchema = z.object({
 
 export const createCliente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => createSchema.parse(d))
+  .validator((d: unknown) => createSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const res = await agentFetch<{ ok: true; cliente: Cliente }>("/clientes", {
@@ -73,7 +73,7 @@ const updateClienteConfiguracoesSchema = z.object({
 
 export const updateCliente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => updateSchema.parse(d))
+  .validator((d: unknown) => updateSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const { id, ...body } = data;
@@ -86,7 +86,7 @@ export const updateCliente = createServerFn({ method: "POST" })
 
 export const updateClienteConfiguracoes = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => updateClienteConfiguracoesSchema.parse(d))
+  .validator((d: unknown) => updateClienteConfiguracoesSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const { id, ...body } = data;
@@ -100,7 +100,7 @@ export const updateClienteConfiguracoes = createServerFn({ method: "POST" })
 // ---------- DELETE ----------
 export const deleteCliente = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     return await agentFetch<{ ok: true }>(`/clientes/${data.id}`, {
@@ -112,7 +112,7 @@ export const deleteCliente = createServerFn({ method: "POST" })
 // ---------- GET ONE (for cliente detail page) ----------
 export const getClienteByTenant = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {

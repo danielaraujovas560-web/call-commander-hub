@@ -1,4 +1,4 @@
-import { createStart, createMiddleware } from "@tanstack/react-start";
+import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachAuth } from "@/lib/auth/attach-auth";
@@ -17,6 +17,10 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 });
+
+const csrfMiddleware = createCsrfMiddleware({
+  filter: (ctx) => ctx.handlerType === 'serverFn',
+})
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [errorMiddleware],

@@ -34,7 +34,7 @@ export const listFirewall = createServerFn({ method: "GET" })
 
 export const createFirewall = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => FirewallInput.parse(d))
+  .validator((d: unknown) => FirewallInput.parse(d))
   .handler(async ({ data, context }) => {
     const { ...body } = data;
     return await authenticatedAgentFetch<{ ok: true; id: number }>(context, "/firewall", {
@@ -45,7 +45,7 @@ export const createFirewall = createServerFn({ method: "POST" })
 
 export const deleteFirewall = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         id: z.number().int().positive(),

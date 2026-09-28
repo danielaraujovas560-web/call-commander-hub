@@ -35,7 +35,7 @@ const createSchema = z.object({
 
 export const createUser = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => createSchema.parse(d))
+  .validator((d: unknown) => createSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     return await agentFetch<{ ok: true; id: string }>("/admin/users", {
@@ -48,7 +48,7 @@ export const createUser = createServerFn({ method: "POST" })
 // ---------- DELETE USER ----------
 export const deleteUser = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
+  .validator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     return await agentFetch<{ ok: true }>(`/admin/users/${data.user_id}/delete`, {
@@ -60,7 +60,7 @@ export const deleteUser = createServerFn({ method: "POST" })
 // ---------- SET ROLE ----------
 export const setRole = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         user_id: z.string().uuid(),
@@ -80,7 +80,7 @@ export const setRole = createServerFn({ method: "POST" })
 // ---------- TENANT LINKS ----------
 export const addTenantLink = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z
       .object({
         user_id: z.string().uuid(),
@@ -101,7 +101,7 @@ export const addTenantLink = createServerFn({ method: "POST" })
 
 export const removeTenantLink = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) =>
+  .validator((d: unknown) =>
     z.object({ user_id: z.string().uuid(), tenant_id: z.number().int() }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -124,7 +124,7 @@ const updateSchema = z.object({
 
 export const updateUser = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((d: unknown) => updateSchema.parse(d))
+  .validator((d: unknown) => updateSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
     const { user_id, ...body } = data;
