@@ -38,7 +38,11 @@ type WsRamalRemovido = {
   ts: number;
 };
 
-type WsEvento = WsEstadoInicial | WsRamalStatus | WsRamalRemovido;
+type WsCdrUpdated = {
+  tipo: "CDR_UPDATED";
+};
+
+type WsEvento = WsEstadoInicial | WsRamalStatus | WsRamalRemovido | WsCdrUpdated;
 
 export const estadoRamalLabel: Record<RamalState, string> = {
   IDLE: "Livre",
@@ -56,17 +60,23 @@ export function useRamalMonitor(tenantId?: number) {
   useEffect(() => {
     let ws: WebSocket | null = null;
     let cancelled = false;
-    let reconectando = false;
     let timerReconexao: ReturnType<typeof setTimeout> | null = null;
 
     async function conectar() {
-      if (cancelled || reconectando) return;
+      if (cancelled) return;
 
-      reconectando = true;
+      // 1. Se já existir um socket antigo, desvincula eventos e fecha antes de criar outro
+      if (ws) {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close();
+        ws = null;
+      }
 
       try {
         console.log("[RAMAL-MONITOR] solicitando ticket...");
-
         const { ticket } = await getRamalMonitorTicket({ data: { tenant_id: tenantId } });
 
         if (cancelled) return;
@@ -74,22 +84,22 @@ export function useRamalMonitor(tenantId?: number) {
         console.log("[RAMAL-MONITOR] ticket recebido");
 
         const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
-
-        const wsUrl =
-          `${protocolo}//${window.location.host}/ws/ramais?ticket=` + encodeURIComponent(ticket);
+        const wsUrl = `${protocolo}//${window.location.host}/ws/ramais?ticket=` + encodeURIComponent(ticket);
 
         console.log("[RAMAL-MONITOR] conectando WebSocket...");
+        const socket = new WebSocket(wsUrl);
+        ws = socket;
 
-        ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
+        socket.onopen = () => {
+          if (cancelled) {
+            socket.close();
+            return;
+          }
           console.log("[RAMAL-MONITOR] WebSocket conectado");
           setConectado(true);
-
-          reconectando = false;
         };
 
-        ws.onmessage = (event) => {
+        socket.onmessage = (event) => {
           try {
             const mensagem: WsEvento = JSON.parse(event.data);
 
@@ -100,26 +110,22 @@ export function useRamalMonitor(tenantId?: number) {
 
             if (mensagem.tipo === "ESTADO_INICIAL") {
               console.log("[RAMAL-MONITOR] estado inicial recebido:", mensagem.ramais);
-
               setRamais(mensagem.ramais ?? {});
               return;
             }
 
             if (mensagem.tipo === "RAMAL_REMOVIDO") {
               console.log("[RAMAL-MONITOR] ramal removido:", mensagem.endpoint);
-
               setRamais((atual) => {
                 const novo = { ...atual };
                 delete novo[mensagem.endpoint];
                 return novo;
               });
-
               return;
             }
 
             if (mensagem.tipo === "RAMAL_STATUS") {
               console.log("[RAMAL-MONITOR] status:", mensagem.endpoint, mensagem.state);
-
               setRamais((atual) => ({
                 ...atual,
                 [mensagem.endpoint]: {
@@ -137,37 +143,26 @@ export function useRamalMonitor(tenantId?: number) {
           }
         };
 
-        ws.onerror = (error) => {
+        socket.onerror = (error) => {
           console.error("[RAMAL-MONITOR] erro WebSocket:", error);
-
           setConectado(false);
         };
 
-        ws.onclose = (event) => {
+        socket.onclose = (event) => {
           console.log("[RAMAL-MONITOR] ===== CONEXÃO FECHADA =====");
           console.log("[RAMAL-MONITOR] code:", event.code);
           console.log("[RAMAL-MONITOR] reason:", event.reason);
           console.log("[RAMAL-MONITOR] wasClean:", event.wasClean);
           console.log("[RAMAL-MONITOR] time:", new Date().toISOString());
-          console.log("[RAMAL-MONITOR] ===========================");
 
           setConectado(false);
 
-          // Saiu da página/componente desmontado.
-          // NÃO reconectar.
           if (cancelled) {
             console.log("[RAMAL-MONITOR] componente desmontado, não reconectando");
             return;
           }
 
-          // Já existe uma tentativa de reconexão.
-          if (reconectando) {
-            console.log("[RAMAL-MONITOR] reconexão já em andamento");
-            return;
-          }
-
           console.log("[RAMAL-MONITOR] WebSocket caiu, reconectando em 2s...");
-
           timerReconexao = setTimeout(() => {
             if (!cancelled) {
               conectar();
@@ -176,15 +171,11 @@ export function useRamalMonitor(tenantId?: number) {
         };
       } catch (error) {
         console.error("[RAMAL-MONITOR] falha ao obter ticket:", error);
-
         setConectado(false);
-
-        reconectando = false;
 
         if (cancelled) return;
 
         console.log("[RAMAL-MONITOR] tentando novamente em 2s...");
-
         timerReconexao = setTimeout(() => {
           if (!cancelled) {
             conectar();
@@ -197,7 +188,6 @@ export function useRamalMonitor(tenantId?: number) {
 
     return () => {
       console.log("[RAMAL-MONITOR] desmontando monitor");
-
       cancelled = true;
 
       if (timerReconexao) {
@@ -206,11 +196,15 @@ export function useRamalMonitor(tenantId?: number) {
       }
 
       if (ws) {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
         ws.close();
         ws = null;
       }
     };
-  }, []);
+  }, [tenantId]);
 
   const resumo = useMemo(() => {
     const lista = Object.values(ramais);
