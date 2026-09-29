@@ -14,8 +14,8 @@ router.get("/ramais", async (req, res) => {
       `SELECT r.ramal, r.nome AS ramal_nome, r.tronco, t.nome AS tronco_nome, r.ddd, r.callerid, r.senha,
               r.fixo, r.movel, r.ddi, r.especial, r.cng, r.endpoint_id,
               r.gravacao, r.transbordo, r.transbordo_tronco, r.pesquisa, r.pesquisa_id,
-              (SELECT COUNT (*) FROM cdr_ramal c WHERE c.tenant_id = ? AND c.origem = r.endpoint_id AND DATE(date_time) = CURDATE()) AS ligacoes_feitas,
-              (SELECT COUNT (*) FROM cdr_ramal c WHERE c.tenant_id = ? AND c.destino = r.endpoint_id AND DATE(date_time) = CURDATE()) AS ligacoes_recebidas
+              (SELECT COUNT (*) FROM cdr_ramal c WHERE c.tenant_id = ? AND c.origem = r.endpoint_id AND tipo_chamada = 'Saida' AND c.date_time >= CURDATE()) AS ligacoes_feitas,
+              (SELECT COUNT (*) FROM cdr_ramal c WHERE c.tenant_id = ? AND c.destino = r.endpoint_id AND tipo_chamada = 'Entrada' AND c.date_time >= CURDATE()) AS ligacoes_recebidas
          FROM ramais r LEFT JOIN troncos t
         ON r.tronco = t.tronco_pjsip AND r.tenant_id = t.tenant_id
         WHERE r.tenant_id = ?  ORDER BY ramal`,
