@@ -48,6 +48,35 @@ function indicadorVariant(state: RamalState): IndicadorVariant {
   }
 }
 
+function formatarNumeroChamada(
+  numero: string | null,
+  dadosPorEndpoint: Record<string, { nome: string; ramal: string }>
+): string | null {
+  if (!numero) return null;
+
+  // 1. Limpa possíveis prefixos SIP/PJSIP ou sufixos de canal (ex: PJSIP/19999-00000001 -> 19999)
+  let limpo = numero
+    .split("@")[0]
+    .replace(/^PJSIP\//i, "")
+    .replace(/^SIP\//i, "");
+
+  if (limpo.includes("-")) {
+    limpo = limpo.split("-")[0];
+  }
+
+  // 2. Se o endpoint/número estiver no mapa de ramais, retorna apenas o número do ramal (ex: "9999")
+  if (dadosPorEndpoint[limpo]) {
+    return dadosPorEndpoint[limpo].ramal;
+  }
+
+  if (dadosPorEndpoint[numero]) {
+    return dadosPorEndpoint[numero].ramal;
+  }
+
+  // 3. Caso seja um número externo (ex: celular/fixo), retorna o número sanitizado
+  return limpo;
+}
+
 const INDICADOR_COR: Record<IndicadorVariant, string> = {
   livre: "bg-emerald-500",
   discando: "bg-blue-500",
@@ -228,7 +257,8 @@ export function MonitoramentoRamais({ tenantId }: { tenantId?: number }) {
                 </tr>
               ) : (
                 listaRamais.map((ramal) => {
-                  const chamada = descricaoChamada(ramal.state, ramal.numero);
+                  const numeroFormatado = formatarNumeroChamada(ramal.numero, dadosPorEndpoint);
+                  const chamada = descricaoChamada(ramal.state, numeroFormatado);
                   const variante = indicadorVariant(ramal.state);
                   const duracao =
                     ramal.state === "IN_CALL" ? formatarDuracao(ramal.desde, agora) : "—";
