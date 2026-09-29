@@ -33,4 +33,6 @@ dist-ssr
 
 ## Arquivos privados
 .env
+.env.*
+!.env.example
 src/routeTree.gen.ts

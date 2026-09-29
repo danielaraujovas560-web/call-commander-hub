@@ -43,10 +43,10 @@ const { amiCommand, queueAdd, queueRefresh, onAmiConnect, getQueueStatus } = req
 const { iniciarMonitor } = require("./ramal-monitor");
 const { connectARI } = require("./ari");
 
-const { AGENT_SECRET, JWT_SECRET, PORT = "8787", AUDIO_UPLOAD_LIMIT = "1gb" } = process.env;
+const { PABX_AGENT_SECRET, JWT_SECRET, PORT = "8787", AUDIO_UPLOAD_LIMIT = "1gb" } = process.env;
 
-if (!AGENT_SECRET || AGENT_SECRET.length < 16) {
-  console.error("AGENT_SECRET ausente ou curto demais (>=16 chars). Edite .env e reinicie.");
+if (!PABX_AGENT_SECRET || PABX_AGENT_SECRET.length < 16) {
+  console.error("PABX_AGENT_SECRET ausente ou curto demais (>=16 chars). Edite .env e reinicie.");
   process.exit(1);
 }
 

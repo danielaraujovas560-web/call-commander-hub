@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 
-const AGENT_SECRET = process.env.AGENT_SECRET;
+const PABX_AGENT_SECRET = process.env.PABX_AGENT_SECRET;
 const SIGNATURE_WINDOW = process.env.SIGNATURE_WINDOW ?? 30;
 
 const ROTAS_LIVRES = [
@@ -32,7 +32,7 @@ function hmacMiddleware(req, res, next) {
   const bodyHash = crypto.createHash("sha256").update(body).digest("hex");
   const p = req.originalUrl;
   const expected = crypto
-    .createHmac("sha256", AGENT_SECRET)
+    .createHmac("sha256", PABX_AGENT_SECRET)
     .update(`${ts}.${req.method.toUpperCase()}.${p}.${bodyHash}`)
     .digest("hex");
 

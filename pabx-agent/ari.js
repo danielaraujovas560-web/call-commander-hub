@@ -3,6 +3,7 @@ const ari = require("ari-client");
 const ARI_URL = process.env.ARI_URL;
 const ARI_USER = process.env.ARI_USER;
 const ARI_PASSWORD = process.env.ARI_PASSWORD;
+const ARI_APP_NAME = process.env.ARI_APP_NAME;
 
 let client = null;
 
@@ -16,14 +17,14 @@ async function connectARI() {
 
     registrarEventosARI(client);
 
-    await client.start("pabx-agent");
+    await client.start(ARI_APP_NAME);
 
     await client.applications.subscribe({
-      applicationName: "pabx-agent",
+      applicationName: ARI_APP_NAME,
       eventSource: ["channel:", "bridge:", "endpoint:", "deviceState:"],
     });
 
-    console.log("[ARI] recebendo eventos");
+    console.log("[ARI] recebendo eventos no app: ${ARI_APP_NAME}");
 
     return client;
   } catch (err) {
