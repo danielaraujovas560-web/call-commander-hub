@@ -41,6 +41,7 @@ const FilaInput = z.object({
   tenant_id: z.number().int().positive().optional(),
   display_name: z.coerce.string().trim().min(1).max(120),
   description: z.coerce.string().trim().max(255).optional().or(z.literal("")),
+  musiconhold: z.coerce.string().min(1),
   strategy: z
     .enum(["ringall", "rrmemory", "leastrecent", "fewestcalls", "random"])
     .default("ringall"),

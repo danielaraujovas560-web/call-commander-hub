@@ -21,6 +21,7 @@ import {
 } from "@/lib/filas.functions";
 import { listRamais } from "@/lib/ramais.functions";
 import { listPesquisaSatisfacao } from "@/lib/pesquisa.functions";
+import { listAudios } from "@/lib/audios.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -441,6 +442,16 @@ function FilaFormDialog({
   const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setInternalOpen(v));
   const editing = !!fila;
 
+  const mohAudiosFn = useServerFn(listAudios);
+
+  const { data: responseAudios, isLoading } = useQuery({
+    queryKey: ["audios", "musica_espera"],
+    queryFn: () => mohAudiosFn({ data: { tipo: "musica_espera" } }),
+    enabled: open,
+  });
+
+  const mohAudios = responseAudios?.audios || responseAudios || [];
+
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
 
   const { data: pesquisasData } = useQuery({
@@ -454,6 +465,7 @@ function FilaFormDialog({
   const [form, setForm] = useState({
     display_name: fila?.display_name ?? "",
     description: fila?.description ?? "",
+    musiconhold: (fila?.musiconhold as string) ?? "musiconhold-default",
     strategy: (fila?.strategy as string) ?? "ringall",
     timeout: fila?.timeout ?? 15,
     retry: fila?.retry ?? 5,
@@ -469,6 +481,7 @@ function FilaFormDialog({
       setForm({
         display_name: fila?.display_name ?? "",
         description: fila?.description ?? "",
+        musiconhold: (fila?.musiconhold as string) ?? "musiconhold-default",
         strategy: (fila?.strategy as string) ?? "ringall",
         timeout: fila?.timeout ?? 15,
         retry: fila?.retry ?? 5,
@@ -490,6 +503,7 @@ function FilaFormDialog({
         tenant_id: tenantId,
         display_name: form.display_name,
         description: form.description,
+        musiconhold: form.musiconhold,
         strategy: form.strategy as
           "ringall" | "rrmemory" | "leastrecent" | "fewestcalls" | "random",
         timeout: Number(form.timeout) || 0,
@@ -557,6 +571,22 @@ function FilaFormDialog({
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               maxLength={255}
             />
+          </div>
+          <div className="space-y-1">
+            <Label>Música de espera</Label>
+            <Select value={form.musiconhold} onValueChange={(v) => setForm({ ...form, musiconhold: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a música" />
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="musiconhold-default">Padrão do Sistema</SelectItem>
+                  {mohAudios.map((audio: any) => (
+                   <SelectItem key={audio.audio_identifier} value={audio.moh_name}>
+                     {audio.display_name}
+                   </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label>Estratégia</Label>

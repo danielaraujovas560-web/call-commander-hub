@@ -56,6 +56,7 @@ router.post("/filas", async (req, res) => {
   const {
     display_name,
     description,
+    musiconhold,
     strategy = "ringall",
     timeout = 15,
     retry = 5,
@@ -109,8 +110,8 @@ router.post("/filas", async (req, res) => {
 
     await conn.query(
       `INSERT INTO queues (tenant_id, name, musiconhold, strategy, timeout, retry, ringinuse)
-       VALUES (?, ?, 'musiconhold-default', ?, ?, ?, ?)`,
-      [String(tenant), name, strategy, Number(timeout) || 0, Number(retry), ringinuse ?? "no"],
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [String(tenant), name, musiconhold, strategy, Number(timeout) || 0, Number(retry), ringinuse ?? "no"],
     );
 
     await conn.commit();
@@ -132,6 +133,7 @@ router.put("/filas/:name", async (req, res) => {
   const {
     display_name,
     description,
+    musiconhold,
     strategy,
     timeout,
     fila_timeout,
@@ -217,6 +219,10 @@ router.put("/filas/:name", async (req, res) => {
     if (strategy !== undefined || timeout !== undefined) {
       const sets = [];
       const vals = [];
+      if (musiconhold !== undefined) {
+        sets.push("musiconhold = ?");
+        vals.push(musiconhold);
+      }
       if (strategy !== undefined) {
         sets.push("strategy = ?");
         vals.push(strategy);
@@ -285,7 +291,7 @@ router.delete("/filas/:name", async (req, res) => {
       return res.status(409).json({ error: "Fila selecionada em roteamento" });
     }
     const [rows2] = await conn.query(
-      `SELECT regra_identifier FROM regra_horario WHERE (acao_dentro = 'FILA' AND destino_dentro = ? AND tenant_id = ?)) OR (acao_fora = 'FILA' AND destino_fora = ? AND tenant_id = ?)`,
+      `SELECT regra_identifier FROM regra_horario WHERE (acao_dentro = 'FILA' AND destino_dentro = ? AND tenant_id = ?) OR (acao_fora = 'FILA' AND destino_fora = ? AND tenant_id = ?)`,
       [name, String(tenant), name, String(tenant)],
     );
     if (rows2.length > 0) {

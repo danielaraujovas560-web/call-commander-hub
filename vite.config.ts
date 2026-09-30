@@ -24,6 +24,7 @@ export default defineConfig({
     viteTsConfigPaths(),
     nitro({
       preset: "node-server",
+      bodyLimit: 100 * 1024 * 1024,
     }),
   ],
   build: {
