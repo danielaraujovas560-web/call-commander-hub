@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import JsSIP from "jssip";
 
 export type PhoneState = "idle" | "registering" | "registered" | "failed";
-export type CallState = "idle" | "calling" | "ringing" | "incoming" | "active" | "ended";
+export type CallState =
+  | "idle"
+  | "calling"
+  | "ringing"
+  | "incoming"
+  | "active"
+  | "ended";
 
 export type SipCreds = {
   sip_username: string;
@@ -31,6 +37,8 @@ export function useJsSipPhone(creds: SipCreds | null) {
       return;
     }
 
+    JsSIP.debug.disable();
+
     const socket = new JsSIP.WebSocketInterface(creds.wss_url);
     socketRef.current = socket;
 
@@ -56,9 +64,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
     uaRef.current = ua;
 
     ua.on("connecting", () => {});
-
     ua.on("connected", () => {});
-
     ua.on("disconnected", () => {});
 
     ua.on("registered", () => {
@@ -69,8 +75,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
       setPhoneState("idle");
     });
 
-    ua.on("registrationFailed", (event: any) => {
-      console.error("[SIP] REGISTRATION FAILED", event?.cause || event);
+    ua.on("registrationFailed", () => {
       setPhoneState("failed");
     });
 
@@ -87,11 +92,14 @@ export function useJsSipPhone(creds: SipCreds | null) {
       sessionRef.current = session;
 
       setRemoteNumber(session.remote_identity?.uri?.user ?? "");
-
-      setCallState(session.direction === "incoming" ? "incoming" : "calling");
+      setCallState(
+        session.direction === "incoming" ? "incoming" : "calling"
+      );
 
       session.on("progress", () => {
-        setCallState((state) => (state === "calling" ? "ringing" : state));
+        setCallState((state) =>
+          state === "calling" ? "ringing" : state
+        );
       });
 
       session.on("accepted", () => {
@@ -116,17 +124,15 @@ export function useJsSipPhone(creds: SipCreds | null) {
 
       const attachTrackHandling = (pc: any) => {
         pc.addEventListener("track", (ev: any) => {
-          if (remoteAudioRef.current && ev.streams?.[0]) {
-            remoteAudioRef.current.srcObject = ev.streams[0];
-          }
+          if (!remoteAudioRef.current) return;
+
+          const remoteStream =
+            ev.streams?.[0] ?? new MediaStream([ev.track]);
+
+          remoteAudioRef.current.srcObject = remoteStream;
+
+          remoteAudioRef.current.play().catch(() => {});
         });
-
-        const receivers = pc.getReceivers?.() ?? [];
-        const tracks = receivers.map((receiver: any) => receiver.track).filter(Boolean);
-
-        if (tracks.length && remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = new MediaStream(tracks);
-        }
       };
 
       if (session.connection) {
@@ -136,6 +142,15 @@ export function useJsSipPhone(creds: SipCreds | null) {
           attachTrackHandling(data.peerconnection);
         });
       }
+
+      session.on("confirmed", () => {
+        if (
+          remoteAudioRef.current &&
+          remoteAudioRef.current.srcObject
+        ) {
+          remoteAudioRef.current.play().catch(() => {});
+        }
+      });
     });
 
     setPhoneState("registering");
@@ -155,7 +170,10 @@ export function useJsSipPhone(creds: SipCreds | null) {
       } catch {}
 
       try {
-        if (socket._ws && socket._ws.readyState !== WebSocket.CLOSED) {
+        if (
+          socket._ws &&
+          socket._ws.readyState !== WebSocket.CLOSED
+        ) {
           socket.disconnect();
         }
       } catch {}
@@ -185,31 +203,32 @@ export function useJsSipPhone(creds: SipCreds | null) {
 
   const call = useCallback(
     (number: string) => {
-      const ua = uaRef.current;
-
-      if (!ua || phoneState !== "registered" || !creds) {
+      if (!uaRef.current || phoneState !== "registered" || !creds) {
         return;
       }
 
-      ua.call(`sip:${number}@${creds.sip_domain}`, {
-        mediaConstraints: {
-          audio: true,
-          video: false,
-        },
-        rtcOfferConstraints: {
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: false,
-        },
-        pcConfig: {
-          iceServers: [
-            {
-              urls: "stun:stun.l.google.com:19302",
-            },
-          ],
-        },
-      });
+      uaRef.current.call(
+        `sip:${number}@${creds.sip_domain}`,
+        {
+          mediaConstraints: {
+            audio: true,
+            video: false,
+          },
+          pcConfig: {
+            iceServers: [
+              {
+                urls: "stun:stun.l.google.com:19302",
+              },
+            ],
+          },
+          rtcOfferConstraints: {
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: false,
+          },
+        }
+      );
     },
-    [phoneState, creds],
+    [phoneState, creds]
   );
 
   const answer = useCallback(() => {
@@ -217,6 +236,13 @@ export function useJsSipPhone(creds: SipCreds | null) {
       mediaConstraints: {
         audio: true,
         video: false,
+      },
+      pcConfig: {
+        iceServers: [
+          {
+            urls: "stun:stun.l.google.com:19302",
+          },
+        ],
       },
     });
   }, []);
@@ -244,7 +270,10 @@ export function useJsSipPhone(creds: SipCreds | null) {
       const socket = socketRef.current;
 
       try {
-        if (socket?._ws && socket._ws.readyState !== WebSocket.CLOSED) {
+        if (
+          socket?._ws &&
+          socket._ws.readyState !== WebSocket.CLOSED
+        ) {
           socket.disconnect();
         }
       } catch {}
@@ -271,7 +300,10 @@ export function useJsSipPhone(creds: SipCreds | null) {
         const socket = socketRef.current;
 
         try {
-          if (socket?._ws && socket._ws.readyState !== WebSocket.CLOSED) {
+          if (
+            socket?._ws &&
+            socket._ws.readyState !== WebSocket.CLOSED
+          ) {
             socket.disconnect();
           }
         } catch {}
@@ -297,7 +329,6 @@ export function useJsSipPhone(creds: SipCreds | null) {
 
       setTimeout(() => {
         if (!finalizado) {
-          console.warn("[SIP] TIMEOUT DO UNREGISTER");
           finalizar();
         }
       }, 3000);
@@ -317,3 +348,4 @@ export function useJsSipPhone(creds: SipCreds | null) {
     unregister,
   };
 }
+

@@ -61,7 +61,7 @@ function Softphone({ creds }: { creds: RamalCreds }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio ref={remoteAudioRef} autoPlay />
+      <audio ref={remoteAudioRef} autoPlay playsInline />
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{creds.nome ?? creds.ramal}</CardTitle>
