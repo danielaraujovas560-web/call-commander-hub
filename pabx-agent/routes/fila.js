@@ -4,7 +4,8 @@ const pool = require("../config/db");
 const { randomBytes } = require("crypto");
 const { amiQueueReloadParameters } = require("../utils/ami-commands");
 const slugName = require("../utils/slug");
-const { amiCommand, queueAdd, queueRemove, queuePenalty, queueRefresh } = require("../ami.js");
+const { amiCommand, queueAdd, queueRemove, queuePenalty, queueRefresh } = require("../ami");
+const { restoreQueueMembers } = require("../utils/queue-restore");
 
 async function ensureMoh(conn, tenant) {
   const [rows] = await conn.query(

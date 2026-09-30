@@ -172,6 +172,351 @@ router.post("/ramais", async (req, res) => {
   }
 });
 
+router.post("/ramais/lote", async (req, res) => {
+  const tenant = req.tenantId;
+  if (!tenant) {
+    return res.status(401).json({ error: "Tenant não identificado" });
+  }
+
+  let {
+    ramal_inicial,
+    quantidade,
+    tronco,
+    ddd,
+    callerid,
+    fixo,
+    movel,
+    ddi,
+    especial,
+    cng,
+    gravacao,
+    transbordo,
+    transbordo_tronco,
+    pesquisa,
+    pesquisa_id,
+  } = req.body || {};
+
+  // ------------------------------------------------------------
+  // Validação básica
+  // ------------------------------------------------------------
+
+  ramal_inicial = String(ramal_inicial || "").trim();
+  quantidade = Number(quantidade);
+
+  if (!/^\d{3,6}$/.test(ramal_inicial)) {
+    return res.status(400).json({
+      error: "Ramal inicial deve ter entre 3 e 6 dígitos",
+    });
+  }
+
+  if (!Number.isInteger(quantidade) || quantidade <= 0) {
+    return res.status(400).json({
+      error: "Quantidade deve ser um número inteiro positivo",
+    });
+  }
+
+  if (quantidade > 1000) {
+    return res.status(400).json({
+      error: "Quantidade máxima de 1000 ramais por lote",
+    });
+  }
+
+  if (!tronco || !ddd) {
+    return res.status(400).json({
+      error: "Campos obrigatórios: tronco e ddd",
+    });
+  }
+
+  // ------------------------------------------------------------
+  // Calcula a faixa
+  // ------------------------------------------------------------
+
+  const primeiro = Number(ramal_inicial);
+  const ultimo = primeiro + quantidade - 1;
+
+  if (String(ultimo).length > 6) {
+    return res.status(400).json({
+      error: "A faixa de ramais ultrapassa o limite de 6 dígitos",
+    });
+  }
+
+  const ramais = [];
+
+  for (let i = 0; i < quantidade; i++) {
+    ramais.push(String(primeiro + i));
+  }
+
+  // ------------------------------------------------------------
+  // Configurações comuns
+  // ------------------------------------------------------------
+
+  const transbordoInt = transbordo ? 1 : 0;
+
+  const transbordoTroncoVal =
+    transbordoInt && transbordo_tronco
+      ? String(transbordo_tronco)
+      : null;
+
+  const pesquisaInt = pesquisa ? 1 : 0;
+
+  const pesquisaIdVal =
+    pesquisaInt && pesquisa_id
+      ? Number(pesquisa_id)
+      : null;
+
+  const conn = await pool.getConnection();
+
+  try {
+    // ----------------------------------------------------------
+    // Verifica colisões ANTES de criar qualquer coisa
+    // ----------------------------------------------------------
+
+    const placeholders = ramais.map(() => "?").join(",");
+
+    const [existentes] = await conn.query(
+      `SELECT ramal
+         FROM ramais
+        WHERE tenant_id = ?
+          AND ramal IN (${placeholders})`,
+      [tenant, ...ramais],
+    );
+
+    if (existentes.length > 0) {
+      const colididos = existentes.map((row) => String(row.ramal));
+
+      return res.status(409).json({
+        error: "Um ou mais ramais já existem",
+        ramais: colididos,
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Transaction
+    // ----------------------------------------------------------
+
+    await conn.beginTransaction();
+
+    await conn.query(
+      `INSERT IGNORE INTO tenants (id, nome)
+       VALUES (?, ?)`,
+      [tenant, `tenant-${tenant}`],
+    );
+
+    const criados = [];
+
+    // ----------------------------------------------------------
+    // Criação dos ramais
+    // ----------------------------------------------------------
+
+    for (const ramal of ramais) {
+      const nome = ramal;
+      const senha = genPassword();
+
+      const endpointId = `${tenant}${ramal}`;
+      const authId = `auth-${endpointId}`;
+
+      // -------------------------
+      // PJSIP principal
+      // -------------------------
+
+      await conn.query(
+        `INSERT INTO ps_auths
+          (id, username, password)
+         VALUES (?, ?, ?)`,
+        [
+          authId,
+          endpointId,
+          senha,
+        ],
+      );
+
+      await conn.query(
+        `INSERT INTO ps_aors
+          (id)
+         VALUES (?)`,
+        [endpointId],
+      );
+
+      await conn.query(
+        `INSERT INTO ps_endpoints
+          (
+            id,
+            aors,
+            auth,
+            context,
+            call_group,
+            pickup_group
+          )
+         VALUES
+          (?, ?, ?, 'Internal-default', ?, ?)`,
+        [
+          endpointId,
+          endpointId,
+          authId,
+          String(tenant),
+          String(tenant),
+        ],
+      );
+
+      // -------------------------
+      // Registro do ramal
+      // -------------------------
+
+      await conn.query(
+        `INSERT INTO ramais
+          (
+            endpoint_id,
+            tenant_id,
+            nome,
+            ramal,
+            senha,
+            tronco,
+            ddd,
+            callerid,
+            fixo,
+            movel,
+            ddi,
+            especial,
+            cng,
+            gravacao,
+            transbordo,
+            transbordo_tronco,
+            pesquisa,
+            pesquisa_id
+          )
+         VALUES
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          endpointId,
+          tenant,
+          nome,
+          ramal,
+          senha,
+          tronco,
+          String(ddd),
+          callerid || null,
+          fixo ? 1 : 0,
+          movel ? 1 : 0,
+          ddi ? 1 : 0,
+          especial ? 1 : 0,
+          cng ? 1 : 0,
+          gravacao ? 1 : 0,
+          transbordoInt,
+          transbordoTroncoVal,
+          pesquisaInt,
+          pesquisaIdVal,
+        ],
+      );
+
+      // -------------------------
+      // Endpoint WebRTC
+      // -------------------------
+
+      const webEndpointId = `${endpointId}-web`;
+      const webAuthId = `auth-${webEndpointId}`;
+
+      await conn.query(
+        `INSERT INTO ps_auths
+          (id, username, password)
+         VALUES (?, ?, ?)`,
+        [
+          webAuthId,
+          webEndpointId,
+          senha,
+        ],
+      );
+
+      await conn.query(
+        `INSERT INTO ps_aors
+          (id)
+         VALUES (?)`,
+        [webEndpointId],
+      );
+
+      await conn.query(
+        `INSERT INTO ps_endpoints
+          (
+            id,
+            transport,
+            aors,
+            auth,
+            context,
+            call_group,
+            pickup_group,
+            webrtc,
+            media_encryption,
+            dtls_auto_generate_cert,
+            ice_support,
+            use_avpf,
+            rtcp_mux
+          )
+         VALUES
+          (
+            ?,
+            'transport-wss',
+            ?,
+            ?,
+            'Internal-default',
+            ?,
+            ?,
+            'yes',
+            'dtls',
+            'yes',
+            'yes',
+            'yes',
+            'yes'
+          )`,
+        [
+          webEndpointId,
+          webEndpointId,
+          webAuthId,
+          String(tenant),
+          String(tenant),
+        ],
+      );
+
+      criados.push({
+        ramal,
+        nome,
+        tronco,
+        ddd: String(ddd),
+        callerid: callerid || null,
+        senha,
+        fixo: !!fixo,
+        movel: !!movel,
+        ddi: !!ddi,
+        especial: !!especial,
+        cng: !!cng,
+        gravacao: !!gravacao,
+        transbordo: !!transbordoInt,
+        transbordo_tronco: transbordoTroncoVal,
+        pesquisa: !!pesquisaInt,
+        pesquisa_id: pesquisaIdVal,
+        endpoint_id: endpointId,
+      });
+    }
+
+    await conn.commit();
+
+    amiPjsipReload();
+
+    return res.json({
+      ramais: criados,
+      quantidade: criados.length,
+    });
+  } catch (e) {
+    await conn.rollback();
+
+    console.error("Erro ao criar ramais em lote:", e);
+
+    return res.status(500).json({
+      error: String(e.message || e),
+    });
+  } finally {
+    conn.release();
+  }
+});
+
 router.put("/ramais/:endpoint_id", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
