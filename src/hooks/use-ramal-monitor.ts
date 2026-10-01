@@ -84,7 +84,8 @@ export function useRamalMonitor(tenantId?: number) {
         console.log("[RAMAL-MONITOR] ticket recebido");
 
         const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocolo}//${window.location.host}/ws/ramais?ticket=` + encodeURIComponent(ticket);
+        const wsUrl =
+          `${protocolo}//${window.location.host}/ws/ramais?ticket=` + encodeURIComponent(ticket);
 
         console.log("[RAMAL-MONITOR] conectando WebSocket...");
         const socket = new WebSocket(wsUrl);

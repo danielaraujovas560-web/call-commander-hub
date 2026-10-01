@@ -12,7 +12,12 @@ export interface Audio {
 export const listAudios = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .validator((d: unknown) =>
-    z.object({ tenant_id: z.number().int().positive().optional(), tipo: z.enum(["normal", "musica_espera"]).optional() }).parse(d ?? {}),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        tipo: z.enum(["normal", "musica_espera"]).optional(),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
@@ -23,7 +28,7 @@ export const listAudios = createServerFn({ method: "GET" })
     const queryString = queryParams.toString();
     const res = await authenticatedAgentFetch<{ audios: Audio[]; warn?: string }>(
       context,
-      `/audios${queryString ?`?${queryString}` : ""}`,
+      `/audios${queryString ? `?${queryString}` : ""}`,
       { tenantId },
     );
     return { audios: res.audios ?? [], warn: res.warn };
@@ -89,7 +94,10 @@ export const deleteAudio = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((d: unknown) =>
     z
-      .object({ tenant_id: z.number().int().positive().optional(), audio_identifier: z.string().min(1) })
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        audio_identifier: z.string().min(1),
+      })
       .parse(d),
   )
   .handler(async ({ data, context }) => {

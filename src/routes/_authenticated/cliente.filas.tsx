@@ -574,16 +574,19 @@ function FilaFormDialog({
           </div>
           <div className="space-y-1">
             <Label>Música de espera</Label>
-            <Select value={form.musiconhold} onValueChange={(v) => setForm({ ...form, musiconhold: v })}>
+            <Select
+              value={form.musiconhold}
+              onValueChange={(v) => setForm({ ...form, musiconhold: v })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a música" />
               </SelectTrigger>
               <SelectContent>
-                  <SelectItem value="musiconhold-default">Padrão do Sistema</SelectItem>
-                  {mohAudios.map((audio: any) => (
-                   <SelectItem key={audio.audio_identifier} value={audio.moh_name}>
-                     {audio.display_name}
-                   </SelectItem>
+                <SelectItem value="musiconhold-default">Padrão do Sistema</SelectItem>
+                {mohAudios.map((audio: any) => (
+                  <SelectItem key={audio.audio_identifier} value={audio.moh_name}>
+                    {audio.display_name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

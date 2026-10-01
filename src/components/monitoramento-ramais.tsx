@@ -50,7 +50,7 @@ function indicadorVariant(state: RamalState): IndicadorVariant {
 
 function formatarNumeroChamada(
   numero: string | null,
-  dadosPorEndpoint: Record<string, { nome: string; ramal: string }>
+  dadosPorEndpoint: Record<string, { nome: string; ramal: string }>,
 ): string | null {
   if (!numero) return null;
 

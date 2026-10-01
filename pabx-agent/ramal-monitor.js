@@ -348,10 +348,10 @@ function registrarEventos(ariClient, queryFn) {
 
     const callerNum = canal.caller?.number;
     if (callerNum && callerNum !== "s") {
-       binasAtivos.set(canal.id, callerNum);
+      binasAtivos.set(canal.id, callerNum);
     }
 
-  // 2. Chamada de Saída: se for um ramal interno discando, salva o exten exatamente como foi digitado
+    // 2. Chamada de Saída: se for um ramal interno discando, salva o exten exatamente como foi digitado
     const exten = canal.dialplan?.exten;
     if (exten && exten !== "s") {
       extensDiscadas.set(canal.id, exten);
@@ -384,80 +384,80 @@ function registrarEventos(ariClient, queryFn) {
 
   // Dial — captura o número discado e o progresso
   ariClient.on("Dial", async (event) => {
-  const callerStr = typeof event.caller === "string" ? event.caller : (event.caller?.name ?? "");
-  const peerStr = typeof event.peer === "string" ? event.peer : (event.peer?.name ?? "");
+    const callerStr = typeof event.caller === "string" ? event.caller : (event.caller?.name ?? "");
+    const peerStr = typeof event.peer === "string" ? event.peer : (event.peer?.name ?? "");
 
-  const callerEndpoint = extrairEndpoint(callerStr);
-  const peerEndpoint = extrairEndpoint(peerStr);
+    const callerEndpoint = extrairEndpoint(callerStr);
+    const peerEndpoint = extrairEndpoint(peerStr);
 
-  const isTroncoCaller = callerStr.includes("t1-") || callerStr.includes("Tronco");
-  const isTroncoPeer = peerStr.includes("t1-") || peerStr.includes("Tronco");
+    const isTroncoCaller = callerStr.includes("t1-") || callerStr.includes("Tronco");
+    const isTroncoPeer = peerStr.includes("t1-") || peerStr.includes("Tronco");
 
-  const dialstatus = event.dialstatus ?? "";
+    const dialstatus = event.dialstatus ?? "";
 
-  const stateMap = {
-    ANSWER: "IN_CALL",
-    PROGRESS: "RINGING",
-    RINGING: "RINGING",
-    CANCEL: "IDLE",
-    BUSY: "IDLE",
-    NOANSWER: "IDLE",
-    CONGESTION: "IDLE",
-    CHANUNAVAIL: "IDLE",
-  };
+    const stateMap = {
+      ANSWER: "IN_CALL",
+      PROGRESS: "RINGING",
+      RINGING: "RINGING",
+      CANCEL: "IDLE",
+      BUSY: "IDLE",
+      NOANSWER: "IDLE",
+      CONGESTION: "IDLE",
+      CHANUNAVAIL: "IDLE",
+    };
 
-  if (callerEndpoint && !isTroncoCaller) {
-    const tenantId = await resolverTenant(callerEndpoint, queryFn);
-    if (tenantId) {
-    const callerId = typeof event.caller === "object" ? event.caller?.id : null;
-    const numeroDiscado = (callerId && extensDiscadas.get(callerId)) ||
-                            extensDiscadas.get(callerStr) ||
-                            limparNumeroDiscado(event.dialstring || peerEndpoint);
-
-      if (dialstatus === "") {
-        atualizarEstado(tenantId, callerEndpoint, {
-          state: "DIALING",
-          ...(numeroDiscado ? { numero: numeroDiscado } : {}),
-        });
-      } else {
-        const state = stateMap[dialstatus] ?? "IDLE";
-        atualizarEstado(tenantId, callerEndpoint, {
-          state,
-          ...(state === "IN_CALL" ? { desde: new Date().toISOString() } : {}),
-        });
-      }
-    }
-  }
-
-  if (peerEndpoint && !isTroncoPeer) {
-    const tenantId = await resolverTenant(peerEndpoint, queryFn);
-    if (tenantId) {
-      let numeroChamador = null;
-
-      if (isTroncoCaller) {
+    if (callerEndpoint && !isTroncoCaller) {
+      const tenantId = await resolverTenant(callerEndpoint, queryFn);
+      if (tenantId) {
         const callerId = typeof event.caller === "object" ? event.caller?.id : null;
-        numeroChamador = (callerId && binasAtivos.get(callerId)) ||
-                         event.caller?.number ||
-                         null;
-      } else if (callerEndpoint) {
-        numeroChamador = callerEndpoint;
-      }
-      if (dialstatus === "") {
-        // Ramal está tocando
-        atualizarEstado(tenantId, peerEndpoint, {
-          state: "RINGING",
-          ...(numeroChamador && numeroChamador !== "s" ? { numero: numeroChamador } : {}),
-        });
-      } else {
-        // Mudança de estado no atendimento do ramal
-        const state = stateMap[dialstatus] ?? "IDLE";
-        atualizarEstado(tenantId, peerEndpoint, {
-          state,
-          ...(state === "IN_CALL" ? { desde: new Date().toISOString() } : {}),
-        });
+        const numeroDiscado =
+          (callerId && extensDiscadas.get(callerId)) ||
+          extensDiscadas.get(callerStr) ||
+          limparNumeroDiscado(event.dialstring || peerEndpoint);
+
+        if (dialstatus === "") {
+          atualizarEstado(tenantId, callerEndpoint, {
+            state: "DIALING",
+            ...(numeroDiscado ? { numero: numeroDiscado } : {}),
+          });
+        } else {
+          const state = stateMap[dialstatus] ?? "IDLE";
+          atualizarEstado(tenantId, callerEndpoint, {
+            state,
+            ...(state === "IN_CALL" ? { desde: new Date().toISOString() } : {}),
+          });
+        }
       }
     }
-  }});
+
+    if (peerEndpoint && !isTroncoPeer) {
+      const tenantId = await resolverTenant(peerEndpoint, queryFn);
+      if (tenantId) {
+        let numeroChamador = null;
+
+        if (isTroncoCaller) {
+          const callerId = typeof event.caller === "object" ? event.caller?.id : null;
+          numeroChamador = (callerId && binasAtivos.get(callerId)) || event.caller?.number || null;
+        } else if (callerEndpoint) {
+          numeroChamador = callerEndpoint;
+        }
+        if (dialstatus === "") {
+          // Ramal está tocando
+          atualizarEstado(tenantId, peerEndpoint, {
+            state: "RINGING",
+            ...(numeroChamador && numeroChamador !== "s" ? { numero: numeroChamador } : {}),
+          });
+        } else {
+          // Mudança de estado no atendimento do ramal
+          const state = stateMap[dialstatus] ?? "IDLE";
+          atualizarEstado(tenantId, peerEndpoint, {
+            state,
+            ...(state === "IN_CALL" ? { desde: new Date().toISOString() } : {}),
+          });
+        }
+      }
+    }
+  });
 
   // Mudança de estado do canal (Ringing, Up, etc.)
   ariClient.on("ChannelStateChange", async (event) => {

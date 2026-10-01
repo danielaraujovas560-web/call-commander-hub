@@ -88,9 +88,7 @@ export const createHorarioRamal = createServerFn({ method: "POST" })
 
 export const updateHorarioRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .validator((d: unknown) =>
-    UpdateHorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d),
-  )
+  .validator((d: unknown) => UpdateHorarioRamalInput.extend({ regra: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
     const { regra, tenant_id: _i, ...body } = data;

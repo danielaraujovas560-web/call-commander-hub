@@ -16,11 +16,13 @@ import {
   KeyRound,
   Copy,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import {
   listRamais,
   listRamaisStatus,
   createRamal,
+  createRamaisLote,
   updateRamal,
   deleteRamal,
   type Ramal,
@@ -131,6 +133,7 @@ function RamaisPage() {
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
+          <NewRamaisLoteDialog tenantId={tenantId} disabled={atLimit} />
           <NewRamalDialog tenantId={tenantId} disabled={atLimit} />
         </div>
       </div>
@@ -1030,6 +1033,471 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
             </Button>
             <Button type="submit" disabled={mut.isPending}>
               {mut.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  const troncosFn = useServerFn(listTroncos);
+  const pesquisasFn = useServerFn(listPesquisaSatisfacao);
+
+  const { data: troncosData } = useQuery({
+    queryKey: ["troncos", tenantId],
+    queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
+    enabled: open && !!tenantId,
+  });
+
+  const { data: pesquisasData } = useQuery({
+    queryKey: ["pesquisas", tenantId],
+    queryFn: () => pesquisasFn({ data: { tenant_id: tenantId } }),
+    enabled: open && !!tenantId,
+  });
+
+  const [form, setForm] = useState({
+    ramal_inicial: "",
+    quantidade: "",
+
+    ddd: "",
+    tronco: "",
+    callerid: "",
+
+    fixo: false,
+    movel: false,
+    ddi: false,
+    especial: false,
+    cng: false,
+
+    gravacao: false,
+
+    transbordo: false,
+    transbordo_troncos: [] as string[],
+
+    pesquisa: false,
+    pesquisa_id: null as number | null,
+  });
+
+  const troncos = troncosData?.troncos ?? [];
+  const pesquisas = pesquisasData?.pesquisas ?? [];
+
+  const troncosDisponiveisTransbordo = troncos.filter((t) => t.tronco_pjsip !== form.tronco);
+
+  const ramalInicial = Number(form.ramal_inicial);
+  const quantidade = Number(form.quantidade);
+
+  const faixaValida =
+    Number.isInteger(ramalInicial) &&
+    ramalInicial >= 0 &&
+    Number.isInteger(quantidade) &&
+    quantidade > 0;
+
+  const ultimoRamal = faixaValida ? ramalInicial + quantidade - 1 : null;
+
+  const resetForm = () => {
+    setForm({
+      ramal_inicial: "",
+      quantidade: "",
+
+      ddd: "",
+      tronco: "",
+      callerid: "",
+
+      fixo: false,
+      movel: false,
+      ddi: false,
+      especial: false,
+      cng: false,
+
+      gravacao: false,
+
+      transbordo: false,
+      transbordo_troncos: [],
+
+      pesquisa: false,
+      pesquisa_id: null,
+    });
+  };
+
+  const createLoteFn = useServerFn(createRamaisLote);
+  const queryClient = useQueryClient();
+
+  const createLoteMutation = useMutation({
+    mutationFn: (data: Parameters<typeof createLoteFn>[0]["data"]) => createLoteFn({ data }),
+
+    onSuccess: () => {
+      toast.success(
+        `${quantidade} ${quantidade === 1 ? "ramal criado" : "ramais criados"} com sucesso.`,
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: ["ramais", tenantId],
+      });
+
+      setOpen(false);
+      resetForm();
+    },
+
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível criar os ramais em lote.",
+      );
+    },
+  });
+
+  const handleOpenChange = (value: boolean) => {
+    setOpen(value);
+
+    if (value) {
+      resetForm();
+    }
+  };
+
+  const validar = () => {
+    if (!form.ramal_inicial) {
+      toast.error("Atenção: insira o número inicial do ramal.");
+      return false;
+    }
+
+    if (!form.quantidade || Number(form.quantidade) <= 0) {
+      toast.error("Atenção: informe uma quantidade válida de ramais.");
+      return false;
+    }
+
+    if (!form.ddd) {
+      toast.error("Atenção: insira o DDD dos ramais.");
+      return false;
+    }
+
+    if (!form.tronco) {
+      toast.error("Atenção: insira um tronco.");
+      return false;
+    }
+
+    if (form.pesquisa && !form.pesquisa_id) {
+      toast.error("Atenção: selecione uma pesquisa de satisfação.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+
+    if (!validar()) return;
+
+    createLoteMutation.mutate({
+      tenant_id: tenantId,
+      ramal_inicial: form.ramal_inicial,
+      quantidade: Number(form.quantidade),
+
+      ddd: form.ddd,
+      tronco: form.tronco,
+      callerid: form.callerid,
+
+      fixo: form.fixo,
+      movel: form.movel,
+      ddi: form.ddi,
+      especial: form.especial,
+      cng: form.cng,
+
+      gravacao: form.gravacao,
+
+      transbordo: form.transbordo,
+      transbordo_tronco: form.transbordo_troncos.join(","),
+
+      pesquisa: form.pesquisa,
+      pesquisa_id: form.pesquisa ? form.pesquisa_id : null,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" disabled={disabled}>
+          <UsersRound className="mr-2 h-4 w-4" />
+          Adicionar em lote
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent
+        className="max-w-lg max-h-[85vh] overflow-y-auto"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Adicionar ramais em lote</DialogTitle>
+          <DialogDescription>
+            Crie vários ramais de uma vez usando a mesma configuração.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Número inicial *</Label>
+            <Input
+              value={form.ramal_inicial}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  ramal_inicial: e.target.value.replace(/\D/g, ""),
+                })
+              }
+              maxLength={6}
+              placeholder="1000"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label>Quantidade *</Label>
+            <Input
+              type="number"
+              min={1}
+              value={form.quantidade}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  quantidade: e.target.value.replace(/\D/g, ""),
+                })
+              }
+              placeholder="10"
+            />
+          </div>
+
+          {faixaValida && ultimoRamal !== null && (
+            <div className="col-span-2 rounded-md border bg-muted/40 p-3">
+              <p className="text-sm font-medium">
+                Serão criados {quantidade} {quantidade === 1 ? "ramal" : "ramais"}
+              </p>
+
+              <p className="text-xs text-muted-foreground mt-1">
+                Faixa:{" "}
+                <span className="font-mono">
+                  {ramalInicial} até {ultimoRamal}
+                </span>
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label>DDD *</Label>
+            <Select
+              value={form.ddd}
+              onValueChange={(value) =>
+                setForm({
+                  ...form,
+                  ddd: value,
+                })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione o DDD" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
+                  <SelectItem key={ddd} value={ddd}>
+                    {ddd}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="col-span-2 space-y-1">
+            <Label>Tronco *</Label>
+
+            <Select
+              value={form.tronco}
+              onValueChange={(v) =>
+                setForm({
+                  ...form,
+                  tronco: v,
+                  transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um tronco" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {troncos.map((t) => (
+                  <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
+                    {t.nome} {t.tipo ? `(${t.tipo})` : ""}
+                  </SelectItem>
+                ))}
+
+                {troncos.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Nenhum tronco encontrado
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="col-span-2 space-y-1">
+            <Label>CallerID</Label>
+
+            <Input
+              value={form.callerid}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  callerid: e.target.value,
+                })
+              }
+              maxLength={32}
+              placeholder="Opcional"
+            />
+          </div>
+
+          <div className="col-span-2 flex items-center gap-2 rounded-md border p-3">
+            <Switch
+              checked={form.gravacao}
+              onCheckedChange={(v) =>
+                setForm({
+                  ...form,
+                  gravacao: v,
+                })
+              }
+            />
+
+            <div>
+              <p className="font-medium">Gravação de chamadas</p>
+              <p className="text-xs text-muted-foreground">
+                Aplica esta configuração a todos os ramais criados.
+              </p>
+            </div>
+          </div>
+
+          <div className="col-span-2 rounded-md border p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.transbordo}
+                onCheckedChange={(v) =>
+                  setForm({
+                    ...form,
+                    transbordo: v,
+                    transbordo_troncos: v ? form.transbordo_troncos : [],
+                  })
+                }
+              />
+
+              <div>
+                <p className="font-medium">Transbordo</p>
+                <p className="text-xs text-muted-foreground">
+                  Configuração aplicada a todos os ramais.
+                </p>
+              </div>
+            </div>
+
+            {form.transbordo && (
+              <TransbordoTroncosSelector
+                available={troncosDisponiveisTransbordo}
+                selected={form.transbordo_troncos}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    transbordo_troncos: v,
+                  })
+                }
+              />
+            )}
+          </div>
+
+          <div className="col-span-2 rounded-md border p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.pesquisa}
+                onCheckedChange={(v) =>
+                  setForm({
+                    ...form,
+                    pesquisa: v,
+                    pesquisa_id: v ? form.pesquisa_id : null,
+                  })
+                }
+              />
+
+              <div>
+                <p className="font-medium">Pesquisa de satisfação</p>
+                <p className="text-xs text-muted-foreground">
+                  Configuração aplicada a todos os ramais.
+                </p>
+              </div>
+            </div>
+
+            {form.pesquisa && (
+              <Select
+                value={form.pesquisa_id?.toString() ?? ""}
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    pesquisa_id: Number(v),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma pesquisa" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {pesquisas.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.nome_pesquisa}
+                    </SelectItem>
+                  ))}
+
+                  {pesquisas.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhuma pesquisa encontrada
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
+            <div className="col-span-2 text-xs text-muted-foreground">
+              Ativo = bloqueia esse tipo de chamada
+            </div>
+            {[
+              ["fixo", "Bloquear fixo"],
+              ["movel", "Bloquear móvel"],
+              ["ddi", "Bloquear DDI"],
+              ["especial", "Bloquear especial"],
+              ["cng", "Bloquear CNG"],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form[key as keyof typeof form] as boolean}
+                  onCheckedChange={(v) => setForm({ ...form, [key]: v })}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter className="col-span-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+
+            <Button type="submit" disabled={createLoteMutation.isPending}>
+              {createLoteMutation.isPending
+                ? "Criando..."
+                : `Criar ${faixaValida ? quantidade : ""} ${quantidade === 1 ? "ramal" : "ramais"}`}
             </Button>
           </DialogFooter>
         </form>

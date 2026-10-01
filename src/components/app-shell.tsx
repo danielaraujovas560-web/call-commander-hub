@@ -113,7 +113,7 @@ function MainSidebar({
         <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground">
           <PhoneCall className="h-4 w-4" />
         </div>
-        <span className="font-semibold">Painel PABX</span>
+        <span className="font-semibold">PABX Invertus</span>
       </div>
 
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto">

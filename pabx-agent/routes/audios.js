@@ -82,11 +82,7 @@ router.get("/audios", async (req, res) => {
         if (audio.tipo === "normal") {
           // Áudio normal:
           // /var/lib/asterisk/sounds/t1/a1-Fora-Horario.wav
-          filePath = path.join(
-            SOUNDS_BASE,
-            `t${tenant}`,
-            `${audio.audio_identifier}.wav`
-          );
+          filePath = path.join(SOUNDS_BASE, `t${tenant}`, `${audio.audio_identifier}.wav`);
         } else {
           // MOH:
           // /var/lib/asterisk/moh/t1/m1-alterado-.../a1-alterado-....wav
@@ -94,7 +90,7 @@ router.get("/audios", async (req, res) => {
             MOH_BASE,
             `t${tenant}`,
             audio.moh_name,
-            `${audio.audio_identifier}.wav`
+            `${audio.audio_identifier}.wav`,
           );
         }
 
@@ -111,12 +107,10 @@ router.get("/audios", async (req, res) => {
           ...audio,
           existe_no_disco: existeNoDisco,
         };
-      })
+      }),
     );
 
-    const audiosValidos = audiosComStatus.filter(
-      (audio) => audio.existe_no_disco
-    );
+    const audiosValidos = audiosComStatus.filter((audio) => audio.existe_no_disco);
 
     return res.json({
       audios: audiosValidos,
@@ -148,11 +142,7 @@ router.post("/audios/:tipo", async (req, res) => {
     });
   }
 
-  const {
-    display_name,
-    extensao,
-    conteudo_base64,
-  } = req.body || {};
+  const { display_name, extensao, conteudo_base64 } = req.body || {};
 
   const ext = String(extensao || "")
     .toLowerCase()
@@ -197,52 +187,31 @@ router.post("/audios/:tipo", async (req, res) => {
   const hora = String(agora.getHours()).padStart(2, "0");
   const minuto = String(agora.getMinutes()).padStart(2, "0");
 
-  const identificadorBase =
-    `alterado-${dia}-${mes}-${ano}-${hora}-${minuto}`;
+  const identificadorBase = `alterado-${dia}-${mes}-${ano}-${hora}-${minuto}`;
 
   // O identifier do banco é exatamente o nome-base do arquivo.
-  const audioIdentifier =
-    `a${tenant}-${identificadorBase}`;
+  const audioIdentifier = `a${tenant}-${identificadorBase}`;
 
   // O nome da pasta MOH possui o prefixo m + tenant,
   // mas NÃO recebe o "a1-" do arquivo.
-  const mohName =
-    tipo === "musica_espera"
-      ? `m${tenant}-${identificadorBase}`
-      : null;
+  const mohName = tipo === "musica_espera" ? `m${tenant}-${identificadorBase}` : null;
 
   let dir;
 
   if (tipo === "normal") {
-    dir = path.join(
-      SOUNDS_BASE,
-      `t${tenant}`
-    );
+    dir = path.join(SOUNDS_BASE, `t${tenant}`);
   } else {
-    dir = path.join(
-      MOH_BASE,
-      `t${tenant}`,
-      mohName
-    );
+    dir = path.join(MOH_BASE, `t${tenant}`, mohName);
   }
 
   // O nome físico do arquivo é exatamente o audioIdentifier.
-  const finalPath = path.join(
-    dir,
-    `${audioIdentifier}.wav`
-  );
+  const finalPath = path.join(dir, `${audioIdentifier}.wav`);
 
   const token = randomBytes(12).toString("hex");
 
-  const inputPath = path.join(
-    dir,
-    `.upload-${token}-in.${ext}`
-  );
+  const inputPath = path.join(dir, `.upload-${token}-in.${ext}`);
 
-  const outputPath = path.join(
-    dir,
-    `.upload-${token}-out.wav`
-  );
+  const outputPath = path.join(dir, `.upload-${token}-out.wav`);
 
   let finalFileCreated = false;
 
@@ -271,10 +240,7 @@ router.post("/audios/:tipo", async (req, res) => {
     // Salva upload temporário
     // -------------------------------------------------------------------------
 
-    const content = Buffer.from(
-      conteudo_base64,
-      "base64"
-    );
+    const content = Buffer.from(conteudo_base64, "base64");
 
     if (!content.length) {
       return res.status(400).json({
@@ -282,13 +248,9 @@ router.post("/audios/:tipo", async (req, res) => {
       });
     }
 
-    await fs.writeFile(
-      inputPath,
-      content,
-      {
-        flag: "wx",
-      }
-    );
+    await fs.writeFile(inputPath, content, {
+      flag: "wx",
+    });
 
     // -------------------------------------------------------------------------
     // Conversão
@@ -297,9 +259,7 @@ router.post("/audios/:tipo", async (req, res) => {
     let needsConversion = true;
 
     if (ext === "wav") {
-      needsConversion = !(
-        await isAlreadyPabxWav(inputPath)
-      );
+      needsConversion = !(await isAlreadyPabxWav(inputPath));
     }
 
     if (needsConversion) {
@@ -318,15 +278,9 @@ router.post("/audios/:tipo", async (req, res) => {
         outputPath,
       ]);
 
-      await fs.link(
-        outputPath,
-        finalPath
-      );
+      await fs.link(outputPath, finalPath);
     } else {
-      await fs.link(
-        inputPath,
-        finalPath
-      );
+      await fs.link(inputPath, finalPath);
     }
 
     finalFileCreated = true;
@@ -349,13 +303,7 @@ router.post("/audios/:tipo", async (req, res) => {
           )
         VALUES (?, ?, ?, ?, ?)
       `,
-      [
-        audioIdentifier,
-        display_name.trim(),
-        tipo,
-        mohName,
-        tenant,
-      ]
+      [audioIdentifier, display_name.trim(), tipo, mohName, tenant],
     );
 
     // -------------------------------------------------------------------------
@@ -373,11 +321,7 @@ router.post("/audios/:tipo", async (req, res) => {
             )
           VALUES (?, ?, ?)
         `,
-        [
-          tenant,
-          mohName,
-          `t${tenant}/${mohName}`,
-        ]
+        [tenant, mohName, `t${tenant}/${mohName}`],
       );
     }
 
@@ -405,9 +349,7 @@ router.post("/audios/:tipo", async (req, res) => {
     }
 
     return res.status(500).json({
-      error: `Não foi possível processar o áudio: ${String(
-        e.message || e
-      )}`,
+      error: `Não foi possível processar o áudio: ${String(e.message || e)}`,
     });
   } finally {
     await Promise.all([
@@ -447,10 +389,7 @@ router.put("/audios/:audio_identifier", async (req, res) => {
     });
   }
 
-  if (
-    typeof display_name !== "string" ||
-    !display_name.trim()
-  ) {
+  if (typeof display_name !== "string" || !display_name.trim()) {
     return res.status(400).json({
       error: "Nome do áudio é obrigatório.",
     });
@@ -466,11 +405,7 @@ router.put("/audios/:audio_identifier", async (req, res) => {
         WHERE tenant_id = ?
           AND audio_identifier = ?
       `,
-      [
-        cleanDisplayName,
-        tenant,
-        audioIdentifier,
-      ]
+      [cleanDisplayName, tenant, audioIdentifier],
     );
 
     if (result.affectedRows === 0) {
@@ -524,17 +459,12 @@ router.delete("/audios/:audio_identifier", async (req, res) => {
           AND audio = ?
         ORDER BY nome
       `,
-      [
-        tenant,
-        audioIdentifier,
-      ]
+      [tenant, audioIdentifier],
     );
 
     if (usos.length) {
       return res.status(409).json({
-        error:
-          `Áudio em uso por ${usos.length} URA(s): ` +
-          `${usos.map((u) => u.nome).join(", ")}`,
+        error: `Áudio em uso por ${usos.length} URA(s): ` + `${usos.map((u) => u.nome).join(", ")}`,
       });
     }
 
@@ -549,10 +479,7 @@ router.delete("/audios/:audio_identifier", async (req, res) => {
         WHERE tenant_id = ?
           AND audio_identifier = ?
       `,
-      [
-        tenant,
-        audioIdentifier,
-      ]
+      [tenant, audioIdentifier],
     );
 
     if (!audio) {
@@ -567,11 +494,7 @@ router.delete("/audios/:audio_identifier", async (req, res) => {
 
     if (audio.tipo === "normal") {
       // O identifier é exatamente o nome do arquivo.
-      const finalPath = path.join(
-        SOUNDS_BASE,
-        `t${tenant}`,
-        `${audio.audio_identifier}.wav`
-      );
+      const finalPath = path.join(SOUNDS_BASE, `t${tenant}`, `${audio.audio_identifier}.wav`);
 
       await fs.unlink(finalPath).catch((e) => {
         if (e.code !== "ENOENT") {
@@ -583,13 +506,8 @@ router.delete("/audios/:audio_identifier", async (req, res) => {
     // -------------------------------------------------------------------------
     // 4. Remove MOH
     // -------------------------------------------------------------------------
-
     else if (audio.tipo === "musica_espera") {
-      const mohDir = path.join(
-        MOH_BASE,
-        `t${tenant}`,
-        audio.moh_name
-      );
+      const mohDir = path.join(MOH_BASE, `t${tenant}`, audio.moh_name);
 
       // Remove a pasta inteira do MOH.
       await fs
@@ -607,10 +525,7 @@ router.delete("/audios/:audio_identifier", async (req, res) => {
             WHERE tenant_id = ?
               AND name = ?
           `,
-          [
-            tenant,
-            audio.moh_name,
-          ]
+          [tenant, audio.moh_name],
         );
       }
     }
@@ -625,10 +540,7 @@ router.delete("/audios/:audio_identifier", async (req, res) => {
         WHERE tenant_id = ?
           AND audio_identifier = ?
       `,
-      [
-        tenant,
-        audioIdentifier,
-      ]
+      [tenant, audioIdentifier],
     );
 
     return res.json({

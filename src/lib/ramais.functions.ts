@@ -38,13 +38,7 @@ export interface Ramal {
   ligacoes_recebidas: number;
 }
 
-const RamalInput = z.object({
-  nome: z.coerce.string().trim().max(80).optional().or(z.literal("")),
-  ramal: z.coerce
-    .string()
-    .trim()
-    .regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
-  senha: z.coerce.string().max(64).optional().or(z.literal("")),
+const RamalConfigInput = z.object({
   tronco: z.coerce.string().trim().min(1).max(80),
   ddd: z.coerce.string().trim().min(1).max(3),
   callerid: z.coerce.string().trim().max(32).optional().or(z.literal("")),
@@ -53,10 +47,33 @@ const RamalInput = z.object({
   ddi: z.boolean().default(false),
   especial: z.boolean().default(false),
   cng: z.boolean().default(false),
+  gravacao: z.boolean().default(false),
   transbordo: z.boolean().default(false),
   transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")),
   pesquisa: z.boolean().default(false),
   pesquisa_id: z.number().int().positive().optional().nullable(),
+});
+
+const RamalInput = RamalConfigInput.extend({
+  nome: z.coerce.string().trim().max(80).optional().or(z.literal("")),
+  ramal: z.coerce
+    .string()
+    .trim()
+    .regex(/^\d{3,6}$/, "Ramal deve ter 3-6 dígitos"),
+  senha: z.coerce.string().max(64).optional().or(z.literal("")),
+  tenant_id: z.number().int().positive().optional(),
+});
+
+const RamaisLoteInput = RamalConfigInput.extend({
+  ramal_inicial: z.coerce
+    .string()
+    .trim()
+    .regex(/^\d{3,6}$/, "Ramal inicial deve ter 3-6 dígitos"),
+  quantidade: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(1000, "Quantidade máxima de 1000 ramais por lote"),
   tenant_id: z.number().int().positive().optional(),
 });
 
@@ -70,9 +87,13 @@ export const listRamais = createServerFn({ method: "GET" })
   .validator((d: unknown) => TenantOnly.parse(d))
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await authenticatedAgentFetch<{ ramais: Ramal[] }>(context, `/ramais?tenant=${tenantId}`, {
-      tenantId,
-    });
+    const res = await authenticatedAgentFetch<{ ramais: Ramal[] }>(
+      context,
+      `/ramais?tenant=${tenantId}`,
+      {
+        tenantId,
+      },
+    );
     return { tenantId, ramais: res.ramais ?? [] };
   });
 
@@ -93,6 +114,27 @@ export const createRamal = createServerFn({ method: "POST" })
       tenant_id: tenantId,
       action: "ramal.create",
       payload: { ramal: data.ramal, nome: data.nome },
+    });
+
+    return created;
+  });
+
+export const createRamaisLote = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .validator((input: unknown) => RamaisLoteInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
+    const { tenant_id: _ignore, ...payload } = data;
+    const created = await authenticatedAgentFetch<{ ramais: Ramal[] }>(context, "/ramais/lote", {
+      method: "POST",
+      tenantId,
+      body: payload,
+    });
+
+    await writeAuditLog(context.token, {
+      tenant_id: tenantId,
+      action: "ramal.create_lote",
+      payload: { ramal_inicial: data.ramal_inicial, quantidade: data.quantidade },
     });
 
     return created;
@@ -146,7 +188,10 @@ export const deleteRamal = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    await authenticatedAgentFetch(context, `/ramais/${data.endpoint_id}`, { method: "DELETE", tenantId });
+    await authenticatedAgentFetch(context, `/ramais/${data.endpoint_id}`, {
+      method: "DELETE",
+      tenantId,
+    });
     await writeAuditLog(context.token, {
       tenant_id: tenantId,
       action: "ramal.delete",
@@ -255,9 +300,13 @@ export const downloadGravacao = createServerFn({ method: "GET" })
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     // 1. Faz a requisição para o agente Asterisk
-    const res = await authenticatedAgentDownload(context, `/gravacoes/${data.tipo}/${data.linkedid}`, {
-      tenantId,
-    });
+    const res = await authenticatedAgentDownload(
+      context,
+      `/gravacoes/${data.tipo}/${data.linkedid}`,
+      {
+        tenantId,
+      },
+    );
 
     // 2. Em vez de retornar o 'res' puro (que causa o erro "immutable"),
     // pegamos o ArrayBuffer (binário) do áudio diretamente no servidor.

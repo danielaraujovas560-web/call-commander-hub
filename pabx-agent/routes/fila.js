@@ -112,7 +112,15 @@ router.post("/filas", async (req, res) => {
     await conn.query(
       `INSERT INTO queues (tenant_id, name, musiconhold, strategy, timeout, retry, ringinuse)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [String(tenant), name, musiconhold, strategy, Number(timeout) || 0, Number(retry), ringinuse ?? "no"],
+      [
+        String(tenant),
+        name,
+        musiconhold,
+        strategy,
+        Number(timeout) || 0,
+        Number(retry),
+        ringinuse ?? "no",
+      ],
     );
 
     await conn.commit();

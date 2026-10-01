@@ -48,8 +48,7 @@ async function restoreQueueMembers(queueName = null) {
         });
       } catch (err) {
         console.error(
-          `[queue-restore] falha ao restaurar ${agente.interface} ` +
-            `na fila ${agente.queue}:`,
+          `[queue-restore] falha ao restaurar ${agente.interface} ` + `na fila ${agente.queue}:`,
           err.message || err,
         );
       }
@@ -57,10 +56,7 @@ async function restoreQueueMembers(queueName = null) {
 
     console.log("[queue-restore] sincronização inteligente concluída.");
   } catch (err) {
-    console.error(
-      "[queue-restore] erro consultando filas_agentes:",
-      err.message || err,
-    );
+    console.error("[queue-restore] erro consultando filas_agentes:", err.message || err);
   }
 }
 
