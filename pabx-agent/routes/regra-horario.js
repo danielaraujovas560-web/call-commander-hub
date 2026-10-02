@@ -32,7 +32,7 @@ router.post("/regra-horario", async (req, res) => {
     destino_dentro,
     acao_fora,
     destino_fora,
-  } = body || {};
+  } = req.body || {};
   if (!nome || !dias || !hora_inicial || !hora_final)
     return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
   if (!ACAO_ENUM.includes(String(acao_dentro)))
@@ -82,7 +82,7 @@ router.put("/regra-horario/:regra_identifier", async (req, res) => {
     destino_dentro,
     acao_fora,
     destino_fora,
-  } = body || {};
+  } = req.body || {};
   if (!nome || !dias || !hora_inicial || !hora_final)
     return res.status(400).json({ error: "nome, dias, hora_inicial e hora_final obrigatórios" });
   if (!ACAO_ENUM.includes(String(acao_dentro)))

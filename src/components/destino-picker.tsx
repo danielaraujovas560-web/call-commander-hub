@@ -63,7 +63,7 @@ type Props = {
   /** Tipos permitidos, na ordem em que devem aparecer no select. */
   allow: readonly { value: DestinoTipo; label: string }[];
   /** ID da URA atual, para evitar auto-referência ao listar URAs. */
-  excludeUraId?: number;
+  excludeUraId?: string;
   compact?: boolean;
 };
 
@@ -106,7 +106,7 @@ export function DestinoPicker({ tenantId, value, onChange, allow, excludeUraId, 
             <SelectContent>
               {(data?.ramais ?? []).map((r) => (
                 <SelectItem key={r.value} value={String(r.value)}>
-                  {displayFromBackend(r.label)} ({r.value})
+                  {displayFromBackend(r.label)} ({r.ramal})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -167,8 +167,8 @@ export function DestinoPicker({ tenantId, value, onChange, allow, excludeUraId, 
             </SelectTrigger>
             <SelectContent>
               {(data?.audios ?? []).map((a) => (
-                <SelectItem key={a} value={a}>
-                  {a}
+                <SelectItem key={String(a.value)} value={String(a.value)}>
+                  {displayFromBackend(a.label)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -221,26 +221,69 @@ export function DestinoPicker({ tenantId, value, onChange, allow, excludeUraId, 
 
 /** Render label of a saved (tipo, destino) tuple using the same lookup lists. */
 export function renderDestinoLabel(
-  data: Awaited<ReturnType<ReturnType<typeof useServerFn<typeof listUraDestinos>>>> | undefined,
-  tipo: string,
-  destino: string,
+  destinosData: any,
+  tipo?: string,
+  destino?: string
 ): string {
-  const t = String(tipo || "").toUpperCase();
-  if (!data) return destino;
-  if (t === "RAMAL") {
-    const r = data.ramais.find((x) => String(x.value) === destino);
-    return r ? `${displayFromBackend(r.label)} (${r.value})` : destino;
+  if (!tipo || !destino) return "-";
+
+  const t = tipo.toUpperCase();
+
+  switch (t) {
+    case "RAMAL": {
+      const item = destinosData?.ramais?.find(
+        (r: any) => String(r.value) === String(destino)
+      );
+      // Exibe: "João Silva (1001)" ou apenas o label
+      return item ? `${item.label} (${item.ramal})` : destino;
+    }
+
+    case "FILA": {
+      const item = destinosData?.filas?.find(
+        (f: any) => String(f.value) === String(destino)
+      );
+      return item ? item.label : destino;
+    }
+
+    case "URA": {
+      const item = destinosData?.uras?.find(
+        (u: any) => String(u.value) === String(destino)
+      );
+      return item ? item.label : destino;
+    }
+
+    case "REGRA_HORARIO":
+    case "REGRA": {
+      const item = destinosData?.regras?.find(
+        (reg: any) => String(reg.value) === String(destino)
+      );
+      return item ? item.label : destino;
+    }
+
+    case "TRONCO": {
+      const item = destinosData?.troncos?.find(
+        (tr: any) => String(tr.value) === String(destino)
+      );
+      return item ? item.label : destino;
+    }
+
+    case "AUDIO": {
+      const item = destinosData?.audios?.find(
+        (a: any) => String(a.value) === String(destino)
+      );
+      return item ? item.label : destino;
+    }
+
+    case "INTERNO": {
+      if (destino === "desligar") return "Desligar";
+      if (destino === "repetir") return "Repetir";
+      return destino;
+    }
+
+    case "EXTERNO":
+      return `Número Externo: ${destino}`;
+
+    default:
+      return destino;
   }
-  if (t === "FILA")
-    return displayFromBackend(
-      data.filas.find((x) => String(x.value) === destino)?.label ?? destino,
-    );
-  if (t === "URA")
-    return displayFromBackend(data.uras.find((x) => String(x.value) === destino)?.label ?? destino);
-  if (t === "REGRA_HORARIO")
-    return displayFromBackend(
-      data.regras.find((x) => String(x.value) === destino)?.label ?? destino,
-    );
-  if (t === "INTERNO") return INTERNO_OPTS.find((x) => x.value === destino)?.label ?? destino;
-  return destino;
 }

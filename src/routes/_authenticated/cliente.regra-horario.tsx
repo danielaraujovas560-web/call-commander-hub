@@ -144,7 +144,7 @@ function Page() {
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <RegraFormDialog tenantId={tenantId} />
+          <RegraFormDialog tenantId={tenantId} destinos={destinos} />
         </div>
       </div>
 
@@ -239,6 +239,7 @@ function Page() {
         <RegraFormDialog
           key={editing.regra_identifier}
           tenantId={tenantId}
+          destinos={destinos}
           regra={editing}
           open
           onOpenChange={(v) => !v && setEditing(null)}
@@ -260,11 +261,13 @@ function trimTime(t: string): string {
 
 function RegraFormDialog({
   tenantId,
+  destinos,
   regra,
   open: co,
   onOpenChange,
 }: {
   tenantId: number;
+  destinos?: any;
   regra?: RegraHorario;
   open?: boolean;
   onOpenChange?: (v: boolean) => void;

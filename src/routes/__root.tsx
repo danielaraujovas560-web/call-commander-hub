@@ -100,6 +100,14 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <Outlet />
       <Toaster richColors position="top-right" />
+      <a
+        href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-4 right-4 text-xs text-muted-foreground hover:underline"
+      >
+        © {new Date().getFullYear()} Daniel Araujo
+      </a>
     </QueryClientProvider>
   );
 }

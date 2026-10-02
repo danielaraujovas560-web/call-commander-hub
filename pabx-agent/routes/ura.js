@@ -46,7 +46,7 @@ router.get("/uras/destinos", async (req, res) => {
       [tenant],
     );
     const [ramais] = await pool.query(
-      `SELECT endpoint_id AS value, nome AS label FROM ramais WHERE tenant_id = ? ORDER BY endpoint_id`,
+      `SELECT endpoint_id AS value, nome AS label, ramal FROM ramais WHERE tenant_id = ? ORDER BY endpoint_id`,
       [tenant],
     );
     const [troncos] = await pool.query(
@@ -57,14 +57,10 @@ router.get("/uras/destinos", async (req, res) => {
       `SELECT regra_identifier AS value, nome AS label FROM regra_horario WHERE tenant_id = ? ORDER BY nome`,
       [tenant],
     );
-    let audios = [];
-    try {
-      const dir = path.join(SOUNDS_BASE, `t${tenant}`);
-      const files = await fs.readdir(dir);
-      audios = files
-        .filter((f) => f.toLowerCase().endsWith(".wav"))
-        .map((f) => f.replace(/\.wav$/i, ""));
-    } catch (_) {}
+    const [audios] = await pool.query(
+      `SELECT audio_identifier AS value, display_name AS label FROM audios WHERE tenant_id = ? AND (tipo = 'normal' OR tipo IS NULL) ORDER BY display_name ASC`,
+      [tenant],
+    );
     res.json({ filas, uras, ramais, troncos, regras, audios });
   } catch (e) {
     console.error(e);

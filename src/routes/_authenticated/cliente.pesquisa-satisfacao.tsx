@@ -229,7 +229,7 @@ function PesquisaFormDialog({
   const audiosFn = useServerFn(listAudios);
   const { data: audiosData, isLoading: isLoadingAudios } = useQuery({
     queryKey: ["audios", tenantId],
-    queryFn: () => audiosFn({ data: { tenant_id: tenantId } }),
+    queryFn: () => audiosFn({ data: { tenant_id: tenantId, tipo: "normal" } }),
     enabled: open, // Só roda a query se o dialog estiver aberto
   });
 

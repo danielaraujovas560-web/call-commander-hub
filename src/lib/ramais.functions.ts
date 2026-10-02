@@ -77,6 +77,26 @@ const RamaisLoteInput = RamalConfigInput.extend({
   tenant_id: z.number().int().positive().optional(),
 });
 
+const RamalUpdateInput = z.object({
+  endpoint_id: z.string(),
+  tenant_id: z.number().int().positive().optional(),
+  nome: z.coerce.string().trim().max(80).optional(),
+  senha: z.coerce.string().max(64).optional(),
+  tronco: z.coerce.string().trim().min(1).max(80).optional(),
+  ddd: z.coerce.string().trim().min(1).max(3).optional(),
+  callerid: z.coerce.string().trim().max(32).optional().or(z.literal("")),
+  fixo: z.boolean().optional(),
+  movel: z.boolean().optional(),
+  ddi: z.boolean().optional(),
+  especial: z.boolean().optional(),
+  cng: z.boolean().optional(),
+  gravacao: z.boolean().optional(),
+  transbordo: z.boolean().optional(),
+  transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")).or(z.null()),
+  pesquisa: z.boolean().optional(),
+  pesquisa_id: z.number().int().positive().optional().or(z.null()),
+});
+
 const TenantOnly = z
   .object({ tenant_id: z.number().int().positive().optional() })
   .optional()
@@ -140,26 +160,6 @@ export const createRamaisLote = createServerFn({ method: "POST" })
     return created;
   });
 
-const RamalUpdateInput = z.object({
-  endpoint_id: z.string(),
-  tenant_id: z.number().int().positive().optional(),
-  nome: z.coerce.string().trim().max(80).optional(),
-  senha: z.coerce.string().max(64).optional(),
-  tronco: z.coerce.string().trim().min(1).max(80).optional(),
-  ddd: z.coerce.string().trim().min(1).max(3).optional(),
-  callerid: z.coerce.string().trim().max(32).optional().or(z.literal("")),
-  fixo: z.boolean().optional(),
-  movel: z.boolean().optional(),
-  ddi: z.boolean().optional(),
-  especial: z.boolean().optional(),
-  cng: z.boolean().optional(),
-  gravacao: z.boolean().optional(),
-  transbordo: z.boolean().optional(),
-  transbordo_tronco: z.coerce.string().max(400).optional().or(z.literal("")).or(z.null()),
-  pesquisa: z.boolean().optional(),
-  pesquisa_id: z.number().int().positive().optional().or(z.null()),
-});
-
 export const updateRamal = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((input: unknown) => RamalUpdateInput.parse(input))
@@ -198,6 +198,46 @@ export const deleteRamal = createServerFn({ method: "POST" })
       payload: { id: data.endpoint_id },
     });
     return { ok: true };
+  });
+
+export const deleteRamaisLote = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .validator((input: unknown) =>
+    z
+      .object({ endpoint_ids: z.array(z.string().min(1)).min(1), tenant_id: z.number().int().positive().optional() })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    console.log("Entrou no delete lote ramais");
+    const tenantId = await resolveTenantId(
+      context.token,
+      data.tenant_id,
+    );
+
+console.log("[deleteRamaisLote] Antes do deleted");
+    const deleted = await authenticatedAgentFetch(
+      context,
+      "/ramais/lote",
+      {
+        method: "DELETE",
+        tenantId,
+        body: {
+          endpoint_ids: data.endpoint_ids,
+        },
+      },
+    );
+console.log("[deleteRamaisLote] AGENT OK", deleted);
+
+    await writeAuditLog(context.token, {
+      tenant_id: tenantId,
+      action: "ramal.delete_lote",
+      payload: {
+        endpoint_ids: data.endpoint_ids,
+      },
+    });
+ console.log("[deleteRamaisLote] FIM OK");
+
+    return deleted;
   });
 
 export const pingAgent = createServerFn({ method: "GET" })

@@ -174,6 +174,8 @@ router.post("/ramais", async (req, res) => {
 });
 
 router.post("/ramais/lote", async (req, res) => {
+ console.log("Entrou no post");
+
   const tenant = req.tenantId;
   if (!tenant) {
     return res.status(401).json({ error: "Tenant não identificado" });
@@ -607,7 +609,133 @@ router.put("/ramais/:endpoint_id", async (req, res) => {
   }
 });
 
+router.delete("/ramais/lote", async (req, res) => {
+  console.log("Entrou no delete lote");
+  const tenant = req.tenantId;
+
+  if (!tenant) {
+    return res.status(401).json({
+      error: "Tenant não identificado",
+    });
+  }
+
+  const { endpoint_ids } = req.body || {};
+
+  if (!Array.isArray(endpoint_ids) || endpoint_ids.length === 0) {
+    return res.status(400).json({
+      error: "Informe ao menos um endpoint",
+    });
+  }
+
+  if (endpoint_ids.length > 1000) {
+    return res.status(400).json({
+      error: "Quantidade máxima de 1000 ramais por lote",
+    });
+  }
+
+  const endpoints = endpoint_ids
+    .map((id) => String(id).trim())
+    .filter(Boolean);
+
+  console.log("Antes do conn");
+
+  const conn = await pool.getConnection();
+
+  console.log("Antes do try catch");
+  try {
+    await conn.beginTransaction();
+
+    let quantidade = 0;
+
+    for (const endpointId of endpoints) {
+      const webEndpointId = `${endpointId}-web`;
+
+      console.log("🗑️ Apagando ramal:", {
+        tenant,
+        endpointId,
+        webEndpointId,
+      });
+
+      // Primeiro verifica/apaga o registro principal do ramal
+      const [resultRamal] = await conn.query(
+        `DELETE FROM ramais
+         WHERE endpoint_id = ?
+           AND tenant_id = ?`,
+        [endpointId, tenant],
+      );
+
+      console.log(
+        `Ramal ${endpointId}: ${resultRamal.affectedRows} registro(s) apagado(s)`,
+      );
+
+      if (resultRamal.affectedRows > 0) {
+        quantidade += resultRamal.affectedRows;
+      }
+
+      // PJSIP principal
+      await conn.query(
+        `DELETE FROM ps_endpoints WHERE id = ?`,
+        [endpointId],
+      );
+
+      await conn.query(
+        `DELETE FROM ps_auths WHERE id = ?`,
+        [`auth-${endpointId}`],
+      );
+
+      await conn.query(
+        `DELETE FROM ps_aors WHERE id = ?`,
+        [endpointId],
+      );
+
+      // WebRTC
+      await conn.query(
+        `DELETE FROM ps_endpoints WHERE id = ?`,
+        [webEndpointId],
+      );
+
+      await conn.query(
+        `DELETE FROM ps_auths WHERE id = ?`,
+        [`auth-${webEndpointId}`],
+      );
+
+      await conn.query(
+        `DELETE FROM ps_aors WHERE id = ?`,
+        [webEndpointId],
+      );
+    }
+
+    await conn.commit();
+
+    amiPjsipReload();
+
+    console.log("✅ Lote apagado:", {
+      tenant,
+      solicitados: endpoints.length,
+      apagados: quantidade,
+    });
+
+    return res.json({
+      ok: true,
+      quantidade,
+      endpoint_ids: endpoints,
+    });
+  } catch (e) {
+    await conn.rollback();
+
+    console.log("Falhou o delete em lote");
+    console.error("❌ Erro ao apagar ramais em lote:", e);
+
+    return res.status(500).json({
+      error: String(e.message || e),
+    });
+  } finally {
+    conn.release();
+  }
+});
+
 router.delete("/ramais/:endpoint_id", async (req, res) => {
+  console.log("Entrou no delete simples");
   const tenant = req.tenantId;
   if (!tenant) return;
   const endpointId = req.params.endpoint_id;

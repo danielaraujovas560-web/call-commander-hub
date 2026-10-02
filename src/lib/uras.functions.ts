@@ -53,7 +53,7 @@ export const listUraDestinos = createServerFn({ method: "GET" })
       ramais: { value: string; label: string }[];
       troncos: { value: string; label: string }[];
       regras: { value: number; label: string }[];
-      audios: string[];
+      audios: { value: string; label: string }[];
     }>(context, `/uras/destinos`, { tenantId });
   });
 

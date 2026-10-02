@@ -18,6 +18,7 @@ import {
 } from "@/lib/uras.functions";
 import { listAudios } from "@/lib/audios.functions";
 import { displayFromBackend } from "@/lib/format";
+import { DestinoPicker, buildDestinoForBackend, isDestinoIncomplete, type DestinoValue } from "@/components/destino-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +67,14 @@ export const Route = createFileRoute("/_authenticated/cliente/uras")({
   component: UrasPage,
 });
 
+const ALLOWED_DESTINOS_URA = [
+  { value: "RAMAL", label: "Ramal" },
+  { value: "FILA", label: "Fila" },
+  { value: "URA", label: "URA" },
+  { value: "EXTERNO", label: "Número Externo" },
+  { value: "INTERNO", label: "Ação Interna" },
+] as const;
+
 const TIPOS_INTERNOS = [
   { value: "desligar", label: "Desligar" },
   { value: "repetir", label: "Repetir" },
@@ -81,7 +90,7 @@ function UrasPage() {
     queryFn: () => fn({ data: { tenant_id: tenantId } }),
     enabled: !!tenantId,
   });
-  const uras = data?.uras ?? [];
+  const uras = Array.isArray(data?.uras) ? data.uras : [];
 
   const max = cliente?.quantidade_uras ?? 0;
 
@@ -114,7 +123,7 @@ function UrasPage() {
     },
   });
 
-  const count = data?.uras.length ?? 0;
+  const count = uras.length;
   const atLimit = max > 0 && count >= max;
 
   return (
@@ -430,17 +439,17 @@ function UraFormDialog({
 type TipoOpc = "" | "FILA" | "URA" | "RAMAL" | "INTERNO" | "EXTERNO";
 type OpcaoForm = {
   digito: string;
-  tipo_destino: TipoOpc;
-  destino: string;
-  externoNumero: string;
-  externoTronco: string;
+  destinoState: DestinoState;
 };
+
 const emptyOpcao: OpcaoForm = {
   digito: "",
-  tipo_destino: "",
-  destino: "",
-  externoNumero: "",
-  externoTronco: "",
+  destinoState: {
+    tipo: "",
+    destino: "",
+    externoNumero: "",
+    externoTronco: "",
+  },
 };
 
 function opcaoToForm(o: {
@@ -449,17 +458,31 @@ function opcaoToForm(o: {
   tipo_destino: string;
   destino: string;
 }): OpcaoForm {
-  const t = String(o.tipo_destino || "").toUpperCase() as TipoOpc;
-  if (t === "EXTERNO" && o.destino.includes("/")) {
-    const [n, tr] = o.destino.split("/");
-    return { digito: o.digito, tipo_destino: t, destino: "", externoNumero: n, externoTronco: tr };
+  const t = String(o?.tipo_destino || "").toUpperCase();
+  const dest = String(o?.destino || "");
+
+  if (t === "EXTERNO" && dest.includes("/")) {
+    const [numero, tronco] = dest.split("/");
+
+    return {
+      digito: o?.digito || "",
+      destinoState: {
+        tipo: "EXTERNO",
+        destino: "",
+        externoNumero: numero || "",
+        externoTronco: tronco || "",
+      },
+    };
   }
+
   return {
-    digito: o.digito,
-    tipo_destino: t,
-    destino: o.destino,
-    externoNumero: "",
-    externoTronco: "",
+    digito: o?.digito || "",
+    destinoState: {
+      tipo: t as DestinoValue["tipo"],
+      destino: dest,
+      externoNumero: "",
+      externoTronco: "",
+    },
   };
 }
 
@@ -494,35 +517,41 @@ function UraOpcoesDialog({
     setEditingOpcao(null);
   }
 
-  const saveMut = useMutation({
-    mutationFn: () => {
-      const destino =
-        form.tipo_destino === "EXTERNO"
-          ? `${form.externoNumero}/${form.externoTronco}`
-          : form.destino;
-      const body = {
-        tenant_id: tenantId,
-        digito: form.digito,
-        tipo_destino: form.tipo_destino as Exclude<TipoOpc, "">,
-        destino,
-      };
-      return editingOpcao
-        ? updateFn({
-            data: {
-              ura_identifier: editingOpcao.ura_identifier,
-              digito_atual: editingOpcao.digito,
-              ...body,
-            },
-          })
-        : addFn({ data: { ura_identifier: ura.ura_identifier, ...body } });
-    },
-    onSuccess: () => {
-      toast.success(editingOpcao ? "Opção atualizada" : "Opção adicionada");
-      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
-      reset();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+const saveMut = useMutation({
+  mutationFn: () => {
+    const { tipo } = form.destinoState;
+
+    const destinoFinal = buildDestinoForBackend(form.destinoState);
+
+    const body = {
+      tenant_id: tenantId,
+      digito: form.digito,
+      tipo_destino: tipo as any,
+      destino: destinoFinal,
+    };
+
+    return editingOpcao
+      ? updateFn({
+          data: {
+            ura_identifier: editingOpcao.ura_identifier,
+            digito_atual: editingOpcao.digito,
+            ...body,
+          },
+        })
+      : addFn({
+          data: {
+            ura_identifier: ura.ura_identifier,
+            ...body,
+          },
+        });
+  },
+  onSuccess: () => {
+    toast.success(editingOpcao ? "Opção atualizada" : "Opção adicionada");
+    qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+    reset();
+  },
+  onError: (e: Error) => toast.error(e.message),
+});
 
   const delMut = useMutation({
     mutationFn: ({ ura_identifier, digito }: { ura_identifier: string; digito: string }) =>
@@ -535,26 +564,34 @@ function UraOpcoesDialog({
   });
 
   function renderDestino(o: { tipo_destino: string; destino: string }) {
-    const t = String(o.tipo_destino).toUpperCase();
+    const t = String(o?.tipo_destino || "").toUpperCase();
+    const dest = String(o?.destino || "");
+
+    const filas = Array.isArray(destinos?.filas) ? destinos.filas : [];
+    const uras = Array.isArray(destinos?.uras) ? destinos.uras : [];
+    const ramais = Array.isArray(destinos?.ramais) ? destinos.ramais : [];
+
     if (t === "FILA") {
-      return destinos?.filas.find((x) => String(x.value) === o.destino)?.label ?? o.destino;
+      return filas.find((x) => String(x.value) === dest)?.label ?? dest;
     }
     if (t === "URA") {
-      return destinos?.uras.find((x) => String(x.value) === o.destino)?.label ?? o.destino;
+      return uras.find((x) => String(x.value) === dest)?.label ?? dest;
     }
     if (t === "RAMAL") {
-      const r = destinos?.ramais.find((x) => String(x.value) === o.destino);
-      return r?.label ? displayFromBackend(r.label) : o.destino;
+      const r = ramais.find((x) => String(x.value) === dest);
+      return r?.label ? displayFromBackend(r.label) : dest;
     }
     if (t === "INTERNO") {
-      return TIPOS_INTERNOS.find((x) => x.value === o.destino)?.label ?? o.destino;
+      return TIPOS_INTERNOS.find((x) => x.value === dest)?.label ?? dest;
     }
-    return o.destino;
+    return dest;
   }
 
-  const disabled =
-    !form.tipo_destino ||
-    (form.tipo_destino === "EXTERNO" ? !form.externoNumero || !form.externoTronco : !form.destino);
+  const { tipo, destino, externoNumero, externoTronco } = form.destinoState;
+  const isDestinoInvalid = isDestinoIncomplete(form.destinoState);
+
+  // Garantia de que a lista de opções é um Array válido
+  const opcoesList = Array.isArray(ura?.opcoes) ? ura.opcoes : [];
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -575,7 +612,7 @@ function UraOpcoesDialog({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(ura.opcoes ?? []).map((o) => (
+              {opcoesList.map((o) => (
                 <TableRow key={`${o.ura_identifier}-${o.digito}`}>
                   <TableCell className="font-mono">{o.digito || "-"}</TableCell>
                   <TableCell>
@@ -607,7 +644,7 @@ function UraOpcoesDialog({
                   </TableCell>
                 </TableRow>
               ))}
-              {(ura.opcoes ?? []).length === 0 && (
+              {opcoesList.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                     Sem opções.
@@ -618,9 +655,10 @@ function UraOpcoesDialog({
           </Table>
         </div>
 
-        <div className="rounded-md border p-3 space-y-2">
+        <div className="rounded-md border p-3 space-y-3">
           <div className="text-sm font-medium">{editingOpcao ? "Editar opção" : "Nova opção"}</div>
-          <div className="grid grid-cols-4 gap-2">
+          
+          <div className="space-y-3">
             <div className="space-y-1">
               <Label>Dígito</Label>
               <Input
@@ -630,130 +668,26 @@ function UraOpcoesDialog({
                 placeholder="0-9,*,#,t,i"
               />
             </div>
-            <div className="space-y-1">
-              <Label>Tipo</Label>
-              <Select
-                value={form.tipo_destino}
-                onValueChange={(v: any) => setForm({ ...form, tipo_destino: v, destino: "" })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FILA">Fila</SelectItem>
-                  <SelectItem value="URA">Ura</SelectItem>
-                  <SelectItem value="RAMAL">Ramal</SelectItem>
-                  <SelectItem value="INTERNO">Interno</SelectItem>
-                  <SelectItem value="EXTERNO">Exteno</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label>Destino</Label>
-              {form.tipo_destino === "FILA" && (
-                <Select
-                  value={form.destino}
-                  onValueChange={(v) => setForm({ ...form, destino: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a fila" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {destinos?.filas.map((f) => (
-                      <SelectItem key={f.value} value={String(f.value)}>
-                        {f.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {form.tipo_destino === "URA" && (
-                <Select
-                  value={form.destino}
-                  onValueChange={(v) => setForm({ ...form, destino: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a URA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {destinos?.uras
-                      .filter((u) => u.value !== ura.ura_identifier)
-                      .map((u) => (
-                        <SelectItem key={u.value} value={String(u.value)}>
-                          {displayFromBackend(u.label)}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {form.tipo_destino === "RAMAL" && (
-                <Select
-                  value={form.destino}
-                  onValueChange={(v) => setForm({ ...form, destino: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o ramal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {destinos?.ramais.map((r) => (
-                      <SelectItem key={r.value} value={String(r.value)}>
-                        {displayFromBackend(r.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {form.tipo_destino === "INTERNO" && (
-                <Select
-                  value={form.destino}
-                  onValueChange={(v) => setForm({ ...form, destino: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Função" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPOS_INTERNOS.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {form.tipo_destino === "EXTERNO" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    value={form.externoNumero}
-                    onChange={(e) => setForm({ ...form, externoNumero: e.target.value })}
-                    placeholder="Número"
-                  />
-                  <Select
-                    value={form.externoTronco}
-                    onValueChange={(v) => setForm({ ...form, externoTronco: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Tronco" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {destinos?.troncos.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {!form.tipo_destino && <Input disabled placeholder="Escolha o tipo primeiro" />}
-            </div>
+
+            <DestinoPicker
+              tenantId={tenantId}
+              value={form.destinoState}
+              onChange={(destinoState) => setForm({ ...form, destinoState })}
+              allow={ALLOWED_DESTINOS_URA} 
+              excludeUraId={ura.ura_identifier}
+            />
           </div>
-          <div className="flex justify-end gap-2">
+
+          <div className="flex justify-end gap-2 pt-2">
             {editingOpcao && (
               <Button type="button" variant="outline" onClick={reset}>
                 Cancelar edição
               </Button>
             )}
-            <Button disabled={disabled || saveMut.isPending} onClick={() => saveMut.mutate()}>
+            <Button
+              disabled={isDestinoInvalid || saveMut.isPending}
+              onClick={() => saveMut.mutate()}
+            >
               {editingOpcao ? (
                 <>
                   <Pencil className="mr-1 h-4 w-4" /> Salvar
