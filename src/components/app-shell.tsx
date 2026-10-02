@@ -24,6 +24,7 @@ import {
   Clock,
   ClipboardCheck,
   UsersRound,
+  Settings,
 } from "lucide-react";
 
 import { setStoredToken } from "@/lib/auth/attach-auth";
@@ -54,7 +55,8 @@ const adminNav: NavItem[] = [
   { to: "/admin/blacklist", label: "Blacklist", icon: ShieldBan },
   { to: "/admin/whitelist", label: "Whitelist", icon: ShieldCheck },
   { to: "/admin/usuarios", label: "Usuários", icon: UsersRound },
-  { to: "/admin/servidor", label: "Servidor", icon: Server, adminOnly: true },
+  { to: "/admin/servidor", label: "Servidor", icon: Server },
+  { to: "/admin/configuracoes", label: "Configurações", icon: Settings }, 
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

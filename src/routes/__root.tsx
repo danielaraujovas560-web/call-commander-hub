@@ -70,7 +70,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Painel PABX" },
       { name: "description", content: "Painel de gestão do seu PABX virtual" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/svg+xml", href: "/phone-icon.svg" }
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,

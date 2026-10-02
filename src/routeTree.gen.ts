@@ -30,6 +30,7 @@ import { Route as AuthenticatedClienteAudiosRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminWhitelistRouteImport } from './routes/_authenticated/admin.whitelist'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
 import { Route as AuthenticatedAdminServidorRouteImport } from './routes/_authenticated/admin.servidor'
+import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin.configuracoes'
 import { Route as AuthenticatedAdminBlacklistRouteImport } from './routes/_authenticated/admin.blacklist'
 import { Route as AuthenticatedClienteRelatoriosUrasRouteImport } from './routes/_authenticated/cliente.relatorios.uras'
 import { Route as AuthenticatedClienteRelatoriosPesquisaRouteImport } from './routes/_authenticated/cliente.relatorios.pesquisa'
@@ -156,6 +157,12 @@ const AuthenticatedAdminServidorRoute =
     path: '/admin/servidor',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminConfiguracoesRoute =
+  AuthenticatedAdminConfiguracoesRouteImport.update({
+    id: '/admin/configuracoes',
+    path: '/admin/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminBlacklistRoute =
   AuthenticatedAdminBlacklistRouteImport.update({
     id: '/admin/blacklist',
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/cliente': typeof AuthenticatedClienteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
+  '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
@@ -227,6 +235,7 @@ export interface FileRoutesByTo {
   '/ramal': typeof RamalRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
+  '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
@@ -257,6 +266,7 @@ export interface FileRoutesById {
   '/_authenticated/cliente': typeof AuthenticatedClienteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
+  '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/servidor': typeof AuthenticatedAdminServidorRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/cliente'
     | '/dashboard'
     | '/admin/blacklist'
+    | '/admin/configuracoes'
     | '/admin/servidor'
     | '/admin/usuarios'
     | '/admin/whitelist'
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '/ramal'
     | '/dashboard'
     | '/admin/blacklist'
+    | '/admin/configuracoes'
     | '/admin/servidor'
     | '/admin/usuarios'
     | '/admin/whitelist'
@@ -343,6 +355,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cliente'
     | '/_authenticated/dashboard'
     | '/_authenticated/admin/blacklist'
+    | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/servidor'
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/admin/whitelist'
@@ -521,6 +534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminServidorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/configuracoes': {
+      id: '/_authenticated/admin/configuracoes'
+      path: '/admin/configuracoes'
+      fullPath: '/admin/configuracoes'
+      preLoaderRoute: typeof AuthenticatedAdminConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/blacklist': {
       id: '/_authenticated/admin/blacklist'
       path: '/admin/blacklist'
@@ -618,6 +638,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedClienteRoute: typeof AuthenticatedClienteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAdminBlacklistRoute: typeof AuthenticatedAdminBlacklistRoute
+  AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
   AuthenticatedAdminServidorRoute: typeof AuthenticatedAdminServidorRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedAdminWhitelistRoute: typeof AuthenticatedAdminWhitelistRoute
@@ -628,6 +649,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClienteRoute: AuthenticatedClienteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAdminBlacklistRoute: AuthenticatedAdminBlacklistRoute,
+  AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
   AuthenticatedAdminServidorRoute: AuthenticatedAdminServidorRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedAdminWhitelistRoute: AuthenticatedAdminWhitelistRoute,
