@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Server } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/admin/servidor")({
-  head: () => ({ meta: [{ title: "Servidor — Painel PABX" }] }),
+export const Route = createFileRoute("/_authenticated/admin/configuracoes")({
+  head: () => ({ meta: [{ title: "Configurações — Painel PABX" }] }),
   beforeLoad: ({ context }) => {
     if (context.user?.role !== "admin") {
       throw redirect({ to: "/dashboard" });

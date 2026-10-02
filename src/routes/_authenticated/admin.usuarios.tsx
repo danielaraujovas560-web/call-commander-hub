@@ -200,7 +200,11 @@ function UserRow({
                 <ShieldCheck className="h-3 w-3" /> admin
               </span>
             </SelectItem>
-            <SelectItem value="cliente">cliente</SelectItem>
+            <SelectItem value="cliente">
+              <span className="flex items-center gap-1">
+                <Users className="h-3 w-3" /> cliente
+              </span>
+            </SelectItem>
           </SelectContent>
         </Select>
       </TableCell>
