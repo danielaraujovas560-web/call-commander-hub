@@ -17,6 +17,7 @@ const health = require("./routes/health");
 const tenantRoutes = require("./routes/tenant");
 const authRoutes = require("./routes/auth");
 const auditLogs = require("./routes/audit");
+const configGeral = require("./routes/config-geral");
 const adminUsersRoutes = require("./routes/admin-users");
 const adminTenantRoutes = require("./routes/admin-tenants");
 const dashboard = require("./routes/dashboard");
@@ -146,6 +147,7 @@ app.use(adminUsersRoutes);
 app.use(adminTenantRoutes);
 app.use(firewall);
 app.use(clientes);
+app.use(configGeral);
 
 app.use(tenantMiddleware);
 

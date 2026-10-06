@@ -105,14 +105,14 @@ export function MonitoramentoRamais({ tenantId }: { tenantId?: number }) {
 
     (ramaisData?.ramais ?? []).forEach((r) => {
       const info = {
-        nome: r.ramal_nome,
-        ramal: r.ramal,
+        nome: r.ramal_nome ?? null,
+        ramal: String(r.ramal ?? r.endpoint_id ?? ""),
         feitas: r.ligacoes_feitas,
         recebidas: r.ligacoes_recebidas,
       };
 
-      if (r.endpoint_id) map[r.endpoint_id] = info;
-      if (r.ramal) map[r.ramal] = info;
+      if (r.endpoint_id) map[String(r.endpoint_id)] = info;
+      if (r.ramal) map[String(r.ramal)] = info;
     });
 
     return map;
@@ -125,12 +125,17 @@ export function MonitoramentoRamais({ tenantId }: { tenantId?: number }) {
         return {
           ...r,
           nome: d?.nome ?? null,
-          ramal: d?.ramal ?? r.endpoint,
+          ramal: d?.ramal ?? String(r.endpoint ?? ""),
           feitas: d?.feitas ?? 0,
           recebidas: d?.recebidas ?? 0,
         };
       })
-      .sort((a, b) => (a.nome ?? a.ramal).localeCompare(b.nome ?? b.ramal, "pt-BR"));
+     .sort((a, b) =>
+       String(a.nome ?? a.ramal ?? a.endpoint ?? "").localeCompare(
+         String(b.nome ?? b.ramal ?? b.endpoint ?? ""),
+         "pt-BR",
+       ),
+     );
   }, [ramais, dadosPorEndpoint]);
 
   const cards = [

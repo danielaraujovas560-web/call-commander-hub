@@ -8,10 +8,14 @@ router.post("/api/internal/cdr-updated", (req, res) => {
     return res.status(403).json({ error: "Acesso restrito ao localhost" });
   }
 
-  const { tenantId } = req.body;
+  const { tenantId, endpointIds } = req.body;
 
   if (tenantId) {
-    publicar(String(tenantId), "CDR_UPDATED", {});
+    publicar(String(tenantId), "CDR_UPDATED", {
+    endpointIds: Array.isArray(endpointIds)
+      ? endpointIds.map(String)
+      : [],
+    });
   }
   return res.json({ ok: true });
 });

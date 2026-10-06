@@ -1,7 +1,6 @@
 const { resolveTenantId } = require("../utils/tenant");
 
 async function tenantMiddleware(req, res, next) {
-  // Se a rota for pública/livre de tenant, passa direto
   if (
     req.path.startsWith("/auth/") ||
     req.path.startsWith("/health") ||
@@ -13,24 +12,38 @@ async function tenantMiddleware(req, res, next) {
   ) {
     return next();
   }
+
   try {
-    // Exige que o JWT já tenha sido validado nas rotas que precisam dele
-    if (!req.userId) {
-      return res.status(401).json({ error: "Usuário não autenticado." });
+    if (!req.userId && req.authType !== "ramal") {
+      return res.status(401).json({
+        error: "Usuário não autenticado.",
+      });
     }
 
-    // Tenta obter o tenant informado pelo frontend (Header, Query ou Body)
-    const requestedTenant =
-      req.headers["x-tenant-id"] || req.query?.tenant_id || req.body?.tenant_id;
+    let tenantId;
 
-    // Executa a resolução e validação contra o banco de dados
-    const tenantId = await resolveTenantId(req.userId, req.role, requestedTenant);
+    if (req.authType === "ramal") {
+      tenantId = req.ramalTenantId;
+    } else {
+      const requestedTenant =
+        req.headers["x-tenant-id"] ||
+        req.query?.tenant_id ||
+        req.body?.tenant_id;
 
-    // Injeta o tenant_id validado e seguro dentro da requisição
+      tenantId = await resolveTenantId(
+        req.userId,
+        req.role,
+        requestedTenant,
+      );
+    }
+
     req.tenantId = tenantId;
+
     next();
   } catch (err) {
-    return res.status(403).json({ error: err.message || "Acesso negado ao tenant." });
+    return res.status(403).json({
+      error: err.message || "Acesso negado ao tenant.",
+    });
   }
 }
 

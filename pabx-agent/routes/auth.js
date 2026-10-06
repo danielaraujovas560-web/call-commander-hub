@@ -5,6 +5,7 @@ const router = express.Router();
 const pool = require("../config/db");
 const requireJwt = require("../middleware/jwt");
 const { JWT_SECRET, WSS_URL, SIP_PORT } = process.env;
+const { gerarTokenRamal } = require("../utils/ramal-jwt");
 
 router.post("/auth/login", async (req, res) => {
   const { email, senha } = req.body || {};
@@ -56,8 +57,12 @@ router.post("/ramal-auth/login", async (req, res) => {
       return res.status(401).json({ error: "Ramal ou senha inválidos" });
     }
     const r = rows[0];
+
+    const token = gerarTokenRamal(r);
+
     res.json({
       ok: true,
+      token,
       ramal: r.ramal,
       nome: r.nome,
       sip_username: `${r.endpoint_id}-web`,

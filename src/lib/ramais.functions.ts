@@ -240,6 +240,22 @@ console.log("[deleteRamaisLote] AGENT OK", deleted);
     return deleted;
   });
 
+export const getRamalInfo = createServerFn({ method: "GET" })
+  .validator((d: unknown) =>
+    z.object({
+      ramalToken: z.string().min(1),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch("/ws/ramais-info",
+      {
+         bearerToken: data.ramalToken,
+      }
+    );
+  });
+
+// Funções avulsas
 export const pingAgent = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .handler(async () => {
@@ -275,6 +291,19 @@ export const getRamalMonitorTicket = createServerFn({ method: "GET" })
       method: "GET",
       tenantId,
     });
+  });
+
+export const getRamalWebTicket = createServerFn({ method: "GET" })
+  .validator((data: { ramalToken: string }) => data)
+  .handler(async ({ data }) => {
+    const { agentFetch } = await import("./agent.server");
+    return await agentFetch<{ ticket: string }>(
+      "/ws/ramais/token",
+      {
+        method: "GET",
+        bearerToken: data.ramalToken,
+      },
+    );
   });
 
 export const generateRamalPassword = createServerFn({ method: "POST" })

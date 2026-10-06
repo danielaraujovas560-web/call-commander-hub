@@ -1,6 +1,7 @@
 const RAMAL_CREDS_KEY = "pabx_ramal_creds";
 
 export type RamalCreds = {
+  token: string;
   sip_username: string;
   sip_password: string;
   wss_url: string;

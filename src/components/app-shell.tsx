@@ -25,6 +25,7 @@ import {
   ClipboardCheck,
   UsersRound,
   Settings,
+  Brain,
 } from "lucide-react";
 
 import { setStoredToken } from "@/lib/auth/attach-auth";
@@ -36,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/use-role";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { getActiveTenantCookie } from "@/lib/tenant.session"; // Importado para ler o cookie ativo
+import { getConfiguracoes } from "@/lib/configuracoes.functions";
 
 interface NavItem {
   to: string;
@@ -55,8 +57,8 @@ const adminNav: NavItem[] = [
   { to: "/admin/blacklist", label: "Blacklist", icon: ShieldBan },
   { to: "/admin/whitelist", label: "Whitelist", icon: ShieldCheck },
   { to: "/admin/usuarios", label: "Usuários", icon: UsersRound },
+  { to: "/admin/configuracoes", label: "Configurações", icon: Settings },
   { to: "/admin/servidor", label: "Servidor", icon: Server },
-  { to: "/admin/configuracoes", label: "Configurações", icon: Settings }, 
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -148,6 +150,7 @@ function MainSidebar({
 // ---------- cliente-scoped sidebar ----------
 function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: () => void }) {
   const fnGetCliente = useServerFn(getClienteByTenant);
+  const fnGetConfiguracoes = useServerFn(getConfiguracoes);
 
   const { data, isLoading } = useQuery({
     queryKey: ["cliente-ativo"],
@@ -155,8 +158,35 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
     retry: false,
   });
 
+  const { data: configuracoes } = useQuery({
+    queryKey: ["config-geral", "app-shell"],
+    queryFn: () =>
+      fnGetConfiguracoes({
+        data: {
+          chaves: [
+            "modulos.ia",
+            "modulos.pesquisa_satisfacao",
+          ],
+        },
+      }),
+  });
+
   const cliente = data?.cliente;
   const tenantId = cliente?.tenant_id;
+
+  const pesquisaEnabled =
+    configuracoes?.some(
+      (config) =>
+        config.chave === "modulos.pesquisa_satisfacao" &&
+        config.valor === "true",
+    ) ?? false;
+
+  const iaEnabled =
+    configuracoes?.some(
+      (config) =>
+        config.chave === "modulos.ia" &&
+        config.valor === "true",
+    ) ?? false;
 
   // Rotas atualizadas para a estrutura /cliente/... sem param de URL
   const config = [
@@ -173,9 +203,11 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
       label: "Pesquisa Satisfação",
       icon: ClipboardCheck,
       exact: false,
+      enabled: pesquisaEnabled,
     },
     { to: "/cliente/roteamento", label: "Roteamento", icon: RouterIcon, exact: false },
     { to: "/cliente/troncos", label: "Troncos", icon: Cable, exact: false },
+    { to: "/cliente/ia", label: "IA", icon: Brain, exact: false, enabled: iaEnabled },
   ] as const;
 
   const relatorios = [
@@ -183,7 +215,7 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
     { to: "/cliente/relatorios/filas", label: "Filas", icon: ListOrdered },
     { to: "/cliente/relatorios/uras", label: "URAs", icon: Workflow },
     { to: "/cliente/relatorios/ddd", label: "Por DDD", icon: MapPin },
-    { to: "/cliente/relatorios/pesquisa", label: "Pesq. satisfação", icon: Star },
+    { to: "/cliente/relatorios/pesquisa", label: "Pesq. satisfação", icon: Star, enabled: pesquisaEnabled },
   ] as const;
 
   const renderItem = (item: { to: string; label: string; icon: any; exact?: boolean }) => {
@@ -230,13 +262,17 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
         <p className="px-3 pb-1 pt-1 text-xs uppercase tracking-wide text-muted-foreground">
           Configuração
         </p>
-        {config.map(renderItem)}
+        {config
+           .filter((item) => item.enabled !== false)
+           .map(renderItem)}
 
         <div className="pt-4">
           <p className="px-3 pb-1 text-xs uppercase tracking-wide text-muted-foreground">
             Relatórios
           </p>
-          {relatorios.map(renderItem)}
+          {relatorios
+             .filter((item) => item.enabled !== false)
+             .map(renderItem)}
         </div>
       </nav>
 

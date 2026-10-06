@@ -40,6 +40,8 @@ type WsRamalRemovido = {
 
 type WsCdrUpdated = {
   tipo: "CDR_UPDATED";
+  endpointIds: string[];
+  ts: number;
 };
 
 type WsEvento = WsEstadoInicial | WsRamalStatus | WsRamalRemovido | WsCdrUpdated;
