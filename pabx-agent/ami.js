@@ -218,6 +218,22 @@ function getQueueStatus(timeoutMs = 4000) {
 
 // Aqui será a regra para o firewall
 
+const AUTH_FAILURE_EVENTS = new Set([
+  "ChallengeResponseFailed",
+  "InvalidAccountID",
+  "InvalidPassword",
+  "AuthFailure",
+  "LoadAvgExceeded",
+  "InvalidEndpoint",
+]);
+
+const ATTACK_SCAN_EVENTS = new Set([
+  "InvalidTransport",
+  "RequestNotAllowed",
+  "UnexpectedAddress",
+  "InvalidACL",
+]);
+
 ami.on("managerevent", async (event) => {
   const nome = event.event || event.Event;
   if (nome === "ContactStatus") {
@@ -261,31 +277,32 @@ ami.on("managerevent", async (event) => {
 
     return;
   }
-  if (
-    nome !== "ChallengeResponseFailed" &&
-    nome !== "InvalidAccountID" &&
-    nome !== "InvalidPassword"
-  ) {
-    return;
-  }
+
+  const isAuthFailure = AUTH_FAILURE_EVENTS.has(nome);
+  const isAttackScan = ATTACK_SCAN_EVENTS.has(nome);
+
+  if (!isAuthFailure && !isAttackScan) return;
 
   const service = event.service || event.Service;
 
-  if (service && String(service).toUpperCase() !== "PJSIP") {
-    return;
-  }
+  if (service && String(service).toUpperCase() !== "PJSIP") return;
 
-  const remoteAddress = event.remoteaddress || event.RemoteAddress;
+  const remoteAddress = event.remoteaddress || event.RemoteAddress || event.serviceaddress || event.ServiceAddress || event.address || event.Address;
 
   const ip = normalizeIp(remoteAddress);
 
   if (!ip) {
-    console.warn(`[firewall] evento ${nome} sem RemoteAddress`);
+    console.warn(`[firewall] evento ${nome} sem RemoteAddress válido:`, remoteAddress );
     return;
   }
 
   try {
-    await handleAuthFailure(ip, nome);
+    if (isAttackScan) {
+      console.warn(`[firewall] Scan/Ataque direto detectado (${nome}) do IP: ${ip}`);
+      await blockIp(ip, `Bloqueio imediato por Scan/Ataque PJSIP (${nome})`);
+    } else if (isAuthFailure) {
+       await handleAuthFailure(ip, nome);
+    }
   } catch (err) {
     console.error(`[firewall] erro processando ${nome} de ${ip}:`, err.message || err);
   }

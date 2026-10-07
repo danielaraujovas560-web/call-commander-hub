@@ -65,10 +65,24 @@ async function ensureChain() {
   }
 
   try {
-    await execFileAsync("sudo", [IPTABLES, "-C", "INPUT", "-j", CHAIN]);
+    await execFileAsync("sudo", [IPTABLES, "-C", "INPUT", "2", "-j", CHAIN]);
+    console.log(`[firewall] chain ${CHAIN} já está corretamente na posição 2 do INPUT`);
+    return; // Já está perfeita, não precisa fazer nada
   } catch (e) {
-    await execFileAsync("sudo", [IPTABLES, "-I", "INPUT", "1", "-j", CHAIN]);
-    console.log(`[firewall] chain ${CHAIN} adicionada ao INPUT`);
+    // Se não for a regra nº 2, limpa instâncias antigas para não duplicar
+    try {
+      await execFileAsync("sudo", [IPTABLES, "-D", "INPUT", "-j", CHAIN]);
+    } catch (_) {
+      // Se não existia em nenhuma outra posição, ignora o erro
+    }
+  }
+
+  // 3. Insere obrigatoriamente na posição 2
+  try {
+    await execFileAsync("sudo", [IPTABLES, "-I", "INPUT", "2", "-j", CHAIN]);
+    console.log(`[firewall] chain ${CHAIN} vinculada na posição 2 do INPUT`);
+  } catch (err) {
+    console.error(`[firewall] erro ao inserir ${CHAIN} no INPUT:`, err.message);
   }
 }
 
