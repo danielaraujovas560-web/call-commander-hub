@@ -26,15 +26,9 @@ async function tenantMiddleware(req, res, next) {
       tenantId = req.ramalTenantId;
     } else {
       const requestedTenant =
-        req.headers["x-tenant-id"] ||
-        req.query?.tenant_id ||
-        req.body?.tenant_id;
+        req.headers["x-tenant-id"] || req.query?.tenant_id || req.body?.tenant_id;
 
-      tenantId = await resolveTenantId(
-        req.userId,
-        req.role,
-        requestedTenant,
-      );
+      tenantId = await resolveTenantId(req.userId, req.role, requestedTenant);
     }
 
     req.tenantId = tenantId;

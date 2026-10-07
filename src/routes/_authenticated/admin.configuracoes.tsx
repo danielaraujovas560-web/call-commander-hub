@@ -2,13 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Shield,
@@ -45,8 +39,7 @@ function ConfigPage() {
     queryFn: () => listConfigs(),
   });
 
-  const getConfig = (chave: string) =>
-    configuracoes.find((config) => config.chave === chave);
+  const getConfig = (chave: string) => configuracoes.find((config) => config.chave === chave);
 
   const maxAuthFailures = getConfig("firewall.max_auth_failures");
   const autoBlock = getConfig("firewall.auto_block");
@@ -57,37 +50,31 @@ function ConfigPage() {
 
   const isEnabled = (value?: string) => value === "true";
 
-const qc = useQueryClient();
+  const qc = useQueryClient();
 
-const updateConfiguracoesFn = useServerFn(updateConfiguracoes);
+  const updateConfiguracoesFn = useServerFn(updateConfiguracoes);
 
-const toggleConfigMut = useMutation({
-  mutationFn: ({
-    chave,
-    valor,
-  }: {
-    chave: string;
-    valor: boolean;
-  }) =>
-    updateConfiguracoesFn({
-      data: {
-        chave,
-        valor,
-      },
-    }),
+  const toggleConfigMut = useMutation({
+    mutationFn: ({ chave, valor }: { chave: string; valor: boolean }) =>
+      updateConfiguracoesFn({
+        data: {
+          chave,
+          valor,
+        },
+      }),
 
-  onSuccess: () => {
-    toast.success("Configuração atualizada");
+    onSuccess: () => {
+      toast.success("Configuração atualizada");
 
-    qc.invalidateQueries({
-      queryKey: ["config-geral"],
-    });
-  },
+      qc.invalidateQueries({
+        queryKey: ["config-geral"],
+      });
+    },
 
-  onError: (e: Error) => {
-    toast.error(e.message);
-  },
-});
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -104,9 +91,7 @@ const toggleConfigMut = useMutation({
       </div>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">
-          Carregando configurações...
-        </div>
+        <div className="text-sm text-muted-foreground">Carregando configurações...</div>
       ) : (
         <div className="space-y-6">
           {/* Firewall */}
@@ -116,17 +101,14 @@ const toggleConfigMut = useMutation({
               <div>
                 <h2 className="font-semibold">Firewall</h2>
                 <p className="text-sm text-muted-foreground">
-                  Controle de proteção automática contra tentativas de
-                  autenticação inválidas.
+                  Controle de proteção automática contra tentativas de autenticação inválidas.
                 </p>
               </div>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">
-                  Proteção contra ataques
-                </CardTitle>
+                <CardTitle className="text-base">Proteção contra ataques</CardTitle>
                 <CardDescription>
                   Configurações utilizadas pelo sistema de bloqueio automático.
                 </CardDescription>
@@ -143,9 +125,7 @@ const toggleConfigMut = useMutation({
                 <ConfigRow
                   title="Bloqueio automático"
                   description={autoBlock?.descricao}
-                  value={
-                    isEnabled(autoBlock?.valor) ? "Ativado" : "Desativado"
-                  }
+                  value={isEnabled(autoBlock?.valor) ? "Ativado" : "Desativado"}
                   status={isEnabled(autoBlock?.valor)}
                 />
               </CardContent>
@@ -170,8 +150,7 @@ const toggleConfigMut = useMutation({
                 icon={Brain}
                 title="Inteligência Artificial"
                 description={
-                  moduloIa?.descricao ??
-                  "Recursos de inteligência artificial para o PABX."
+                  moduloIa?.descricao ?? "Recursos de inteligência artificial para o PABX."
                 }
                 enabled={isEnabled(moduloIa?.valor)}
                 isPending={toggleConfigMut.isPending}
@@ -243,18 +222,10 @@ function ConfigRow({
         <div className="flex items-center gap-2">
           <p className="font-medium">{title}</p>
 
-          {badge && (
-            <Badge variant="secondary">
-              {badge}
-            </Badge>
-          )}
+          {badge && <Badge variant="secondary">{badge}</Badge>}
         </div>
 
-        {description && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {description}
-          </p>
-        )}
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
 
       <div className="shrink-0">
@@ -305,18 +276,12 @@ function ModuleCard({
             </div>
           </div>
 
-          <ToggleAtivoBadge
-            ativo={enabled}
-            isPending={isPending}
-            onToggle={onToggle}
-          />
+          <ToggleAtivoBadge ativo={enabled} isPending={isPending} onToggle={onToggle} />
         </div>
       </CardHeader>
 
       <CardContent>
-        <p className="text-sm text-muted-foreground">
-          {description}
-        </p>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
   );

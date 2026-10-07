@@ -35,8 +35,17 @@ router.get("/ramais/status", async (req, res) => {
     const map = await fetchEndpointsMap();
     const endpoints = {};
     for (const row of rows) {
-      const key = row.endpoint_id || `t${tenant}-${row.ramal}`;
-      endpoints[String(row.ramal)] = map[key] || "Unknown";
+      const endpointId = row.endpoint_id || `t${tenant}-${row.ramal}`;
+      const normalStatus = map[endpointId];
+      const webStatus = map[`${endpointId}-web`];
+
+      if (normalStatus === "Reachable" || webStatus === "Reachable") {
+        endpoints[String(row.ramal)] = "Reachable";
+      } else if (normalStatus || webStatus) {
+        endpoints[String(row.ramal)] = webStatus || normalStatus;
+      } else {
+        endpoints[String(row.ramal)] = "Unknown";
+      }
     }
     res.json({ endpoints });
   } catch (e) {

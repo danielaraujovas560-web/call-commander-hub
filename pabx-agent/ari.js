@@ -24,7 +24,7 @@ async function connectARI() {
       eventSource: ["channel:", "bridge:", "endpoint:", "deviceState:"],
     });
 
-    console.log("[ARI] recebendo eventos no app: ${ARI_APP_NAME}");
+    console.log(`[ARI] recebendo eventos no app: ${ARI_APP_NAME}`);
 
     return client;
   } catch (err) {

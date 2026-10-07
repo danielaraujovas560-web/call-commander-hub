@@ -161,6 +161,7 @@ function RamalLoginForm({ active }: { active: boolean }) {
       if (!res.wss_url) throw new Error("Servidor não configurado para WebRTC (wss_url ausente).");
       setStoredRamalCreds({
         token: res.token,
+        refreshToken: res.refreshToken,
         sip_username: res.sip_username,
         sip_password: res.sip_password,
         wss_url: res.wss_url,

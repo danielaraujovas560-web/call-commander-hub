@@ -16,7 +16,8 @@ function requireJwt(req, res, next) {
     const p = jwt.verify(m[1], JWT_SECRET);
 
     if (p.type === "ramal") {
-      if (!p.endpoint_id || !p.tenant_id) return res.status(401).json({ error: "token de ramal inválido" });
+      if (!p.endpoint_id || !p.tenant_id)
+        return res.status(401).json({ error: "token de ramal inválido" });
 
       req.authType = "ramal";
       req.ramalEndpointId = String(p.endpoint_id);

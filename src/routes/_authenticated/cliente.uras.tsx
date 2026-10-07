@@ -18,7 +18,12 @@ import {
 } from "@/lib/uras.functions";
 import { listAudios } from "@/lib/audios.functions";
 import { displayFromBackend } from "@/lib/format";
-import { DestinoPicker, buildDestinoForBackend, isDestinoIncomplete, type DestinoValue } from "@/components/destino-picker";
+import {
+  DestinoPicker,
+  buildDestinoForBackend,
+  isDestinoIncomplete,
+  type DestinoValue,
+} from "@/components/destino-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -517,41 +522,41 @@ function UraOpcoesDialog({
     setEditingOpcao(null);
   }
 
-const saveMut = useMutation({
-  mutationFn: () => {
-    const { tipo } = form.destinoState;
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const { tipo } = form.destinoState;
 
-    const destinoFinal = buildDestinoForBackend(form.destinoState);
+      const destinoFinal = buildDestinoForBackend(form.destinoState);
 
-    const body = {
-      tenant_id: tenantId,
-      digito: form.digito,
-      tipo_destino: tipo as any,
-      destino: destinoFinal,
-    };
+      const body = {
+        tenant_id: tenantId,
+        digito: form.digito,
+        tipo_destino: tipo as any,
+        destino: destinoFinal,
+      };
 
-    return editingOpcao
-      ? updateFn({
-          data: {
-            ura_identifier: editingOpcao.ura_identifier,
-            digito_atual: editingOpcao.digito,
-            ...body,
-          },
-        })
-      : addFn({
-          data: {
-            ura_identifier: ura.ura_identifier,
-            ...body,
-          },
-        });
-  },
-  onSuccess: () => {
-    toast.success(editingOpcao ? "Opção atualizada" : "Opção adicionada");
-    qc.invalidateQueries({ queryKey: ["uras", tenantId] });
-    reset();
-  },
-  onError: (e: Error) => toast.error(e.message),
-});
+      return editingOpcao
+        ? updateFn({
+            data: {
+              ura_identifier: editingOpcao.ura_identifier,
+              digito_atual: editingOpcao.digito,
+              ...body,
+            },
+          })
+        : addFn({
+            data: {
+              ura_identifier: ura.ura_identifier,
+              ...body,
+            },
+          });
+    },
+    onSuccess: () => {
+      toast.success(editingOpcao ? "Opção atualizada" : "Opção adicionada");
+      qc.invalidateQueries({ queryKey: ["uras", tenantId] });
+      reset();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const delMut = useMutation({
     mutationFn: ({ ura_identifier, digito }: { ura_identifier: string; digito: string }) =>
@@ -657,7 +662,7 @@ const saveMut = useMutation({
 
         <div className="rounded-md border p-3 space-y-3">
           <div className="text-sm font-medium">{editingOpcao ? "Editar opção" : "Nova opção"}</div>
-          
+
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Dígito</Label>
@@ -673,7 +678,7 @@ const saveMut = useMutation({
               tenantId={tenantId}
               value={form.destinoState}
               onChange={(destinoState) => setForm({ ...form, destinoState })}
-              allow={ALLOWED_DESTINOS_URA} 
+              allow={ALLOWED_DESTINOS_URA}
               excludeUraId={ura.ura_identifier}
             />
           </div>

@@ -204,29 +204,22 @@ export const deleteRamaisLote = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((input: unknown) =>
     z
-      .object({ endpoint_ids: z.array(z.string().min(1)).min(1), tenant_id: z.number().int().positive().optional() })
+      .object({
+        endpoint_ids: z.array(z.string().min(1)).min(1),
+        tenant_id: z.number().int().positive().optional(),
+      })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    console.log("Entrou no delete lote ramais");
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-console.log("[deleteRamaisLote] Antes do deleted");
-    const deleted = await authenticatedAgentFetch(
-      context,
-      "/ramais/lote",
-      {
-        method: "DELETE",
-        tenantId,
-        body: {
-          endpoint_ids: data.endpoint_ids,
-        },
+    const deleted = await authenticatedAgentFetch(context, "/ramais/lote", {
+      method: "DELETE",
+      tenantId,
+      body: {
+        endpoint_ids: data.endpoint_ids,
       },
-    );
-console.log("[deleteRamaisLote] AGENT OK", deleted);
+    });
 
     await writeAuditLog(context.token, {
       tenant_id: tenantId,
@@ -235,24 +228,23 @@ console.log("[deleteRamaisLote] AGENT OK", deleted);
         endpoint_ids: data.endpoint_ids,
       },
     });
- console.log("[deleteRamaisLote] FIM OK");
 
     return deleted;
   });
 
 export const getRamalInfo = createServerFn({ method: "GET" })
   .validator((d: unknown) =>
-    z.object({
-      ramalToken: z.string().min(1),
-    }).parse(d),
+    z
+      .object({
+        ramalToken: z.string().min(1),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { agentFetch } = await import("./agent.server");
-    return await agentFetch("/ws/ramais-info",
-      {
-         bearerToken: data.ramalToken,
-      }
-    );
+    return await agentFetch("/ws/ramais-info", {
+      bearerToken: data.ramalToken,
+    });
   });
 
 // Funções avulsas
@@ -297,13 +289,59 @@ export const getRamalWebTicket = createServerFn({ method: "GET" })
   .validator((data: { ramalToken: string }) => data)
   .handler(async ({ data }) => {
     const { agentFetch } = await import("./agent.server");
-    return await agentFetch<{ ticket: string }>(
-      "/ws/ramais/token",
-      {
-        method: "GET",
-        bearerToken: data.ramalToken,
+    return await agentFetch<{ ticket: string }>("/ws/ramais/token", {
+      method: "GET",
+      bearerToken: data.ramalToken,
+    });
+  });
+
+export const refreshRamalToken = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z
+      .object({
+        refreshToken: z.string().min(1),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { agentFetch } = await import("./agent.server");
+
+    return await agentFetch<{
+      ok: true;
+      token: string;
+      refreshToken: string;
+      ramal: string;
+      nome: string | null;
+      sip_username: string;
+      sip_password: string;
+      tenant_id: number;
+      wss_url: string;
+      sip_domain: string;
+    }>("/ramal-auth/refresh", {
+      method: "POST",
+      body: {
+        refreshToken: data.refreshToken,
       },
-    );
+    });
+  });
+
+export const logoutRamal = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z
+      .object({
+        refreshToken: z.string().min(1),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { agentFetch } = await import("./agent.server");
+
+    return await agentFetch<{ ok: true }>("/ramal-auth/logout", {
+      method: "POST",
+      body: {
+        refreshToken: data.refreshToken,
+      },
+    });
   });
 
 export const generateRamalPassword = createServerFn({ method: "POST" })

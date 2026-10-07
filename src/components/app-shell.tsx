@@ -163,10 +163,7 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
     queryFn: () =>
       fnGetConfiguracoes({
         data: {
-          chaves: [
-            "modulos.ia",
-            "modulos.pesquisa_satisfacao",
-          ],
+          chaves: ["modulos.ia", "modulos.pesquisa_satisfacao"],
         },
       }),
   });
@@ -176,17 +173,12 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
 
   const pesquisaEnabled =
     configuracoes?.some(
-      (config) =>
-        config.chave === "modulos.pesquisa_satisfacao" &&
-        config.valor === "true",
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
     ) ?? false;
 
   const iaEnabled =
-    configuracoes?.some(
-      (config) =>
-        config.chave === "modulos.ia" &&
-        config.valor === "true",
-    ) ?? false;
+    configuracoes?.some((config) => config.chave === "modulos.ia" && config.valor === "true") ??
+    false;
 
   // Rotas atualizadas para a estrutura /cliente/... sem param de URL
   const config = [
@@ -215,7 +207,12 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
     { to: "/cliente/relatorios/filas", label: "Filas", icon: ListOrdered },
     { to: "/cliente/relatorios/uras", label: "URAs", icon: Workflow },
     { to: "/cliente/relatorios/ddd", label: "Por DDD", icon: MapPin },
-    { to: "/cliente/relatorios/pesquisa", label: "Pesq. satisfação", icon: Star, enabled: pesquisaEnabled },
+    {
+      to: "/cliente/relatorios/pesquisa",
+      label: "Pesq. satisfação",
+      icon: Star,
+      enabled: pesquisaEnabled,
+    },
   ] as const;
 
   const renderItem = (item: { to: string; label: string; icon: any; exact?: boolean }) => {
@@ -262,17 +259,13 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
         <p className="px-3 pb-1 pt-1 text-xs uppercase tracking-wide text-muted-foreground">
           Configuração
         </p>
-        {config
-           .filter((item) => item.enabled !== false)
-           .map(renderItem)}
+        {config.filter((item) => item.enabled !== false).map(renderItem)}
 
         <div className="pt-4">
           <p className="px-3 pb-1 text-xs uppercase tracking-wide text-muted-foreground">
             Relatórios
           </p>
-          {relatorios
-             .filter((item) => item.enabled !== false)
-             .map(renderItem)}
+          {relatorios.filter((item) => item.enabled !== false).map(renderItem)}
         </div>
       </nav>
 

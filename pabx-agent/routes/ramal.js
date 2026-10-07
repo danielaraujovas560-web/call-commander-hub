@@ -174,7 +174,7 @@ router.post("/ramais", async (req, res) => {
 });
 
 router.post("/ramais/lote", async (req, res) => {
- console.log("Entrou no post");
+  console.log("Entrou no post");
 
   const tenant = req.tenantId;
   if (!tenant) {
@@ -633,9 +633,7 @@ router.delete("/ramais/lote", async (req, res) => {
     });
   }
 
-  const endpoints = endpoint_ids
-    .map((id) => String(id).trim())
-    .filter(Boolean);
+  const endpoints = endpoint_ids.map((id) => String(id).trim()).filter(Boolean);
 
   console.log("Antes do conn");
 
@@ -664,45 +662,25 @@ router.delete("/ramais/lote", async (req, res) => {
         [endpointId, tenant],
       );
 
-      console.log(
-        `Ramal ${endpointId}: ${resultRamal.affectedRows} registro(s) apagado(s)`,
-      );
+      console.log(`Ramal ${endpointId}: ${resultRamal.affectedRows} registro(s) apagado(s)`);
 
       if (resultRamal.affectedRows > 0) {
         quantidade += resultRamal.affectedRows;
       }
 
       // PJSIP principal
-      await conn.query(
-        `DELETE FROM ps_endpoints WHERE id = ?`,
-        [endpointId],
-      );
+      await conn.query(`DELETE FROM ps_endpoints WHERE id = ?`, [endpointId]);
 
-      await conn.query(
-        `DELETE FROM ps_auths WHERE id = ?`,
-        [`auth-${endpointId}`],
-      );
+      await conn.query(`DELETE FROM ps_auths WHERE id = ?`, [`auth-${endpointId}`]);
 
-      await conn.query(
-        `DELETE FROM ps_aors WHERE id = ?`,
-        [endpointId],
-      );
+      await conn.query(`DELETE FROM ps_aors WHERE id = ?`, [endpointId]);
 
       // WebRTC
-      await conn.query(
-        `DELETE FROM ps_endpoints WHERE id = ?`,
-        [webEndpointId],
-      );
+      await conn.query(`DELETE FROM ps_endpoints WHERE id = ?`, [webEndpointId]);
 
-      await conn.query(
-        `DELETE FROM ps_auths WHERE id = ?`,
-        [`auth-${webEndpointId}`],
-      );
+      await conn.query(`DELETE FROM ps_auths WHERE id = ?`, [`auth-${webEndpointId}`]);
 
-      await conn.query(
-        `DELETE FROM ps_aors WHERE id = ?`,
-        [webEndpointId],
-      );
+      await conn.query(`DELETE FROM ps_aors WHERE id = ?`, [webEndpointId]);
     }
 
     await conn.commit();

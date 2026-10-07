@@ -15,7 +15,8 @@ const { restoreQueueMembers } = require("./utils/queue-restore");
 const interno = require("./routes/interno");
 const health = require("./routes/health");
 const tenantRoutes = require("./routes/tenant");
-const authRoutes = require("./routes/auth");
+const authRoutesClient = require("./routes/auth");
+const authRoutesRamalWeb = require("./routes/auth-web");
 const auditLogs = require("./routes/audit");
 const configGeral = require("./routes/config-geral");
 const adminUsersRoutes = require("./routes/admin-users");
@@ -139,7 +140,8 @@ app.use(
 app.use(hmacMiddleware);
 app.use(health);
 app.use(interno);
-app.use(authRoutes);
+app.use(authRoutesClient);
+app.use(authRoutesRamalWeb);
 
 // Tudo para baixo, usa JWT
 app.use(requireJwt);

@@ -4,10 +4,10 @@ const pool = require("../config/db");
 const { requireAdmin } = require("../middleware/admin");
 
 router.get("/config-geral", requireAdmin, async (req, res) => {
- try {
+  try {
     const { chaves } = req.query;
 
-// Consulta geral
+    // Consulta geral
     if (!chaves) {
       const [rows] = await pool.query(`
         SELECT id, chave, valor, tipo, descricao
@@ -17,7 +17,7 @@ router.get("/config-geral", requireAdmin, async (req, res) => {
       return res.json(rows);
     }
 
-// Consulta específica
+    // Consulta específica
     const lista = String(chaves)
       .split(",")
       .map((chave) => chave.trim())
@@ -27,7 +27,10 @@ router.get("/config-geral", requireAdmin, async (req, res) => {
       return res.json([]);
     }
     const placeholders = lista.map(() => "?").join(",");
-    const [rows] = await pool.query(`SELECT id, chave, valor, tipo, descricao FROM config_geral WHERE chave IN (${placeholders}) ORDER BY id`, lista);
+    const [rows] = await pool.query(
+      `SELECT id, chave, valor, tipo, descricao FROM config_geral WHERE chave IN (${placeholders}) ORDER BY id`,
+      lista,
+    );
 
     res.json(rows);
   } catch (e) {

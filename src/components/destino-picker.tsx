@@ -220,57 +220,41 @@ export function DestinoPicker({ tenantId, value, onChange, allow, excludeUraId, 
 }
 
 /** Render label of a saved (tipo, destino) tuple using the same lookup lists. */
-export function renderDestinoLabel(
-  destinosData: any,
-  tipo?: string,
-  destino?: string
-): string {
+export function renderDestinoLabel(destinosData: any, tipo?: string, destino?: string): string {
   if (!tipo || !destino) return "-";
 
   const t = tipo.toUpperCase();
 
   switch (t) {
     case "RAMAL": {
-      const item = destinosData?.ramais?.find(
-        (r: any) => String(r.value) === String(destino)
-      );
+      const item = destinosData?.ramais?.find((r: any) => String(r.value) === String(destino));
       // Exibe: "João Silva (1001)" ou apenas o label
       return item ? `${item.label} (${item.ramal})` : destino;
     }
 
     case "FILA": {
-      const item = destinosData?.filas?.find(
-        (f: any) => String(f.value) === String(destino)
-      );
+      const item = destinosData?.filas?.find((f: any) => String(f.value) === String(destino));
       return item ? item.label : destino;
     }
 
     case "URA": {
-      const item = destinosData?.uras?.find(
-        (u: any) => String(u.value) === String(destino)
-      );
+      const item = destinosData?.uras?.find((u: any) => String(u.value) === String(destino));
       return item ? item.label : destino;
     }
 
     case "REGRA_HORARIO":
     case "REGRA": {
-      const item = destinosData?.regras?.find(
-        (reg: any) => String(reg.value) === String(destino)
-      );
+      const item = destinosData?.regras?.find((reg: any) => String(reg.value) === String(destino));
       return item ? item.label : destino;
     }
 
     case "TRONCO": {
-      const item = destinosData?.troncos?.find(
-        (tr: any) => String(tr.value) === String(destino)
-      );
+      const item = destinosData?.troncos?.find((tr: any) => String(tr.value) === String(destino));
       return item ? item.label : destino;
     }
 
     case "AUDIO": {
-      const item = destinosData?.audios?.find(
-        (a: any) => String(a.value) === String(destino)
-      );
+      const item = destinosData?.audios?.find((a: any) => String(a.value) === String(destino));
       return item ? item.label : destino;
     }
 

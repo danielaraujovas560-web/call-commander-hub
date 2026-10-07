@@ -287,12 +287,18 @@ ami.on("managerevent", async (event) => {
 
   if (service && String(service).toUpperCase() !== "PJSIP") return;
 
-  const remoteAddress = event.remoteaddress || event.RemoteAddress || event.serviceaddress || event.ServiceAddress || event.address || event.Address;
+  const remoteAddress =
+    event.remoteaddress ||
+    event.RemoteAddress ||
+    event.serviceaddress ||
+    event.ServiceAddress ||
+    event.address ||
+    event.Address;
 
   const ip = normalizeIp(remoteAddress);
 
   if (!ip) {
-    console.warn(`[firewall] evento ${nome} sem RemoteAddress válido:`, remoteAddress );
+    console.warn(`[firewall] evento ${nome} sem RemoteAddress válido:`, remoteAddress);
     return;
   }
 
@@ -301,7 +307,7 @@ ami.on("managerevent", async (event) => {
       console.warn(`[firewall] Scan/Ataque direto detectado (${nome}) do IP: ${ip}`);
       await blockIp(ip, `Bloqueio imediato por Scan/Ataque PJSIP (${nome})`);
     } else if (isAuthFailure) {
-       await handleAuthFailure(ip, nome);
+      await handleAuthFailure(ip, nome);
     }
   } catch (err) {
     console.error(`[firewall] erro processando ${nome} de ${ip}:`, err.message || err);

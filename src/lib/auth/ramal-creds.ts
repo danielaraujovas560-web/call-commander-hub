@@ -2,6 +2,7 @@ const RAMAL_CREDS_KEY = "pabx_ramal_creds";
 
 export type RamalCreds = {
   token: string;
+  refreshToken: string;
   sip_username: string;
   sip_password: string;
   wss_url: string;
@@ -23,6 +24,14 @@ export function getStoredRamalCreds(): RamalCreds | null {
 
 export function setStoredRamalCreds(creds: RamalCreds | null) {
   if (typeof window === "undefined") return;
-  if (creds) window.localStorage.setItem(RAMAL_CREDS_KEY, JSON.stringify(creds));
-  else window.localStorage.removeItem(RAMAL_CREDS_KEY);
+  if (creds) {
+    window.localStorage.setItem(RAMAL_CREDS_KEY, JSON.stringify(creds));
+  } else {
+    window.localStorage.removeItem(RAMAL_CREDS_KEY);
+  }
+}
+
+export function clearStoredRamalCreds() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(RAMAL_CREDS_KEY);
 }

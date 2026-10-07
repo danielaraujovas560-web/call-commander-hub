@@ -4,8 +4,7 @@ const jwt = require("jsonwebtoken");
 const router = express.Router();
 const pool = require("../config/db");
 const requireJwt = require("../middleware/jwt");
-const { JWT_SECRET, WSS_URL, SIP_PORT } = process.env;
-const { gerarTokenRamal } = require("../utils/ramal-jwt");
+const { JWT_SECRET } = process.env;
 
 router.post("/auth/login", async (req, res) => {
   const { email, senha } = req.body || {};
@@ -42,49 +41,6 @@ router.get("/auth/me", requireJwt, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
-});
-
-router.post("/ramal-auth/login", async (req, res) => {
-  const { endpoint_id, senha } = req.body || {};
-  if (!endpoint_id || !senha)
-    return res.status(400).json({ error: "endpoint_id e senha obrigatórios" });
-  try {
-    const [rows] = await pool.query(
-      `SELECT tenant_id, ramal, nome, endpoint_id, senha FROM ramais WHERE endpoint_id = ? LIMIT 1`,
-      [String(endpoint_id).trim()],
-    );
-    if (!rows.length || rows[0].senha !== senha) {
-      return res.status(401).json({ error: "Ramal ou senha inválidos" });
-    }
-    const r = rows[0];
-
-    const token = gerarTokenRamal(r);
-
-    res.json({
-      ok: true,
-      token,
-      ramal: r.ramal,
-      nome: r.nome,
-      sip_username: `${r.endpoint_id}-web`,
-      sip_password: r.senha,
-      tenant_id: r.tenant_id,
-      wss_url: WSS_URL,
-      sip_domain: String(WSS_URL)
-        .replace(/^wss?:\/\//, "")
-        .split(":")[0]
-        .split("/")[0],
-    });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
-
-router.get("/config/sip", (req, res) => {
-  const host = String(WSS_URL)
-    .replace(/^wss?:\/\//, "")
-    .split(":")[0]
-    .split("/")[0];
-  res.json({ host, port: SIP_PORT });
 });
 
 module.exports = router;

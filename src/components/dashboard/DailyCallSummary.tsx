@@ -24,11 +24,7 @@ export function DailyCallSummary() {
     queryKey: ["dashboard", "daily-call-summary"],
 
     queryFn: async () => {
-      console.log("[DailyCallSummary] iniciando request");
-
       const result = await getDailyCallSummary({});
-
-      console.log("[DailyCallSummary] resposta:", result);
 
       return result;
     },

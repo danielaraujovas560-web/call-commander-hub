@@ -130,12 +130,12 @@ export function MonitoramentoRamais({ tenantId }: { tenantId?: number }) {
           recebidas: d?.recebidas ?? 0,
         };
       })
-     .sort((a, b) =>
-       String(a.nome ?? a.ramal ?? a.endpoint ?? "").localeCompare(
-         String(b.nome ?? b.ramal ?? b.endpoint ?? ""),
-         "pt-BR",
-       ),
-     );
+      .sort((a, b) =>
+        String(a.nome ?? a.ramal ?? a.endpoint ?? "").localeCompare(
+          String(b.nome ?? b.ramal ?? b.endpoint ?? ""),
+          "pt-BR",
+        ),
+      );
   }, [ramais, dadosPorEndpoint]);
 
   const cards = [

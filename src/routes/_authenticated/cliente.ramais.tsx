@@ -93,40 +93,39 @@ function RamaisPage() {
 
   const queryClient = useQueryClient();
 
-const [modoSelecao, setModoSelecao] = useState(false);
-const [selecionados, setSelecionados] = useState<string[]>([]);
-const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const [modoSelecao, setModoSelecao] = useState(false);
+  const [selecionados, setSelecionados] = useState<string[]>([]);
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
 
-const deleteLote = useServerFn(deleteRamaisLote);
+  const deleteLote = useServerFn(deleteRamaisLote);
 
-const deleteLoteMutation = useMutation({
-  mutationFn: (endpoint_ids: string[]) =>
-    deleteLote({
-      data: {
-        tenant_id: tenantId!,
-        endpoint_ids,
-      },
-    }),
-  onSuccess: () => {
-    toast.success(
-      `${selecionados.length} ${
-        selecionados.length === 1 ? "ramal removido" : "ramais removidos"
-      } com sucesso.`,
-    );
+  const deleteLoteMutation = useMutation({
+    mutationFn: (endpoint_ids: string[]) =>
+      deleteLote({
+        data: {
+          tenant_id: tenantId!,
+          endpoint_ids,
+        },
+      }),
+    onSuccess: () => {
+      toast.success(
+        `${selecionados.length} ${
+          selecionados.length === 1 ? "ramal removido" : "ramais removidos"
+        } com sucesso.`,
+      );
 
-    queryClient.invalidateQueries({
-      queryKey: ["ramais", tenantId],
-    });
+      queryClient.invalidateQueries({
+        queryKey: ["ramais", tenantId],
+      });
 
-    setSelecionados([]);
-    setModoSelecao(false);
-    setConfirmarExclusao(false);
-  },
-  onError: (e: Error) => {
-    toast.error(e.message);
-  },
-});
-
+      setSelecionados([]);
+      setModoSelecao(false);
+      setConfirmarExclusao(false);
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["ramais", tenantId],
@@ -169,12 +168,24 @@ const deleteLoteMutation = useMutation({
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <Button variant={modoSelecao ? "secondary" : "outline"} onClick={() => { setModoSelecao((v) => !v); setSelecionados([]); }}>
-            <Trash2 className="mr-2 h-4 w-4" />{modoSelecao ? "Cancelar seleção" : "Apagar em lote"}
+          <Button
+            variant={modoSelecao ? "secondary" : "outline"}
+            onClick={() => {
+              setModoSelecao((v) => !v);
+              setSelecionados([]);
+            }}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {modoSelecao ? "Cancelar seleção" : "Apagar em lote"}
           </Button>
           {modoSelecao && (
-            <Button variant="destructive" disabled={selecionados.length === 0 || deleteLoteMutation.isPending} onClick={() => setConfirmarExclusao(true)}>
-              <Trash2 className="mr-2 h-4 w-4" />Apagar {selecionados.length || ""} selecionados
+            <Button
+              variant="destructive"
+              disabled={selecionados.length === 0 || deleteLoteMutation.isPending}
+              onClick={() => setConfirmarExclusao(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Apagar {selecionados.length || ""} selecionados
             </Button>
           )}
           <NewRamaisLoteDialog tenantId={tenantId} disabled={atLimit} />
@@ -224,7 +235,10 @@ const deleteLoteMutation = useMutation({
 
             {!isLoading && data?.ramais.length === 0 && (
               <TableRow>
-                <TableCell colSpan={modoSelecao ? 10 : 9} className="text-center text-muted-foreground py-10">
+                <TableCell
+                  colSpan={modoSelecao ? 10 : 9}
+                  className="text-center text-muted-foreground py-10"
+                >
                   Nenhum ramal cadastrado ainda.
                 </TableCell>
               </TableRow>
@@ -233,20 +247,20 @@ const deleteLoteMutation = useMutation({
             {data?.ramais.map((r) => (
               <TableRow key={r.endpoint_id}>
                 {modoSelecao && (
-      <TableCell>
-        <input
-          type="checkbox"
-          checked={selecionados.includes(r.endpoint_id)}
-          onChange={(e) => {
-            setSelecionados((atual) =>
-              e.target.checked
-                ? [...atual, r.endpoint_id]
-                : atual.filter((id) => id !== r.endpoint_id),
-            );
-          }}
-        />
-      </TableCell>
-    )}
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selecionados.includes(r.endpoint_id)}
+                      onChange={(e) => {
+                        setSelecionados((atual) =>
+                          e.target.checked
+                            ? [...atual, r.endpoint_id]
+                            : atual.filter((id) => id !== r.endpoint_id),
+                        );
+                      }}
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="font-mono">{r.ramal}</TableCell>
                 <TableCell>{r.ramal_nome ? r.ramal_nome.replace(/-/g, " ") : "-"}</TableCell>
                 <TableCell>{r.tronco_nome ?? "-"}</TableCell>
@@ -304,20 +318,16 @@ const deleteLoteMutation = useMutation({
           </TableBody>
         </Table>
       </div>
-      <AlertDialog
-        open={confirmarExclusao}
-        onOpenChange={setConfirmarExclusao}
-      >
+      <AlertDialog open={confirmarExclusao} onOpenChange={setConfirmarExclusao}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Apagar {selecionados.length}{" "}
-              {selecionados.length === 1 ? "ramal" : "ramais"}?
+              Apagar {selecionados.length} {selecionados.length === 1 ? "ramal" : "ramais"}?
             </AlertDialogTitle>
 
             <AlertDialogDescription>
-              Essa ação removerá os ramais selecionados, incluindo seus
-              endpoints SIP e WebRTC. Essa ação não pode ser desfeita.
+              Essa ação removerá os ramais selecionados, incluindo seus endpoints SIP e WebRTC. Essa
+              ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -326,7 +336,10 @@ const deleteLoteMutation = useMutation({
 
             <AlertDialogAction
               disabled={deleteLoteMutation.isPending}
-              onClick={(e) => { e.preventDefault(); deleteLoteMutation.mutate(selecionados)}}
+              onClick={(e) => {
+                e.preventDefault();
+                deleteLoteMutation.mutate(selecionados);
+              }}
             >
               {deleteLoteMutation.isPending ? "Apagando..." : "Apagar ramais"}
             </AlertDialogAction>

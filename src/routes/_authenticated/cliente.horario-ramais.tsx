@@ -336,11 +336,6 @@ function HorarioRamalDialog({
 
   useEffect(() => {
     if (open && editing && membrosData) {
-      console.log("MEMBROS DO BANCO:", membrosData.membros);
-      console.log(
-        "ENDPOINTS DOS MEMBROS:",
-        membrosData.membros.map((m) => m.endpoint_id),
-      );
       setRamaisSel(membrosData.membros.map((m) => m.endpoint_id));
     }
   }, [open, editing, membrosData]);

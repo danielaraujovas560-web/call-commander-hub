@@ -1,26 +1,18 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
-import {
-  getStoredRamalCreds,
-  setStoredRamalCreds,
-  type RamalCreds,
-} from "@/lib/auth/ramal-creds";
+import { type RamalCreds } from "@/lib/auth/ramal-creds";
+import { useRamalAuth } from "@/hooks/use-ramal-auth";
+
 import { getRamalInfo, getRamalWebTicket } from "@/lib/ramais.functions";
 
 import { useJsSipPhone } from "@/hooks/use-jssip-phone";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import {
   ArrowDownLeft,
@@ -36,15 +28,8 @@ import {
   Volume2,
 } from "lucide-react";
 
-
 export const Route = createFileRoute("/ramal")({
   ssr: false,
-
-  beforeLoad: () => {
-    if (!getStoredRamalCreds()) {
-      throw redirect({ to: "/auth" });
-    }
-  },
 
   head: () => ({
     meta: [{ title: "Ramal — Painel PABX" }],
@@ -54,32 +39,17 @@ export const Route = createFileRoute("/ramal")({
 });
 
 function RamalPage() {
-  const [creds] = useState<RamalCreds | null>(() =>
-    getStoredRamalCreds(),
-  );
+  const { creds, refresh, logout } = useRamalAuth();
 
   if (!creds) {
     window.location.href = "/auth";
     return null;
   }
 
-  return <Softphone creds={creds} />;
+  return <Softphone creds={creds} refresh={refresh} logout={logout} />;
 }
 
-const KEYS = [
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "*",
-  "0",
-  "#",
-];
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
 
 type RamalInfo = {
   cliente: {
@@ -98,7 +68,25 @@ type RamalInfo = {
   }[];
 };
 
-function Softphone({ creds }: { creds: RamalCreds }) {
+function Softphone({
+  creds,
+  refresh,
+  logout,
+}: {
+  creds: RamalCreds;
+  refresh: () => Promise<void>;
+  logout: () => Promise<void>;
+}) {
+  const sipCreds = useMemo(
+    () => ({
+      sip_username: creds.sip_username,
+      sip_password: creds.sip_password,
+      wss_url: creds.wss_url,
+      sip_domain: creds.sip_domain,
+    }),
+    [creds.sip_username, creds.sip_password, creds.wss_url, creds.sip_domain],
+  );
+
   const {
     phoneState,
     callState,
@@ -110,7 +98,7 @@ function Softphone({ creds }: { creds: RamalCreds }) {
     hangup,
     sendDTMF,
     unregister,
-  } = useJsSipPhone(creds);
+  } = useJsSipPhone(sipCreds);
 
   const [numero, setNumero] = useState("");
 
@@ -121,75 +109,64 @@ function Softphone({ creds }: { creds: RamalCreds }) {
 
   const queryClient = useQueryClient();
 
-useEffect(() => {
-  let ws: WebSocket | null = null;
-  let cancelled = false;
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let cancelled = false;
 
-  async function conectar() {
-    try {
-      const { ticket } = await getRamalWebTicketFn({
-        data: {
-          ramalToken: creds.token,
-        },
-      });
+    async function conectar() {
+      try {
+        const { ticket } = await getRamalWebTicketFn({
+          data: {
+            ramalToken: creds.token,
+          },
+        });
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      const protocolo =
-        window.location.protocol === "https:" ? "wss:" : "ws:";
+        const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
 
-      const wsUrl =
-        `${protocolo}//${window.location.host}/ws/ramais?ticket=` +
-        encodeURIComponent(ticket);
+        const wsUrl =
+          `${protocolo}//${window.location.host}/ws/ramais?ticket=` + encodeURIComponent(ticket);
 
-      ws = new WebSocket(wsUrl);
+        ws = new WebSocket(wsUrl);
 
-      ws.onopen = () => {};
+        ws.onopen = () => {};
 
-      ws.onmessage = (event) => {
-        try {
-          const mensagem = JSON.parse(event.data);
+        ws.onmessage = (event) => {
+          try {
+            const mensagem = JSON.parse(event.data);
 
-          if (
-            mensagem.tipo === "CDR_UPDATED" &&
-            mensagem.endpointIds?.includes(endpointId)
-          ) {
-            queryClient.invalidateQueries({
-              queryKey: ["ramal-info", endpointId],
-            });
+            if (mensagem.tipo === "CDR_UPDATED" && mensagem.endpointIds?.includes(endpointId)) {
+              queryClient.invalidateQueries({
+                queryKey: ["ramal-info", endpointId],
+              });
+            }
+          } catch (error) {
+            console.error("[RAMAL] Erro ao processar evento:", error);
           }
-        } catch (error) {
-          console.error(
-            "[RAMAL] Erro ao processar evento:",
-            error,
-          );
-        }
-      };
+        };
 
-      ws.onerror = (error) => {
-        console.error("[RAMAL] Erro WebSocket:", error);
-      };
+        ws.onerror = (error) => {
+          console.error("[RAMAL] Erro WebSocket:", error);
+        };
 
-      ws.onclose = (event) => {};
-    } catch (error) {
-      console.error(
-        "[RAMAL] Erro ao obter ticket:",
-        error,
-      );
+        ws.onclose = (event) => {};
+      } catch (error) {
+        console.error("[RAMAL] Erro ao obter ticket:", error);
+      }
     }
-  }
 
-  conectar();
+    conectar();
 
-  return () => {
-    cancelled = true;
+    return () => {
+      cancelled = true;
 
-    if (ws) {
-      ws.close();
-      ws = null;
-    }
-  };
-}, [creds.token, endpointId, queryClient]);
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+    };
+  }, [creds.token, endpointId, queryClient]);
 
   const { data: ramalInfo } = useQuery({
     queryKey: ["ramal-info", endpointId],
@@ -206,9 +183,7 @@ useEffect(() => {
       .toString()
       .padStart(2, "0");
 
-    const secs = (seconds % 60)
-      .toString()
-      .padStart(2, "0");
+    const secs = (seconds % 60).toString().padStart(2, "0");
 
     return `${minutes}:${secs}`;
   }
@@ -224,16 +199,13 @@ useEffect(() => {
 
   async function handleLogout() {
     await unregister();
+    await logout();
 
-    setStoredRamalCreds(null);
     window.location.href = "/auth";
   }
 
   function handleKey(key: string) {
-    if (
-      callState === "active" &&
-      key
-    ) {
+    if (callState === "active" && key) {
       sendDTMF(key);
       return;
     }
@@ -265,34 +237,22 @@ useEffect(() => {
     <div className="min-h-screen bg-muted/30">
       {/* Áudio remoto da chamada */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio
-        ref={remoteAudioRef}
-        autoPlay
-        playsInline
-      />
+      <audio ref={remoteAudioRef} autoPlay playsInline />
 
       {/* Header */}
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
-            <p className="text-sm text-muted-foreground">
-              Painel PABX
-            </p>
+            <p className="text-sm text-muted-foreground">Painel PABX</p>
 
-            <h1 className="text-lg font-semibold">
-              Ramal Web
-            </h1>
+            <h1 className="text-lg font-semibold">Ramal Web</h1>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">
-                {creds.nome ?? "Usuário"}
-              </p>
+              <p className="text-sm font-medium">{creds.nome ?? "Usuário"}</p>
 
-              <p className="text-xs text-muted-foreground">
-                Ramal {creds.ramal}
-              </p>
+              <p className="text-xs text-muted-foreground">Ramal {creds.ramal}</p>
             </div>
 
             <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
@@ -339,9 +299,7 @@ useEffect(() => {
                       {ramalInfo?.cliente?.razao_social ?? "Carregando..."}
                     </CardTitle>
 
-                    <CardDescription>
-                      Informações da empresa
-                    </CardDescription>
+                    <CardDescription>Informações da empresa</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -349,9 +307,7 @@ useEffect(() => {
               <CardContent>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <p className="text-xs text-muted-foreground">
-                      CNPJ
-                    </p>
+                    <p className="text-xs text-muted-foreground">CNPJ</p>
 
                     <p className="mt-1 text-sm font-medium">
                       {ramalInfo?.cliente?.cnpj ?? "Carregando..."}
@@ -359,13 +315,9 @@ useEffect(() => {
                   </div>
 
                   <div>
-                    <p className="text-xs text-muted-foreground">
-                      Ramal
-                    </p>
+                    <p className="text-xs text-muted-foreground">Ramal</p>
 
-                    <p className="mt-1 text-sm font-medium">
-                      {creds.ramal}
-                    </p>
+                    <p className="mt-1 text-sm font-medium">{creds.ramal}</p>
                   </div>
                 </div>
               </CardContent>
@@ -380,46 +332,38 @@ useEffect(() => {
                   </div>
 
                   <div>
-                    <CardTitle className="text-base">
-                      Últimas chamadas
-                    </CardTitle>
+                    <CardTitle className="text-base">Últimas chamadas</CardTitle>
 
-                    <CardDescription>
-                      Chamadas recentes deste ramal
-                    </CardDescription>
+                    <CardDescription>Chamadas recentes deste ramal</CardDescription>
                   </div>
                 </div>
               </CardHeader>
 
-<CardContent className="max-h-[420px] space-y-2 overflow-y-auto">
-  {ramalInfo?.ultimasChamadas.length ? (
-    ramalInfo.ultimasChamadas.map((chamada) => {
-      const incoming = chamada.tipo_chamada === "Entrada";
+              <CardContent className="max-h-[420px] space-y-2 overflow-y-auto">
+                {ramalInfo?.ultimasChamadas.length ? (
+                  ramalInfo.ultimasChamadas.map((chamada) => {
+                    const incoming = chamada.tipo_chamada === "Entrada";
 
-      const numero = incoming
-        ? chamada.origem
-        : chamada.destino;
+                    const numero = incoming ? chamada.origem : chamada.destino;
 
-      return (
-        <HistoryItem
-          key={chamada.linkedid}
-          type={incoming ? "incoming" : "outgoing"}
-          number={numero}
-          time={formatCallTime(chamada.date_time)}
-          duration={formatDuration(chamada.duracao)}
-          context={chamada.context}
-          onClick={() => setNumero(numero)}
-        />
-      );
-    })
-  ) : (
-    <div className="py-8 text-center">
-      <p className="text-sm text-muted-foreground">
-        Nenhuma chamada hoje
-      </p>
-    </div>
-  )}
-</CardContent>
+                    return (
+                      <HistoryItem
+                        key={chamada.linkedid}
+                        type={incoming ? "incoming" : "outgoing"}
+                        number={numero}
+                        time={formatCallTime(chamada.date_time)}
+                        duration={formatDuration(chamada.duracao)}
+                        context={chamada.context}
+                        onClick={() => setNumero(numero)}
+                      />
+                    );
+                  })
+                ) : (
+                  <div className="py-8 text-center">
+                    <p className="text-sm text-muted-foreground">Nenhuma chamada hoje</p>
+                  </div>
+                )}
+              </CardContent>
             </Card>
 
             {/* Informações do ramal — temporário */}
@@ -434,18 +378,10 @@ useEffect(() => {
                 <InfoItem
                   icon={<Signal className="h-4 w-4" />}
                   label="Status"
-                  value={
-                    isRegistered
-                      ? "Registrado"
-                      : "Desconectado"
-                  }
+                  value={isRegistered ? "Registrado" : "Desconectado"}
                 />
 
-                <InfoItem
-                  icon={<Phone className="h-4 w-4" />}
-                  label="Tecnologia"
-                  value="WebRTC"
-                />
+                <InfoItem icon={<Phone className="h-4 w-4" />} label="Tecnologia" value="WebRTC" />
               </CardContent>
             </Card>
           </section>
@@ -465,9 +401,7 @@ useEffect(() => {
                   <CardHeader className="border-b text-center">
                     <CardTitle>Discador</CardTitle>
 
-                    <CardDescription>
-                      Ramal {creds.ramal}
-                    </CardDescription>
+                    <CardDescription>Ramal {creds.ramal}</CardDescription>
                   </CardHeader>
 
                   <CardContent className="space-y-5 p-6">
@@ -478,7 +412,7 @@ useEffect(() => {
                         setNumero(valor);
                       }}
                       placeholder="Digite um número"
-                      inputModel="tel"
+                      inputMode="tel"
                       className="h-14 text-center text-2xl font-medium tracking-wider"
                     />
 
@@ -511,10 +445,7 @@ useEffect(() => {
                       <Button
                         type="button"
                         className="h-12 flex-1"
-                        disabled={
-                          !numero ||
-                          !isRegistered
-                        }
+                        disabled={!numero || !isRegistered}
                         onClick={handleCall}
                       >
                         <Phone className="mr-2 h-4 w-4" />
@@ -536,42 +467,25 @@ useEffect(() => {
                       <PhoneIncoming className="h-7 w-7 text-primary" />
                     </div>
 
-                    <CardTitle className="mt-3">
-                      Chamada recebida
-                    </CardTitle>
+                    <CardTitle className="mt-3">Chamada recebida</CardTitle>
 
-                    <CardDescription>
-                      Alguém está ligando para seu ramal
-                    </CardDescription>
+                    <CardDescription>Alguém está ligando para seu ramal</CardDescription>
                   </CardHeader>
 
                   <CardContent className="space-y-6 p-6 text-center">
                     <div>
-                      <p className="text-3xl font-semibold tracking-wide">
-                        {remoteNumber}
-                      </p>
+                      <p className="text-3xl font-semibold tracking-wide">{remoteNumber}</p>
 
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Chamada recebida
-                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">Chamada recebida</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        type="button"
-                        className="h-14"
-                        onClick={answer}
-                      >
+                      <Button type="button" className="h-14" onClick={answer}>
                         <PhoneIncoming className="mr-2 h-5 w-5" />
                         Atender
                       </Button>
 
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        className="h-14"
-                        onClick={hangup}
-                      >
+                      <Button type="button" variant="destructive" className="h-14" onClick={hangup}>
                         <PhoneOff className="mr-2 h-5 w-5" />
                         Recusar
                       </Button>
@@ -584,8 +498,7 @@ useEffect(() => {
               {/* CALLING / RINGING — CHAMANDO                    */}
               {/* ================================================= */}
 
-              {(callState === "calling" ||
-                callState === "ringing") && (
+              {(callState === "calling" || callState === "ringing") && (
                 <>
                   <CardHeader className="border-b text-center">
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -593,25 +506,17 @@ useEffect(() => {
                     </div>
 
                     <CardTitle className="mt-3">
-                      {callState === "calling"
-                        ? "Iniciando chamada"
-                        : "Chamando…"}
+                      {callState === "calling" ? "Iniciando chamada" : "Chamando…"}
                     </CardTitle>
 
-                    <CardDescription>
-                      Aguardando atendimento
-                    </CardDescription>
+                    <CardDescription>Aguardando atendimento</CardDescription>
                   </CardHeader>
 
                   <CardContent className="space-y-8 p-6 text-center">
                     <div>
-                      <p className="text-3xl font-semibold tracking-wide">
-                        {numero}
-                      </p>
+                      <p className="text-3xl font-semibold tracking-wide">{numero}</p>
 
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Chamando
-                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">Chamando</p>
                     </div>
 
                     <Button
@@ -638,20 +543,14 @@ useEffect(() => {
                       <Phone className="h-7 w-7 text-emerald-600" />
                     </div>
 
-                    <CardTitle className="mt-3">
-                      Em chamada
-                    </CardTitle>
+                    <CardTitle className="mt-3">Em chamada</CardTitle>
 
-                    <CardDescription>
-                      Chamada ativa
-                    </CardDescription>
+                    <CardDescription>Chamada ativa</CardDescription>
                   </CardHeader>
 
                   <CardContent className="space-y-6 p-6 text-center">
                     <div>
-                      <p className="text-3xl font-semibold tracking-wide">
-                        {remoteNumber}
-                      </p>
+                      <p className="text-3xl font-semibold tracking-wide">{remoteNumber}</p>
 
                       <p className="mt-2 text-lg font-mono text-muted-foreground">
                         {formatDuration(callDuration)}
@@ -660,20 +559,12 @@ useEffect(() => {
 
                     {/* Controles */}
                     <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-12"
-                      >
+                      <Button type="button" variant="outline" className="h-12">
                         <Volume2 className="mr-2 h-4 w-4" />
                         Áudio
                       </Button>
 
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-12"
-                      >
+                      <Button type="button" variant="outline" className="h-12">
                         Teclado
                       </Button>
                     </div>
@@ -718,20 +609,12 @@ useEffect(() => {
                   </div>
 
                   <div>
-                    <p className="text-lg font-semibold">
-                      Chamada encerrada
-                    </p>
+                    <p className="text-lg font-semibold">Chamada encerrada</p>
 
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      A chamada foi finalizada
-                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">A chamada foi finalizada</p>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setNumero("")}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setNumero("")}>
                     Voltar ao discador
                   </Button>
                 </CardContent>
@@ -739,12 +622,7 @@ useEffect(() => {
             </Card>
 
             {/* Sair */}
-            <Button
-              type="button"
-              variant="ghost"
-              className="mt-4 w-full"
-              onClick={handleLogout}
-            >
+            <Button type="button" variant="ghost" className="mt-4 w-full" onClick={handleLogout}>
               Sair
             </Button>
           </section>
@@ -779,17 +657,11 @@ function HistoryItem({
     >
       <div className="flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-          {incoming ? (
-            <ArrowDownLeft className="h-4 w-4" />
-          ) : (
-            <ArrowUpRight className="h-4 w-4" />
-          )}
+          {incoming ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
         </div>
 
         <div>
-          <p className="text-sm font-medium">
-            {number}
-          </p>
+          <p className="text-sm font-medium">{number}</p>
 
           <p className="text-xs text-muted-foreground">
             {incoming ? "Recebida" : "Realizada"} · {context} · {time}
@@ -797,38 +669,22 @@ function HistoryItem({
         </div>
       </div>
 
-     <div className="text-right space-y-1">
-      <span className="block text-xs text-muted-foreground">
-        {duration}
-      </span>
-     </div>
+      <div className="text-right space-y-1">
+        <span className="block text-xs text-muted-foreground">{duration}</span>
+      </div>
     </button>
   );
 }
 
-function InfoItem({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
-        {icon}
-      </div>
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">{icon}</div>
 
       <div>
-        <p className="text-xs text-muted-foreground">
-          {label}
-        </p>
+        <p className="text-xs text-muted-foreground">{label}</p>
 
-        <p className="text-sm font-medium">
-          {value}
-        </p>
+        <p className="text-sm font-medium">{value}</p>
       </div>
     </div>
   );

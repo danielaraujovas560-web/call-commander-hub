@@ -12,9 +12,7 @@ router.post("/api/internal/cdr-updated", (req, res) => {
 
   if (tenantId) {
     publicar(String(tenantId), "CDR_UPDATED", {
-    endpointIds: Array.isArray(endpointIds)
-      ? endpointIds.map(String)
-      : [],
+      endpointIds: Array.isArray(endpointIds) ? endpointIds.map(String) : [],
     });
   }
   return res.json({ ok: true });

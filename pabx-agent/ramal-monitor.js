@@ -243,9 +243,7 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
         numero: null,
         linkedid: null,
         desde: null,
-        conectadoDesde: registradoDesde
-          ? new Date(registradoDesde).toISOString()
-          : null,
+        conectadoDesde: registradoDesde ? new Date(registradoDesde).toISOString() : null,
       };
 
       online++;
@@ -342,10 +340,10 @@ function registrarEventos(ariClient, queryFn) {
 
       estadoRamais[tenantId][endpointBase] = {
         ...anterior,
-          endpoint: endpointBase,
-          conectadoDesde: registradoDesde
-            ? new Date(registradoDesde).toISOString()
-            : anterior.conectadoDesde,
+        endpoint: endpointBase,
+        conectadoDesde: registradoDesde
+          ? new Date(registradoDesde).toISOString()
+          : anterior.conectadoDesde,
       };
 
       await atualizarDisponibilidadeAgente(tenantId, endpointBase);
@@ -366,46 +364,44 @@ function registrarEventos(ariClient, queryFn) {
       const timer = setTimeout(async () => {
         offlineTimers.delete(chave);
 
-      const presenca = garantirPresenca(tenantId, endpointBase);
+        const presenca = garantirPresenca(tenantId, endpointBase);
 
-      if (nome.endsWith("-web")) {
-        presenca.web = false;
-      } else {
-        presenca.base = false;
-      }
+        if (nome.endsWith("-web")) {
+          presenca.web = false;
+        } else {
+          presenca.base = false;
+        }
 
-      const aindaOnline = presenca.base || presenca.web;
+        const aindaOnline = presenca.base || presenca.web;
 
-      await atualizarDisponibilidadeAgente(tenantId, endpointBase);
+        await atualizarDisponibilidadeAgente(tenantId, endpointBase);
 
-      if (aindaOnline) {
-        console.log(
-          `[MONITOR] ${nome} offline, mas ${endpointBase} ainda está online`,
+        if (aindaOnline) {
+          console.log(`[MONITOR] ${nome} offline, mas ${endpointBase} ainda está online`);
+          return;
+        }
+
+        const ramais = estadoRamais[tenantId] ?? {};
+
+        await queryFn(
+          `UPDATE ramais SET registrado_desde = NULL, ultima_conexao = NOW() WHERE endpoint_id = ?`,
+          [endpointBase],
         );
-        return;
-      }
 
-      const ramais = estadoRamais[tenantId] ?? {};
+        delete ramais[endpointBase];
+        delete presencaRamais[tenantId][endpointBase];
 
-      await queryFn(
-        `UPDATE ramais SET registrado_desde = NULL, ultima_conexao = NOW() WHERE endpoint_id = ?`,
-        [endpointBase],
-      );
+        await atualizarDisponibilidadeAgente(tenantId, endpointBase);
 
-      delete ramais[endpointBase];
-      delete presencaRamais[tenantId][endpointBase];
+        publicar(tenantId, "RAMAL_REMOVIDO", {
+          endpoint: endpointBase,
+        });
 
-      await atualizarDisponibilidadeAgente(tenantId, endpointBase);
-
-      publicar(tenantId, "RAMAL_REMOVIDO", {
-        endpoint: endpointBase,
-      });
-
-      console.log(`[MONITOR] desconexão total: ${endpointBase}`);
-    }, 3000);
-    offlineTimers.set(chave, timer);
-  }
-});
+        console.log(`[MONITOR] desconexão total: ${endpointBase}`);
+      }, 3000);
+      offlineTimers.set(chave, timer);
+    }
+  });
 
   // Canal criado — ramal iniciou discagem ou está recebendo chamada
   ariClient.on("ChannelCreated", async (event) => {
