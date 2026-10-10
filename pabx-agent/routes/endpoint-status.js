@@ -41,8 +41,10 @@ router.get("/ramais/status", async (req, res) => {
 
       if (normalStatus === "Reachable" || webStatus === "Reachable") {
         endpoints[String(row.ramal)] = "Reachable";
-      } else if (normalStatus || webStatus) {
-        endpoints[String(row.ramal)] = webStatus || normalStatus;
+      } else if (normalStatus) {
+        endpoints[String(row.ramal)] = normalStatus;
+      }else if (webStatus) {
+        endpoints[String(row.ramal)] = webStatus;
       } else {
         endpoints[String(row.ramal)] = "Unknown";
       }

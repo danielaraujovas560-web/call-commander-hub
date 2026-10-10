@@ -23,6 +23,7 @@ import { Route as AuthenticatedClienteRoteamentoRouteImport } from './routes/_au
 import { Route as AuthenticatedClienteRegraHorarioRouteImport } from './routes/_authenticated/cliente.regra-horario'
 import { Route as AuthenticatedClienteRamaisRouteImport } from './routes/_authenticated/cliente.ramais'
 import { Route as AuthenticatedClientePesquisaSatisfacaoRouteImport } from './routes/_authenticated/cliente.pesquisa-satisfacao'
+import { Route as AuthenticatedClienteIaRouteImport } from './routes/_authenticated/cliente.ia'
 import { Route as AuthenticatedClienteHorarioRamaisRouteImport } from './routes/_authenticated/cliente.horario-ramais'
 import { Route as AuthenticatedClienteFilasRouteImport } from './routes/_authenticated/cliente.filas'
 import { Route as AuthenticatedClienteBlacklistRouteImport } from './routes/_authenticated/cliente.blacklist'
@@ -115,6 +116,11 @@ const AuthenticatedClientePesquisaSatisfacaoRoute =
     path: '/pesquisa-satisfacao',
     getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
+const AuthenticatedClienteIaRoute = AuthenticatedClienteIaRouteImport.update({
+  id: '/ia',
+  path: '/ia',
+  getParentRoute: () => AuthenticatedClienteRoute,
+} as any)
 const AuthenticatedClienteHorarioRamaisRoute =
   AuthenticatedClienteHorarioRamaisRouteImport.update({
     id: '/horario-ramais',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
   '/cliente/filas': typeof AuthenticatedClienteFilasRoute
   '/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
+  '/cliente/ia': typeof AuthenticatedClienteIaRoute
   '/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
   '/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
   '/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByTo {
   '/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
   '/cliente/filas': typeof AuthenticatedClienteFilasRoute
   '/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
+  '/cliente/ia': typeof AuthenticatedClienteIaRoute
   '/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
   '/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
   '/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
@@ -274,6 +282,7 @@ export interface FileRoutesById {
   '/_authenticated/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
   '/_authenticated/cliente/filas': typeof AuthenticatedClienteFilasRoute
   '/_authenticated/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
+  '/_authenticated/cliente/ia': typeof AuthenticatedClienteIaRoute
   '/_authenticated/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
   '/_authenticated/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
   '/_authenticated/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/cliente/blacklist'
     | '/cliente/filas'
     | '/cliente/horario-ramais'
+    | '/cliente/ia'
     | '/cliente/pesquisa-satisfacao'
     | '/cliente/ramais'
     | '/cliente/regra-horario'
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/cliente/blacklist'
     | '/cliente/filas'
     | '/cliente/horario-ramais'
+    | '/cliente/ia'
     | '/cliente/pesquisa-satisfacao'
     | '/cliente/ramais'
     | '/cliente/regra-horario'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cliente/blacklist'
     | '/_authenticated/cliente/filas'
     | '/_authenticated/cliente/horario-ramais'
+    | '/_authenticated/cliente/ia'
     | '/_authenticated/cliente/pesquisa-satisfacao'
     | '/_authenticated/cliente/ramais'
     | '/_authenticated/cliente/regra-horario'
@@ -485,6 +497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientePesquisaSatisfacaoRouteImport
       parentRoute: typeof AuthenticatedClienteRoute
     }
+    '/_authenticated/cliente/ia': {
+      id: '/_authenticated/cliente/ia'
+      path: '/ia'
+      fullPath: '/cliente/ia'
+      preLoaderRoute: typeof AuthenticatedClienteIaRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
     '/_authenticated/cliente/horario-ramais': {
       id: '/_authenticated/cliente/horario-ramais'
       path: '/horario-ramais'
@@ -591,6 +610,7 @@ interface AuthenticatedClienteRouteChildren {
   AuthenticatedClienteBlacklistRoute: typeof AuthenticatedClienteBlacklistRoute
   AuthenticatedClienteFilasRoute: typeof AuthenticatedClienteFilasRoute
   AuthenticatedClienteHorarioRamaisRoute: typeof AuthenticatedClienteHorarioRamaisRoute
+  AuthenticatedClienteIaRoute: typeof AuthenticatedClienteIaRoute
   AuthenticatedClientePesquisaSatisfacaoRoute: typeof AuthenticatedClientePesquisaSatisfacaoRoute
   AuthenticatedClienteRamaisRoute: typeof AuthenticatedClienteRamaisRoute
   AuthenticatedClienteRegraHorarioRoute: typeof AuthenticatedClienteRegraHorarioRoute
@@ -611,6 +631,7 @@ const AuthenticatedClienteRouteChildren: AuthenticatedClienteRouteChildren = {
   AuthenticatedClienteFilasRoute: AuthenticatedClienteFilasRoute,
   AuthenticatedClienteHorarioRamaisRoute:
     AuthenticatedClienteHorarioRamaisRoute,
+  AuthenticatedClienteIaRoute: AuthenticatedClienteIaRoute,
   AuthenticatedClientePesquisaSatisfacaoRoute:
     AuthenticatedClientePesquisaSatisfacaoRoute,
   AuthenticatedClienteRamaisRoute: AuthenticatedClienteRamaisRoute,
