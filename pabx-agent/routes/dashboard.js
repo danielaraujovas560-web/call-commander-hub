@@ -16,7 +16,7 @@ router.get("/dashboard/call-summary", requireAdmin, async (req, res) => {
           ),
           0
         ) AS duracao_media
-      FROM cdr_ramal
+      FROM cdr_geral
       WHERE date_time >= CURDATE()
         AND date_time < CURDATE() + INTERVAL 1 DAY
     `);
@@ -26,7 +26,7 @@ router.get("/dashboard/call-summary", requireAdmin, async (req, res) => {
         tipo_chamada,
         status,
         COUNT(*) AS quantidade
-      FROM cdr_ramal
+      FROM cdr_geral
       WHERE date_time >= CURDATE()
         AND date_time < CURDATE() + INTERVAL 1 DAY
       GROUP BY tipo_chamada, status
@@ -36,7 +36,7 @@ router.get("/dashboard/call-summary", requireAdmin, async (req, res) => {
     const [yesterdayRows] = await pool.query(`
       SELECT
         COUNT(*) AS total
-      FROM cdr_ramal
+      FROM cdr_geral
       WHERE date_time >= CURDATE() - INTERVAL 1 DAY
         AND date_time < CURDATE()
     `);

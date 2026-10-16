@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -11,6 +11,7 @@ import {
   deletePesquisaSatisfacao,
 } from "@/lib/pesquisa.functions";
 import { listAudios } from "@/lib/audios.functions";
+import { getConfiguracoes } from "@/lib/configuracoes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,6 +71,29 @@ interface PesquisaSatisfacao {
 
 export const Route = createFileRoute("/_authenticated/cliente/pesquisa-satisfacao")({
   head: () => ({ meta: [{ title: "Pesquisa de Satisfação — Painel PABX" }] }),
+  beforeLoad: async () => {
+    // Chama a server function direto no servidor/loader da rota
+    const configuracoes = await getConfiguracoes({
+      data: {
+        chaves: ["modulos.pesquisa_satisfacao"],
+      },
+    });
+
+    const iaEnabled = configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true"
+    );
+    if (!iaEnabled) {
+      throw new Error("403: Módulo não autorizado");
+    }
+  },
+  errorComponent: () => (
+    <div className="flex h-[80vh] flex-col items-center justify-center gap-4 text-center">
+      <h1 className="text-4xl font-bold">403</h1>
+      <p className="text-muted-foreground">
+        Ops! O módulo de Pesquisa de Satisfação não está ativo.
+      </p>
+    </div>
+  ),
   component: Page,
 });
 

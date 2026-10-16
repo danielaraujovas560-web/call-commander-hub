@@ -33,6 +33,7 @@ import { listPesquisaSatisfacao } from "@/lib/pesquisa.functions";
 import { listTroncos } from "@/lib/troncos.functions";
 import { getSipConfig } from "@/lib/login-config.functions";
 import { getClienteByTenant } from "@/lib/clientes.functions";
+import { getConfiguracoes } from "@/lib/configuracoes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -465,6 +466,25 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
   const [open, setOpen] = useState(false);
   const troncosFn = useServerFn(listTroncos);
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
+const configuracoesFn = useServerFn(getConfiguracoes);
+
+const { data: configuracoes } = useQuery({
+  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+  queryFn: () =>
+    configuracoesFn({
+      data: {
+        chaves: ["modulos.pesquisa_satisfacao"],
+      },
+    }),
+  enabled: open && !!tenantId,
+});
+
+const pesquisaEnabled =
+  configuracoes?.some(
+    (config) =>
+      config.chave === "modulos.pesquisa_satisfacao" &&
+      config.valor === "true"
+  ) ?? false;
 
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
@@ -701,6 +721,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
             )}
           </div>
 
+          {pesquisaEnabled && (
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch
@@ -742,6 +763,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
               </Select>
             )}
           </div>
+          )}
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
             <div className="col-span-2 text-xs text-muted-foreground">
@@ -848,6 +870,27 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   const [open, setOpen] = useState(false);
   const troncosFn = useServerFn(listTroncos);
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
+
+const configuracoesFn = useServerFn(getConfiguracoes);
+
+const { data: configuracoes } = useQuery({
+  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+  queryFn: () =>
+    configuracoesFn({
+      data: {
+        chaves: ["modulos.pesquisa_satisfacao"],
+      },
+    }),
+  enabled: open && !!tenantId,
+});
+
+const pesquisaEnabled =
+  configuracoes?.some(
+    (config) =>
+      config.chave === "modulos.pesquisa_satisfacao" &&
+      config.valor === "true"
+  ) ?? false;
+
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
     queryFn: () => troncosFn({ data: { tenant_id: tenantId } }),
@@ -1066,6 +1109,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
             )}
           </div>
 
+          {pesquisaEnabled && (
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch
@@ -1107,6 +1151,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
               </Select>
             )}
           </div>
+          )}
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
             <div className="col-span-2 text-xs text-muted-foreground">
@@ -1148,6 +1193,26 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
 
   const troncosFn = useServerFn(listTroncos);
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
+
+const configuracoesFn = useServerFn(getConfiguracoes);
+
+const { data: configuracoes } = useQuery({
+  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+  queryFn: () =>
+    configuracoesFn({
+      data: {
+        chaves: ["modulos.pesquisa_satisfacao"],
+      },
+    }),
+  enabled: open && !!tenantId,
+});
+
+const pesquisaEnabled =
+  configuracoes?.some(
+    (config) =>
+      config.chave === "modulos.pesquisa_satisfacao" &&
+      config.valor === "true"
+  ) ?? false;
 
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
@@ -1518,6 +1583,7 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
             )}
           </div>
 
+          {pesquisaEnabled && (
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch
@@ -1569,6 +1635,7 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
               </Select>
             )}
           </div>
+          )}
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
             <div className="col-span-2 text-xs text-muted-foreground">

@@ -22,6 +22,7 @@ import {
 import { listRamais } from "@/lib/ramais.functions";
 import { listPesquisaSatisfacao } from "@/lib/pesquisa.functions";
 import { listAudios } from "@/lib/audios.functions";
+import { getConfiguracoes } from "@/lib/configuracoes.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -462,6 +463,26 @@ function FilaFormDialog({
 
   const pesquisas = pesquisasData?.pesquisas ?? [];
 
+const configuracoesFn = useServerFn(getConfiguracoes);
+
+const { data: configuracoes } = useQuery({
+  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+  queryFn: () =>
+    configuracoesFn({
+      data: {
+        chaves: ["modulos.pesquisa_satisfacao"],
+      },
+    }),
+  enabled: open && !!tenantId,
+});
+
+const pesquisaEnabled =
+  configuracoes?.some(
+    (config) =>
+      config.chave === "modulos.pesquisa_satisfacao" &&
+      config.valor === "true"
+  ) ?? false;
+
   const [form, setForm] = useState({
     display_name: fila?.display_name ?? "",
     description: fila?.description ?? "",
@@ -633,6 +654,8 @@ function FilaFormDialog({
               </p>
             </div>
           </div>
+
+          {pesquisaEnabled && (
           <div className="col-span-2 rounded-md border p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Switch
@@ -674,6 +697,7 @@ function FilaFormDialog({
               </Select>
             )}
           </div>
+          )}
           <div className="grid grid-cols-3 gap-3 border-t pt-3">
             <div className="space-y-1">
               <Label title="Tempo de toque máximo no agente">Timeout Agente</Label>

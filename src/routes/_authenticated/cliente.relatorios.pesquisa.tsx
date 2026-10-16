@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { Star, Users, Phone, ChevronLeft, ChevronRight } from "lucide-react";
 import { listCdrPesquisa } from "@/lib/relatorios.functions";
+import { getConfiguracoes } from "@/lib/configuracoes.functions";
 import {
   Table,
   TableBody,
@@ -36,6 +37,29 @@ function getTodayFilters(): ReportFilterValues {
 
 export const Route = createFileRoute("/_authenticated/cliente/relatorios/pesquisa")({
   head: () => ({ meta: [{ title: "Pesquisa de satisfação — Painel PABX" }] }),
+  beforeLoad: async () => {
+    // Chama a server function direto no servidor/loader da rota
+    const configuracoes = await getConfiguracoes({
+      data: {
+        chaves: ["modulos.pesquisa_satisfacao"],
+      },
+    });
+
+    const pesquisaEnabled = configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true"
+    );
+    if (!pesquisaEnabled) {
+      throw new Error("403: Módulo não autorizado");
+    }
+  },
+  errorComponent: () => (
+    <div className="flex h-[80vh] flex-col items-center justify-center gap-4 text-center">
+      <h1 className="text-4xl font-bold">403</h1>
+      <p className="text-muted-foreground">
+        Ops! O módulo de Pesquisa de Satisfação não está ativo.
+      </p>
+    </div>
+  ),
   component: Page,
 });
 

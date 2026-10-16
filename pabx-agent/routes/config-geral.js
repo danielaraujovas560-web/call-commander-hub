@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require("../config/db");
 const { requireAdmin } = require("../middleware/admin");
 
-router.get("/config-geral", requireAdmin, async (req, res) => {
+router.get("/config-geral", async (req, res) => {
   try {
     const { chaves } = req.query;
 

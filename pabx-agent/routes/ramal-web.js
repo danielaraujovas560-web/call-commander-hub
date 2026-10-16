@@ -75,7 +75,7 @@ router.get("/ws/ramais-info", async (req, res) => {
           context,
           linkedid,
           duracao
-        FROM cdr_ramal
+        FROM cdr_geral
         WHERE tenant_id = ?
           AND (
             (origem = ? AND tipo_chamada = 'Saida')

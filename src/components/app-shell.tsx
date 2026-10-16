@@ -193,13 +193,13 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
     {
       to: "/cliente/pesquisa-satisfacao",
       label: "Pesquisa Satisfação",
-      icon: ClipboardCheck,
+      icon: Star,
       exact: false,
       enabled: pesquisaEnabled,
     },
     { to: "/cliente/roteamento", label: "Roteamento", icon: RouterIcon, exact: false },
     { to: "/cliente/troncos", label: "Troncos", icon: Cable, exact: false },
-    { to: "/cliente/ia", label: "IA", icon: Brain, exact: false, enabled: iaEnabled },
+    { to: "/cliente/ia", label: "IA", icon: Brain, enabled: iaEnabled },
   ] as const;
 
   const relatorios = [

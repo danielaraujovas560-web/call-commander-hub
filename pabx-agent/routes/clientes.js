@@ -202,7 +202,7 @@ router.delete("/clientes/:id", requireAdmin, async (req, res) => {
       [tenant],
     );
     await conn.query("DELETE FROM pesquisa_satisfacao WHERE tenant_id = ?", [tenant]);
-    await conn.query("DELETE FROM cdr_ramal WHERE tenant_id = ?", [tenant]);
+    await conn.query("DELETE FROM cdr_geral WHERE tenant_id = ?", [tenant]);
     await conn.query("DELETE FROM cdr_fila WHERE tenant_id = ?", [tenant]);
     await conn.query("DELETE FROM cdr_ura WHERE tenant_id = ?", [tenant]);
     await conn.query("DELETE FROM cdr_cidades_entrada WHERE tenant_id = ?", [tenant]);

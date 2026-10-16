@@ -24,6 +24,13 @@ const CdrFilter = z
   .transform((v) => v ?? {});
 type CdrFilterT = z.infer<typeof CdrFilter>;
 
+
+const CdrExtratoIaSchema = z.object({
+  tenant_id: z.number().int().positive().optional(),
+  cdrId: z.number().int().positive(),
+});
+
+
 function buildQuery(filters: CdrFilterT, tenantId?: number): string {
   const q = new URLSearchParams();
 
@@ -96,3 +103,49 @@ export const listCdrCidadesSaida = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .validator((d: unknown) => CdrFilter.parse(d))
   .handler(({ data, context }) => fetchCdr("/cdr/cidades/saida", context.token, data));
+
+export const getCdrUraExtratoIa = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .validator((d: unknown) => CdrExtratoIaSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const tenantId = await resolveTenantId(
+      context.token,
+      data.tenant_id
+    );
+
+    const res = await authenticatedAgentFetch<{
+      cdr: {
+        id: number;
+        linkedid: string;
+        id_ura: string | null;
+        nome_ura: string;
+        tipo: string;
+        custo_ia_brl: string | number | null;
+        date_time: string;
+      };
+      eventos: {
+        evento_id: number;
+        componente: string;
+        provedor: string;
+        modelo: string | null;
+        request_id: string | null;
+        tokens_entrada: number | null;
+        tokens_saida: number | null;
+        caracteres_cobrados: number | null;
+        custo_usd: string | number | null;
+        custo_brl: string | number;
+        status: string;
+        criado_em: string;
+      }[];
+      total_eventos: number;
+    }>(
+      { token: context.token },
+      `/cdr/ura/${data.cdrId}/extrato-ia`,
+      { tenantId }
+    );
+
+    return {
+      tenantId,
+      ...res,
+    };
+  });

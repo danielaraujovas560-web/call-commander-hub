@@ -335,8 +335,8 @@ function UrasPage() {
                     </div>
                   ) : (
                     <div className="space-y-0.5">
-                      <div className="font-mono text-xs">
-                        {u.audio || "-"}
+                      <div className="font-medium">
+                        Áudio: {u.display_name || "-"}
                       </div>
 
                       <div className="text-xs text-muted-foreground">

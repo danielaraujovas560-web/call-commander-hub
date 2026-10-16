@@ -24,7 +24,7 @@ router.get("/gravacoes/:tipo/:linkedid", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Tipo de gravação inválido" });
     }
 
-    const tabela = tipo === "fila" ? "cdr_fila" : "cdr_ramal";
+    const tabela = tipo === "fila" ? "cdr_fila" : "cdr_geral";
 
     //Faz a consulta usando o pool.query no padrão exato do seu arquivo
     const sql = `SELECT nome_gravacao FROM ${tabela} WHERE linkedid = ? AND tenant_id = ? LIMIT 1`;

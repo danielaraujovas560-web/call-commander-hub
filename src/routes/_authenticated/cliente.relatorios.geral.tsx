@@ -52,7 +52,7 @@ function Page() {
   const [page, setPage] = useState(1);
   const fn = useServerFn(listCdrRamal);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["cdr_ramal", tenantId, page, fRamais],
+    queryKey: ["cdr_geral", tenantId, page, fRamais],
     queryFn: () => fn({ data: { tenant_id: tenantId, page, ...fRamais } }),
     enabled: !!tenantId,
   });

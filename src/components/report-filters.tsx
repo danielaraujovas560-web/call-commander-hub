@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Filter, X } from "lucide-react";
 
 export interface ReportFilterValues {
@@ -37,7 +44,6 @@ export function usePersistentFilter(
   tenantId: string | number | undefined,
   defaultValues: ReportFilterValues,
 ) {
-  // Tenta ler do localStorage na montagem inicial
   const [filtro, setFiltro] = useState<ReportFilterValues>(() => {
     if (typeof window !== "undefined" && tenantId) {
       const saved = localStorage.getItem(`${key}_${tenantId}`);
@@ -50,7 +56,6 @@ export function usePersistentFilter(
     return defaultValues;
   });
 
-  // Reage se o usuário sair da rota e voltar (espera o tenantId carregar)
   useEffect(() => {
     if (!tenantId) return;
 
@@ -94,7 +99,6 @@ export function ReportFilters({
   const [values, setValues] = useState<ReportFilterValues>(initialValues || {});
   const [limit, setLimit] = useState(initialValues?.limit || 25);
 
-  // MÁGICA PARA AS ABAS: Se o pai mandar um valor novo, atualiza a tela instantaneamente
   useEffect(() => {
     if (initialValues) {
       setValues(initialValues);
@@ -138,18 +142,22 @@ export function ReportFilters({
         <div key={f.key} className="space-y-1">
           <Label className="text-xs">{f.label}</Label>
           {f.options ? (
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
-              value={values[f.key] ?? ""}
-              onChange={(e) => set(f.key, e.target.value)}
+            <Select
+              value={values[f.key] ? String(values[f.key]) : "all"}
+              onValueChange={(val) => set(f.key, val === "all" ? "" : val)}
             >
-              <option value="">Todos</option>
-              {f.options.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {f.options.map((o) => (
+                  <SelectItem key={o.value} value={String(o.value)}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : (
             <Input
               type={f.type ?? "text"}
@@ -160,22 +168,28 @@ export function ReportFilters({
           )}
         </div>
       ))}
+
       {showLimit && (
         <div className="space-y-1">
           <Label className="text-xs">Limite</Label>
-          <select
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+          <Select
             value={String(limit)}
-            onChange={(e) => setLimit(Number(e.target.value))}
+            onValueChange={(val) => setLimit(Number(val))}
           >
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="150">150</option>
-            <option value="200">200</option>
-          </select>
+            <SelectTrigger className="h-9 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="150">150</SelectItem>
+              <SelectItem value="200">200</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
+
       <div className="flex items-end gap-2 md:col-span-3 lg:col-span-4">
         <Button type="submit" size="sm">
           <Filter className="mr-2 h-4 w-4" />
