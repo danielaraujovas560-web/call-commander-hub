@@ -20,6 +20,7 @@ import { Route as AuthenticatedClienteIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedClienteUrasRouteImport } from './routes/_authenticated/cliente.uras'
 import { Route as AuthenticatedClienteTroncosRouteImport } from './routes/_authenticated/cliente.troncos'
 import { Route as AuthenticatedClienteRoteamentoRouteImport } from './routes/_authenticated/cliente.roteamento'
+import { Route as AuthenticatedClienteRegrasRouteImport } from './routes/_authenticated/cliente.regras'
 import { Route as AuthenticatedClienteRegraHorarioRouteImport } from './routes/_authenticated/cliente.regra-horario'
 import { Route as AuthenticatedClienteRamaisRouteImport } from './routes/_authenticated/cliente.ramais'
 import { Route as AuthenticatedClientePesquisaSatisfacaoRouteImport } from './routes/_authenticated/cliente.pesquisa-satisfacao'
@@ -96,6 +97,12 @@ const AuthenticatedClienteRoteamentoRoute =
   AuthenticatedClienteRoteamentoRouteImport.update({
     id: '/roteamento',
     path: '/roteamento',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
+const AuthenticatedClienteRegrasRoute =
+  AuthenticatedClienteRegrasRouteImport.update({
+    id: '/regras',
+    path: '/regras',
     getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
 const AuthenticatedClienteRegraHorarioRoute =
@@ -225,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
   '/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
   '/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
+  '/cliente/regras': typeof AuthenticatedClienteRegrasRoute
   '/cliente/roteamento': typeof AuthenticatedClienteRoteamentoRoute
   '/cliente/troncos': typeof AuthenticatedClienteTroncosRoute
   '/cliente/uras': typeof AuthenticatedClienteUrasRoute
@@ -254,6 +262,7 @@ export interface FileRoutesByTo {
   '/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
   '/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
   '/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
+  '/cliente/regras': typeof AuthenticatedClienteRegrasRoute
   '/cliente/roteamento': typeof AuthenticatedClienteRoteamentoRoute
   '/cliente/troncos': typeof AuthenticatedClienteTroncosRoute
   '/cliente/uras': typeof AuthenticatedClienteUrasRoute
@@ -286,6 +295,7 @@ export interface FileRoutesById {
   '/_authenticated/cliente/pesquisa-satisfacao': typeof AuthenticatedClientePesquisaSatisfacaoRoute
   '/_authenticated/cliente/ramais': typeof AuthenticatedClienteRamaisRoute
   '/_authenticated/cliente/regra-horario': typeof AuthenticatedClienteRegraHorarioRoute
+  '/_authenticated/cliente/regras': typeof AuthenticatedClienteRegrasRoute
   '/_authenticated/cliente/roteamento': typeof AuthenticatedClienteRoteamentoRoute
   '/_authenticated/cliente/troncos': typeof AuthenticatedClienteTroncosRoute
   '/_authenticated/cliente/uras': typeof AuthenticatedClienteUrasRoute
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/cliente/pesquisa-satisfacao'
     | '/cliente/ramais'
     | '/cliente/regra-horario'
+    | '/cliente/regras'
     | '/cliente/roteamento'
     | '/cliente/troncos'
     | '/cliente/uras'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/cliente/pesquisa-satisfacao'
     | '/cliente/ramais'
     | '/cliente/regra-horario'
+    | '/cliente/regras'
     | '/cliente/roteamento'
     | '/cliente/troncos'
     | '/cliente/uras'
@@ -378,6 +390,7 @@ export interface FileRouteTypes {
     | '/_authenticated/cliente/pesquisa-satisfacao'
     | '/_authenticated/cliente/ramais'
     | '/_authenticated/cliente/regra-horario'
+    | '/_authenticated/cliente/regras'
     | '/_authenticated/cliente/roteamento'
     | '/_authenticated/cliente/troncos'
     | '/_authenticated/cliente/uras'
@@ -474,6 +487,13 @@ declare module '@tanstack/react-router' {
       path: '/roteamento'
       fullPath: '/cliente/roteamento'
       preLoaderRoute: typeof AuthenticatedClienteRoteamentoRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
+    '/_authenticated/cliente/regras': {
+      id: '/_authenticated/cliente/regras'
+      path: '/regras'
+      fullPath: '/cliente/regras'
+      preLoaderRoute: typeof AuthenticatedClienteRegrasRouteImport
       parentRoute: typeof AuthenticatedClienteRoute
     }
     '/_authenticated/cliente/regra-horario': {
@@ -614,6 +634,7 @@ interface AuthenticatedClienteRouteChildren {
   AuthenticatedClientePesquisaSatisfacaoRoute: typeof AuthenticatedClientePesquisaSatisfacaoRoute
   AuthenticatedClienteRamaisRoute: typeof AuthenticatedClienteRamaisRoute
   AuthenticatedClienteRegraHorarioRoute: typeof AuthenticatedClienteRegraHorarioRoute
+  AuthenticatedClienteRegrasRoute: typeof AuthenticatedClienteRegrasRoute
   AuthenticatedClienteRoteamentoRoute: typeof AuthenticatedClienteRoteamentoRoute
   AuthenticatedClienteTroncosRoute: typeof AuthenticatedClienteTroncosRoute
   AuthenticatedClienteUrasRoute: typeof AuthenticatedClienteUrasRoute
@@ -636,6 +657,7 @@ const AuthenticatedClienteRouteChildren: AuthenticatedClienteRouteChildren = {
     AuthenticatedClientePesquisaSatisfacaoRoute,
   AuthenticatedClienteRamaisRoute: AuthenticatedClienteRamaisRoute,
   AuthenticatedClienteRegraHorarioRoute: AuthenticatedClienteRegraHorarioRoute,
+  AuthenticatedClienteRegrasRoute: AuthenticatedClienteRegrasRoute,
   AuthenticatedClienteRoteamentoRoute: AuthenticatedClienteRoteamentoRoute,
   AuthenticatedClienteTroncosRoute: AuthenticatedClienteTroncosRoute,
   AuthenticatedClienteUrasRoute: AuthenticatedClienteUrasRoute,

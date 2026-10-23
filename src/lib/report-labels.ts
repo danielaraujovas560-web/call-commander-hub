@@ -11,6 +11,7 @@ export const statusOptions = [
   { value: "FORBIDDEN(BLACK)", label: "Proibido (Blacklist)" },
   { value: "FORBIDDEN(TIME)", label: "Proibido (Regra Horário)" },
   { value: "FORBIDDEN(CHANNELEXC)", label: "Proibido (Simultanea excedida)" },
+  { value: "FORBIDDEN(NOT_FOUND_DIAL)", label: "Proibido (Sem regra de discagem)" },
 ] as const;
 
 export const tipoOptions = [

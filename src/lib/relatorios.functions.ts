@@ -24,12 +24,10 @@ const CdrFilter = z
   .transform((v) => v ?? {});
 type CdrFilterT = z.infer<typeof CdrFilter>;
 
-
 const CdrExtratoIaSchema = z.object({
   tenant_id: z.number().int().positive().optional(),
   cdrId: z.number().int().positive(),
 });
-
 
 function buildQuery(filters: CdrFilterT, tenantId?: number): string {
   const q = new URLSearchParams();
@@ -108,10 +106,7 @@ export const getCdrUraExtratoIa = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .validator((d: unknown) => CdrExtratoIaSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     const res = await authenticatedAgentFetch<{
       cdr: {
@@ -138,11 +133,7 @@ export const getCdrUraExtratoIa = createServerFn({ method: "GET" })
         criado_em: string;
       }[];
       total_eventos: number;
-    }>(
-      { token: context.token },
-      `/cdr/ura/${data.cdrId}/extrato-ia`,
-      { tenantId }
-    );
+    }>({ token: context.token }, `/cdr/ura/${data.cdrId}/extrato-ia`, { tenantId });
 
     return {
       tenantId,

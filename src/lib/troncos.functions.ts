@@ -15,22 +15,32 @@ export interface Tronco {
   senha?: string | null;
   ip?: string | null;
   porta?: string | null;
+  roteamento_simplificado?: number | null;
 }
 
 export const listTroncos = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .validator((d: unknown) =>
-    z.object({ tenant_id: z.number().int().positive().optional() }).parse(d ?? {}),
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+        roteamento_simplificado: z.union([z.literal(0), z.literal(1)]).optional(),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const res = await authenticatedAgentFetch<{ troncos: Tronco[] }>(
-      context,
-      `/troncos?tenant=${tenantId}`,
-      {
-        tenantId,
-      },
-    );
+    const params = new URLSearchParams();
+
+    if (data.roteamento_simplificado != null) {
+      params.set("roteamento_simplificado", String(data.roteamento_simplificado));
+    }
+
+    const query = params.toString();
+    const url = query ? `/troncos?${query}` : "/troncos";
+
+    const res = await authenticatedAgentFetch<{ troncos: Tronco[] }>(context, url, { tenantId });
+
     return { troncos: res.troncos ?? [] };
   });
 
@@ -50,6 +60,7 @@ const TroncoInput = z.object({
   registrar: z.enum(["sim", "não"]).default("não"),
   login: z.coerce.string().trim().max(100).optional().or(z.literal("")),
   senha: z.coerce.string().trim().max(100).optional().or(z.literal("")),
+  roteamento_simplificado: z.number().int().optional(),
 });
 const TroncoUpdate = TroncoInput.partial().extend({
   tronco_pjsip: z.coerce.string().trim().min(1),

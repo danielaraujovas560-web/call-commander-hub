@@ -141,7 +141,7 @@ router.get("/cdr/ura/:id/extrato-ia", async (req, res) => {
        WHERE c.tenant_id = ?
          AND c.id = ?
        LIMIT 1`,
-      [tenant, cdrId]
+      [tenant, cdrId],
     );
 
     if (cdrRows.length === 0) {
@@ -172,7 +172,7 @@ router.get("/cdr/ura/:id/extrato-ia", async (req, res) => {
          AND e.linkedid = ?
          AND e.ura_identifier = ?
        ORDER BY e.criado_em ASC, e.id ASC`,
-      [tenant, cdr.linkedid, cdr.id_ura]
+      [tenant, cdr.linkedid, cdr.id_ura],
     );
 
     return res.json({

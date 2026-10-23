@@ -46,7 +46,7 @@ export const Route = createFileRoute("/_authenticated/cliente/relatorios/pesquis
     });
 
     const pesquisaEnabled = configuracoes?.some(
-      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true"
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
     );
     if (!pesquisaEnabled) {
       throw new Error("403: Módulo não autorizado");
@@ -213,6 +213,7 @@ function Page() {
               { key: "linkedid", label: "Linkedid" },
               { key: "origem", label: "Origem" },
               { key: "destino", label: "Destino" },
+              { key: "status", label: "Fila" },
               {
                 key: "contexto",
                 label: "Contexto",
@@ -222,7 +223,6 @@ function Page() {
                   { label: "Receptiva", value: "RECEPTIVA" },
                 ],
               },
-              { key: "status", label: "Fila" },
               { key: "from", label: "De", type: "datetime-local" },
               { key: "to", label: "Até", type: "datetime-local" },
             ]}

@@ -10,12 +10,23 @@ const genPassword = require("../utils/gen-password");
 router.get("/troncos", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
+  const roteamentoSimp = req.query.roteamento_simplificado;
+  if (roteamentoSimp != null && !["0", "1"].includes(String(roteamentoSimp)))
+    return res.status(400).json({ error: "roteamento_simplificado deve ser 0 ou 1" });
   try {
-    const [rows] = await pool.query(
-      `SELECT tronco_pjsip, nome, techprefix, tipo, registrar, login, senha, ip, porta, status
-         FROM troncos WHERE tenant_id = ? ORDER BY nome`,
-      [tenant],
-    );
+    let sql = `SELECT tronco_pjsip, nome, techprefix, tipo, registrar, login, senha, ip, porta, roteamento_simplificado, status
+               FROM troncos WHERE tenant_id = ?`;
+
+    const params = [tenant];
+
+    if (roteamentoSimp != null) {
+      sql += ` AND roteamento_simplificado = ?`;
+      params.push(Number(roteamentoSimp));
+    }
+
+    sql += ` ORDER BY nome`;
+
+    const [rows] = await pool.query(sql, params);
     res.json({ troncos: rows });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -25,7 +36,8 @@ router.get("/troncos", async (req, res) => {
 router.post("/troncos", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
-  const { nome, ip, porta, tipo, techprefix, registrar, login, senha } = req.body || {};
+  const { nome, ip, porta, tipo, techprefix, registrar, login, senha, roteamento_simplificado } =
+    req.body || {};
   if (!nome || !ip || !tipo) {
     return res.status(400).json({ error: "nome, ip e tipo obrigatórios" });
   }
@@ -82,8 +94,8 @@ router.post("/troncos", async (req, res) => {
     }
 
     const [r] = await conn.query(
-      `INSERT INTO troncos (tronco_pjsip, tenant_id, nome, techprefix, tipo, registrar, login, senha, ip, porta, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      `INSERT INTO troncos (tronco_pjsip, tenant_id, nome, techprefix, tipo, registrar, login, senha, ip, porta, roteamento_simplificado, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         pjsipName,
         tenant,
@@ -95,6 +107,7 @@ router.post("/troncos", async (req, res) => {
         authPass,
         ip,
         portaVal,
+        roteamento_simplificado,
       ],
     );
 
@@ -113,7 +126,8 @@ router.put("/troncos/:pjsip", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
   const pjsip = req.params.pjsip;
-  const { nome, ip, porta, tipo, techprefix, registrar, login, senha } = req.body || {};
+  const { nome, ip, porta, tipo, techprefix, registrar, login, senha, roteamento_simplificado } =
+    req.body || {};
 
   const conn = await pool.getConnection();
   try {
@@ -232,7 +246,7 @@ router.put("/troncos/:pjsip", async (req, res) => {
 
     await conn.query(
       `UPDATE troncos SET tronco_pjsip = ?, nome = ?, ip = ?, porta = ?, tipo = ?, techprefix = ?,
-                          registrar = ?, login = ?, senha = ?
+                          registrar = ?, login = ?, senha = ?, roteamento_simplificado = ?
         WHERE tenant_id = ? AND tronco_pjsip = ?`,
       [
         newPjsip,
@@ -244,6 +258,7 @@ router.put("/troncos/:pjsip", async (req, res) => {
         wantsReg ? "sim" : "não",
         wantsReg ? newLogin || slug : null,
         wantsReg ? newSenha || null : null,
+        roteamento_simplificado,
         tenant,
         oldPjsip,
       ],

@@ -2,13 +2,18 @@ const express = require("express");
 const router = express.Router();
 const { publicar } = require("../ramal-monitor");
 
-router.post("/api/internal/cdr-updated", (req, res) => {
-  const ip = req.ip || req.socket.remoteAddress || "";
-  const local = ip.includes("127.0.0.1") || ip.includes("::1");
-  if (!local || req.get("X-Internal-Key") !== process.env.INTERNAL_KEY) {
-    return res.status(403).json({ error: "Acesso restrito" });
-  }
+function internalOnly(req, res, next) {
+  const recebida = Buffer.from(req.get("X-Internal-Key") || "");
+  const esperada = Buffer.from(process.env.INTERNAL_KEY || "");
+  const ok =
+    esperada.length > 0 &&
+    recebida.length === esperada.length &&
+    crypto.timingSafeEqual(recebida, esperada);
+  if (!ok) return res.status(403).json({ error: "Acesso restrito" });
+  next();
+}
 
+router.post("/api/internal/cdr-updated", internalOnly, (req, res) => {
   const { tenantId, endpointIds } = req.body;
 
   if (tenantId) {
@@ -19,13 +24,7 @@ router.post("/api/internal/cdr-updated", (req, res) => {
   return res.json({ ok: true });
 });
 
-router.post("/api/internal/web-hook-whatsapp", (req, res) => {
-  const ip = req.ip || req.socket.remoteAddress || "";
-  const local = ip.includes("127.0.0.1") || ip.includes("::1");
-  if (!local || req.get("X-Internal-Key") !== process.env.INTERNAL_KEY) {
-    return res.status(403).json({ error: "Acesso restrito" });
-  }
-
+router.post("/api/internal/web-hook-whatsapp", internalOnly, (req, res) => {
   const { tenantId, callId, from, to } = req.body;
 
   return res.json({ ok: true });

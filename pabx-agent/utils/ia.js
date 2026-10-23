@@ -1,10 +1,7 @@
 const pool = require("../config/db");
 
 function numeroValido(valor) {
-  return valor !== undefined &&
-    valor !== null &&
-    valor !== "" &&
-    Number.isFinite(Number(valor));
+  return valor !== undefined && valor !== null && valor !== "" && Number.isFinite(Number(valor));
 }
 
 async function validarModelo(id, tipo) {
@@ -59,11 +56,7 @@ function validarConfiguracaoIA(body) {
     ativa,
   } = body;
 
-  if (
-    typeof nome !== "string" ||
-    !nome.trim() ||
-    nome.trim().length > 100
-  ) {
+  if (typeof nome !== "string" || !nome.trim() || nome.trim().length > 100) {
     return "O nome é obrigatório e deve ter até 100 caracteres";
   }
 
@@ -85,40 +78,30 @@ function validarConfiguracaoIA(body) {
 
   if (
     confianca_minima !== undefined &&
-    (
-      !numeroValido(confianca_minima) ||
+    (!numeroValido(confianca_minima) ||
       Number(confianca_minima) < 0 ||
-      Number(confianca_minima) > 1
-    )
+      Number(confianca_minima) > 1)
   ) {
     return "A confiança mínima deve estar entre 0 e 1";
   }
 
   if (
     tempo_maximo !== undefined &&
-    (
-      !numeroValido(tempo_maximo) ||
+    (!numeroValido(tempo_maximo) ||
       !Number.isInteger(Number(tempo_maximo)) ||
-      Number(tempo_maximo) < 1
-    )
+      Number(tempo_maximo) < 1)
   ) {
     return "O tempo máximo deve ser um inteiro positivo";
   }
 
   if (
     silencio_apos_fala !== undefined &&
-    (
-      !numeroValido(silencio_apos_fala) ||
-      Number(silencio_apos_fala) < 0
-    )
+    (!numeroValido(silencio_apos_fala) || Number(silencio_apos_fala) < 0)
   ) {
     return "O silêncio após a fala deve ser um número não negativo";
   }
 
-  if (
-    ativa !== undefined &&
-    ![true, false, 0, 1].includes(ativa)
-  ) {
+  if (ativa !== undefined && ![true, false, 0, 1].includes(ativa)) {
     return "O campo ativa deve ser booleano";
   }
 
@@ -128,19 +111,11 @@ function validarConfiguracaoIA(body) {
 function validarVoz(body) {
   const { nome, voice_id, ia_model_id } = body;
 
-  if (
-    typeof nome !== "string" ||
-    !nome.trim() ||
-    nome.trim().length > 100
-  ) {
+  if (typeof nome !== "string" || !nome.trim() || nome.trim().length > 100) {
     return "O nome da voz é obrigatório e deve ter até 100 caracteres";
   }
 
-  if (
-    typeof voice_id !== "string" ||
-    !voice_id.trim() ||
-    voice_id.trim().length > 100
-  ) {
+  if (typeof voice_id !== "string" || !voice_id.trim() || voice_id.trim().length > 100) {
     return "O identificador da voz é obrigatório e deve ter até 100 caracteres";
   }
 

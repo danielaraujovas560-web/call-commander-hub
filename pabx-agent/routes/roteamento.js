@@ -32,7 +32,7 @@ router.post("/roteamento", async (req, res) => {
 
     const [r] = await pool.query(
       `INSERT INTO roteamento (numero, tenant_id, tipo_destino, destino, descricao) VALUES (?, ?, ?, ?, ?)`,
-      [numero, tenant, tipo, dest, descricao ?? null],
+      [numero, tenant, tipo, destino, descricao ?? null],
     );
     res.json({ ok: true, numero: numero });
   } catch (e) {

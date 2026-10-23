@@ -210,7 +210,26 @@ function RamaisPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              {modoSelecao && <TableHead className="w-10" />}
+              {modoSelecao && (
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={
+                      data?.ramais.length > 0 &&
+                      data?.ramais.every((r) => selecionados.includes(r.endpoint_id))
+                    }
+                    onChange={(e) => {
+                      const ids = data?.ramais.map((r) => r.endpoint_id);
+
+                      setSelecionados((atual) =>
+                        e.target.checked
+                          ? [...new Set([...atual, ...ids])]
+                          : atual.filter((id) => !ids.includes(id)),
+                      );
+                    }}
+                  />
+                </TableHead>
+              )}
               <TableHead>Ramal</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Tronco</TableHead>
@@ -466,25 +485,23 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
   const [open, setOpen] = useState(false);
   const troncosFn = useServerFn(listTroncos);
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
-const configuracoesFn = useServerFn(getConfiguracoes);
+  const configuracoesFn = useServerFn(getConfiguracoes);
 
-const { data: configuracoes } = useQuery({
-  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
-  queryFn: () =>
-    configuracoesFn({
-      data: {
-        chaves: ["modulos.pesquisa_satisfacao"],
-      },
-    }),
-  enabled: open && !!tenantId,
-});
+  const { data: configuracoes } = useQuery({
+    queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+    queryFn: () =>
+      configuracoesFn({
+        data: {
+          chaves: ["modulos.pesquisa_satisfacao"],
+        },
+      }),
+    enabled: open && !!tenantId,
+  });
 
-const pesquisaEnabled =
-  configuracoes?.some(
-    (config) =>
-      config.chave === "modulos.pesquisa_satisfacao" &&
-      config.valor === "true"
-  ) ?? false;
+  const pesquisaEnabled =
+    configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
+    ) ?? false;
 
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
@@ -722,47 +739,47 @@ const pesquisaEnabled =
           </div>
 
           {pesquisaEnabled && (
-          <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={form.pesquisa}
-                onCheckedChange={(v) =>
-                  setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
-                }
-              />
-              <div>
-                <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-                <p className="text-xs text-muted-foreground">
-                  {" "}
-                  Executa uma pesquisa ao finalizar a chamada.
-                </p>
+            <div className="col-span-2 rounded-md border p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form.pesquisa}
+                  onCheckedChange={(v) =>
+                    setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
+                  }
+                />
+                <div>
+                  <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+                  <p className="text-xs text-muted-foreground">
+                    {" "}
+                    Executa uma pesquisa ao finalizar a chamada.
+                  </p>
+                </div>
               </div>
-            </div>
-            {form.pesquisa && (
-              <Select
-                value={form.pesquisa_id?.toString() ?? ""}
-                onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma pesquisa" />
-                </SelectTrigger>
+              {form.pesquisa && (
+                <Select
+                  value={form.pesquisa_id?.toString() ?? ""}
+                  onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma pesquisa" />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  {pesquisas.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {" "}
-                      {p.nome_pesquisa}
-                    </SelectItem>
-                  ))}
-                  {pesquisas.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhuma pesquisa encontrada
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+                  <SelectContent>
+                    {pesquisas.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {" "}
+                        {p.nome_pesquisa}
+                      </SelectItem>
+                    ))}
+                    {pesquisas.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhuma pesquisa encontrada
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           )}
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
@@ -871,25 +888,23 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   const troncosFn = useServerFn(listTroncos);
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
 
-const configuracoesFn = useServerFn(getConfiguracoes);
+  const configuracoesFn = useServerFn(getConfiguracoes);
 
-const { data: configuracoes } = useQuery({
-  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
-  queryFn: () =>
-    configuracoesFn({
-      data: {
-        chaves: ["modulos.pesquisa_satisfacao"],
-      },
-    }),
-  enabled: open && !!tenantId,
-});
+  const { data: configuracoes } = useQuery({
+    queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+    queryFn: () =>
+      configuracoesFn({
+        data: {
+          chaves: ["modulos.pesquisa_satisfacao"],
+        },
+      }),
+    enabled: open && !!tenantId,
+  });
 
-const pesquisaEnabled =
-  configuracoes?.some(
-    (config) =>
-      config.chave === "modulos.pesquisa_satisfacao" &&
-      config.valor === "true"
-  ) ?? false;
+  const pesquisaEnabled =
+    configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
+    ) ?? false;
 
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
@@ -1110,47 +1125,47 @@ const pesquisaEnabled =
           </div>
 
           {pesquisaEnabled && (
-          <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={form.pesquisa}
-                onCheckedChange={(v) =>
-                  setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
-                }
-              />
-              <div>
-                <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-                <p className="text-xs text-muted-foreground">
-                  {" "}
-                  Executa uma pesquisa ao finalizar a chamada.
-                </p>
+            <div className="col-span-2 rounded-md border p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form.pesquisa}
+                  onCheckedChange={(v) =>
+                    setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
+                  }
+                />
+                <div>
+                  <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+                  <p className="text-xs text-muted-foreground">
+                    {" "}
+                    Executa uma pesquisa ao finalizar a chamada.
+                  </p>
+                </div>
               </div>
-            </div>
-            {form.pesquisa && (
-              <Select
-                value={form.pesquisa_id?.toString() ?? ""}
-                onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma pesquisa" />
-                </SelectTrigger>
+              {form.pesquisa && (
+                <Select
+                  value={form.pesquisa_id?.toString() ?? ""}
+                  onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma pesquisa" />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  {pesquisas.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {" "}
-                      {p.nome_pesquisa}
-                    </SelectItem>
-                  ))}
-                  {pesquisas.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhuma pesquisa encontrada
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+                  <SelectContent>
+                    {pesquisas.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {" "}
+                        {p.nome_pesquisa}
+                      </SelectItem>
+                    ))}
+                    {pesquisas.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhuma pesquisa encontrada
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           )}
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
@@ -1194,25 +1209,23 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
   const troncosFn = useServerFn(listTroncos);
   const pesquisasFn = useServerFn(listPesquisaSatisfacao);
 
-const configuracoesFn = useServerFn(getConfiguracoes);
+  const configuracoesFn = useServerFn(getConfiguracoes);
 
-const { data: configuracoes } = useQuery({
-  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
-  queryFn: () =>
-    configuracoesFn({
-      data: {
-        chaves: ["modulos.pesquisa_satisfacao"],
-      },
-    }),
-  enabled: open && !!tenantId,
-});
+  const { data: configuracoes } = useQuery({
+    queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+    queryFn: () =>
+      configuracoesFn({
+        data: {
+          chaves: ["modulos.pesquisa_satisfacao"],
+        },
+      }),
+    enabled: open && !!tenantId,
+  });
 
-const pesquisaEnabled =
-  configuracoes?.some(
-    (config) =>
-      config.chave === "modulos.pesquisa_satisfacao" &&
-      config.valor === "true"
-  ) ?? false;
+  const pesquisaEnabled =
+    configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
+    ) ?? false;
 
   const { data: troncosData } = useQuery({
     queryKey: ["troncos", tenantId],
@@ -1584,57 +1597,57 @@ const pesquisaEnabled =
           </div>
 
           {pesquisaEnabled && (
-          <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={form.pesquisa}
-                onCheckedChange={(v) =>
-                  setForm({
-                    ...form,
-                    pesquisa: v,
-                    pesquisa_id: v ? form.pesquisa_id : null,
-                  })
-                }
-              />
+            <div className="col-span-2 rounded-md border p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form.pesquisa}
+                  onCheckedChange={(v) =>
+                    setForm({
+                      ...form,
+                      pesquisa: v,
+                      pesquisa_id: v ? form.pesquisa_id : null,
+                    })
+                  }
+                />
 
-              <div>
-                <p className="font-medium">Pesquisa de satisfação</p>
-                <p className="text-xs text-muted-foreground">
-                  Configuração aplicada a todos os ramais.
-                </p>
+                <div>
+                  <p className="font-medium">Pesquisa de satisfação</p>
+                  <p className="text-xs text-muted-foreground">
+                    Configuração aplicada a todos os ramais.
+                  </p>
+                </div>
               </div>
+
+              {form.pesquisa && (
+                <Select
+                  value={form.pesquisa_id?.toString() ?? ""}
+                  onValueChange={(v) =>
+                    setForm({
+                      ...form,
+                      pesquisa_id: Number(v),
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma pesquisa" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {pesquisas.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.nome_pesquisa}
+                      </SelectItem>
+                    ))}
+
+                    {pesquisas.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhuma pesquisa encontrada
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-
-            {form.pesquisa && (
-              <Select
-                value={form.pesquisa_id?.toString() ?? ""}
-                onValueChange={(v) =>
-                  setForm({
-                    ...form,
-                    pesquisa_id: Number(v),
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma pesquisa" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {pesquisas.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.nome_pesquisa}
-                    </SelectItem>
-                  ))}
-
-                  {pesquisas.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhuma pesquisa encontrada
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
           )}
 
           <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">

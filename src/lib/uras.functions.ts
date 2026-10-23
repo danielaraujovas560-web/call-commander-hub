@@ -31,55 +31,21 @@ const UraInput = z
   .object({
     tenant_id: z.number().int().positive().optional(),
 
-    nome: z
-      .string()
-      .trim()
-      .min(1)
-      .max(100),
+    nome: z.string().trim().min(1).max(100),
 
     tipo: z.enum(["Normal", "IA"]),
 
-    ia_id: z
-      .string()
-      .trim()
-      .max(100)
-      .nullable()
-      .optional(),
+    ia_id: z.string().trim().max(100).nullable().optional(),
 
-    saudacao_ia: z
-      .string()
-      .trim()
-      .max(255)
-      .nullable()
-      .optional(),
+    saudacao_ia: z.string().trim().max(255).nullable().optional(),
 
-    audio: z
-      .string()
-      .trim()
-      .max(255)
-      .nullable()
-      .optional(),
+    audio: z.string().trim().max(255).nullable().optional(),
 
-    max_digits: z
-      .number()
-      .int()
-      .positive()
-      .nullable()
-      .optional(),
+    max_digits: z.number().int().positive().nullable().optional(),
 
-    tentativas: z
-      .number()
-      .int()
-      .positive()
-      .nullable()
-      .optional(),
+    tentativas: z.number().int().positive().nullable().optional(),
 
-    timeout: z
-      .number()
-      .int()
-      .positive()
-      .nullable()
-      .optional(),
+    timeout: z.number().int().positive().nullable().optional(),
 
     ativo: z.boolean().optional(),
   })
@@ -146,47 +112,17 @@ const UraUpdateInput = z.object({
 
   tipo: z.enum(["Normal", "IA"]).optional(),
 
-  ia_id: z
-    .string()
-    .trim()
-    .max(100)
-    .nullable()
-    .optional(),
+  ia_id: z.string().trim().max(100).nullable().optional(),
 
-  saudacao_ia: z
-    .string()
-    .trim()
-    .max(255)
-    .nullable()
-    .optional(),
+  saudacao_ia: z.string().trim().max(255).nullable().optional(),
 
-  audio: z
-    .string()
-    .trim()
-    .max(255)
-    .nullable()
-    .optional(),
+  audio: z.string().trim().max(255).nullable().optional(),
 
-  max_digits: z
-    .number()
-    .int()
-    .positive()
-    .nullable()
-    .optional(),
+  max_digits: z.number().int().positive().nullable().optional(),
 
-  tentativas: z
-    .number()
-    .int()
-    .positive()
-    .nullable()
-    .optional(),
+  tentativas: z.number().int().positive().nullable().optional(),
 
-  timeout: z
-    .number()
-    .int()
-    .positive()
-    .nullable()
-    .optional(),
+  timeout: z.number().int().positive().nullable().optional(),
 
   ativo: z.boolean().optional(),
 });
@@ -196,27 +132,16 @@ export const listUras = createServerFn({ method: "GET" })
   .validator((d: unknown) =>
     z
       .object({
-        tenant_id: z
-          .number()
-          .int()
-          .positive()
-          .optional(),
+        tenant_id: z.number().int().positive().optional(),
       })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     const res = await authenticatedAgentFetch<{
       uras: Ura[];
-    }>(
-      context,
-      `/uras?tenant=${tenantId}`,
-      { tenantId },
-    );
+    }>(context, `/uras?tenant=${tenantId}`, { tenantId });
 
     return {
       tenantId,
@@ -229,19 +154,12 @@ export const listUraDestinos = createServerFn({ method: "GET" })
   .validator((d: unknown) =>
     z
       .object({
-        tenant_id: z
-          .number()
-          .int()
-          .positive()
-          .optional(),
+        tenant_id: z.number().int().positive().optional(),
       })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     return await authenticatedAgentFetch<{
       filas: { value: string; label: string }[];
@@ -250,68 +168,43 @@ export const listUraDestinos = createServerFn({ method: "GET" })
       troncos: { value: string; label: string }[];
       regras: { value: string; label: string }[];
       audios: { value: string; label: string }[];
-    }>(
-      context,
-      `/uras/destinos`,
-      { tenantId },
-    );
+    }>(context, `/uras/destinos`, { tenantId });
   });
 
 export const createUra = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((d: unknown) => UraInput.parse(d))
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    const {
-      tenant_id: _i,
-      ...body
-    } = data;
+    const { tenant_id: _i, ...body } = data;
 
     return await authenticatedAgentFetch<{
       ok: true;
       ura_identifier: string;
-    }>(
-      context,
-      "/uras",
-      {
-        method: "POST",
-        tenantId,
-        body,
-      },
-    );
+    }>(context, "/uras", {
+      method: "POST",
+      tenantId,
+      body,
+    });
   });
 
 export const updateUra = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((d: unknown) => UraUpdateInput.parse(d))
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    const {
-      ura_identifier,
-      tenant_id: _i,
-      ...patch
-    } = data;
+    const { ura_identifier, tenant_id: _i, ...patch } = data;
 
     return await authenticatedAgentFetch<{
       ok: true;
       ura_identifier?: string;
-    }>(
-      context,
-      `/uras/${encodeURIComponent(ura_identifier)}`,
-      {
-        method: "PUT",
-        tenantId,
-        body: patch,
-      },
-    );
+    }>(context, `/uras/${encodeURIComponent(ura_identifier)}`, {
+      method: "PUT",
+      tenantId,
+      body: patch,
+    });
   });
 
 export const deleteUra = createServerFn({ method: "POST" })
@@ -320,28 +213,17 @@ export const deleteUra = createServerFn({ method: "POST" })
     z
       .object({
         ura_identifier: z.string().min(1),
-        tenant_id: z
-          .number()
-          .int()
-          .positive()
-          .optional(),
+        tenant_id: z.number().int().positive().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    await authenticatedAgentFetch(
-      context,
-      `/uras/${encodeURIComponent(data.ura_identifier)}`,
-      {
-        method: "DELETE",
-        tenantId,
-      },
-    );
+    await authenticatedAgentFetch(context, `/uras/${encodeURIComponent(data.ura_identifier)}`, {
+      method: "DELETE",
+      tenantId,
+    });
 
     return {
       ok: true,
@@ -355,71 +237,33 @@ export const addUraOpcao = createServerFn({ method: "POST" })
       .object({
         ura_identifier: z.string().min(1),
 
-        tenant_id: z
-          .number()
-          .int()
-          .positive()
-          .optional(),
+        tenant_id: z.number().int().positive().optional(),
 
-        chave: z
-          .coerce
-          .string()
-          .trim()
-          .min(1)
-          .max(100),
+        chave: z.coerce.string().trim().min(1).max(100),
 
-        descricao: z
-          .coerce
-          .string()
-          .trim()
-          .max(255)
-          .optional()
-          .nullable(),
+        descricao: z.coerce.string().trim().max(255).optional().nullable(),
 
-        tipo_destino: z.enum([
-          "FILA",
-          "URA",
-          "RAMAL",
-          "INTERNO",
-          "EXTERNO",
-          "AUDIO",
-        ]),
+        tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]),
 
-        destino: z
-          .coerce
-          .string()
-          .trim()
-          .min(1)
-          .max(120),
+        destino: z.coerce.string().trim().min(1).max(120),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    const {
-      ura_identifier,
-      tenant_id: _i,
-      ...body
-    } = data;
+    const { ura_identifier, tenant_id: _i, ...body } = data;
 
     return await authenticatedAgentFetch<{
       ok: true;
       id: number;
       ura_identifier: string;
       chave: string;
-    }>(
-      context,
-      `/uras/${encodeURIComponent(ura_identifier)}/opcoes`,
-      {
-        method: "POST",
-        tenantId,
-        body,
-      },
-    );
+    }>(context, `/uras/${encodeURIComponent(ura_identifier)}/opcoes`, {
+      method: "POST",
+      tenantId,
+      body,
+    });
   });
 
 export const updateUraOpcao = createServerFn({ method: "POST" })
@@ -429,78 +273,32 @@ export const updateUraOpcao = createServerFn({ method: "POST" })
       .object({
         ura_identifier: z.string().min(1),
 
-        tenant_id: z
-          .number()
-          .int()
-          .positive()
-          .optional(),
+        tenant_id: z.number().int().positive().optional(),
 
-        id: z
-          .number()
-          .int()
-          .positive(),
+        id: z.number().int().positive(),
 
-        chave: z
-          .coerce
-          .string()
-          .trim()
-          .min(1)
-          .max(100)
-          .optional(),
+        chave: z.coerce.string().trim().min(1).max(100).optional(),
 
-        descricao: z
-          .coerce
-          .string()
-          .trim()
-          .max(255)
-          .optional()
-          .nullable(),
+        descricao: z.coerce.string().trim().max(255).optional().nullable(),
 
-        tipo_destino: z
-          .enum([
-            "FILA",
-            "URA",
-            "RAMAL",
-            "INTERNO",
-            "EXTERNO",
-            "AUDIO",
-          ])
-          .optional(),
+        tipo_destino: z.enum(["FILA", "URA", "RAMAL", "INTERNO", "EXTERNO", "AUDIO"]).optional(),
 
-        destino: z
-          .coerce
-          .string()
-          .trim()
-          .min(1)
-          .max(120)
-          .optional(),
+        destino: z.coerce.string().trim().min(1).max(120).optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    const {
-      ura_identifier,
-      id,
-      tenant_id: _i,
-      ...body
-    } = data;
+    const { ura_identifier, id, tenant_id: _i, ...body } = data;
 
     return await authenticatedAgentFetch<{
       ok: true;
-    }>(
-      context,
-      `/uras/${encodeURIComponent(ura_identifier)}/opcoes/${id}`,
-      {
-        method: "PUT",
-        tenantId,
-        body,
-      },
-    );
+    }>(context, `/uras/${encodeURIComponent(ura_identifier)}/opcoes/${id}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const deleteUraOpcao = createServerFn({ method: "POST" })
@@ -510,24 +308,14 @@ export const deleteUraOpcao = createServerFn({ method: "POST" })
       .object({
         ura_identifier: z.string().min(1),
 
-        id: z
-          .number()
-          .int()
-          .positive(),
+        id: z.number().int().positive(),
 
-        tenant_id: z
-          .number()
-          .int()
-          .positive()
-          .optional(),
+        tenant_id: z.number().int().positive().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     await authenticatedAgentFetch(
       context,
@@ -549,20 +337,13 @@ export const toggleUraAtivo = createServerFn({ method: "POST" })
     z
       .object({
         ura_identifier: z.string().min(1).max(64),
-        tenant_id: z
-          .number()
-          .int()
-          .positive()
-          .optional(),
+        tenant_id: z.number().int().positive().optional(),
         ativo: z.boolean(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     await authenticatedAgentFetch(
       context,

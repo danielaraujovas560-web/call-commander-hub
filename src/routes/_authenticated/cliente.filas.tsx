@@ -463,25 +463,23 @@ function FilaFormDialog({
 
   const pesquisas = pesquisasData?.pesquisas ?? [];
 
-const configuracoesFn = useServerFn(getConfiguracoes);
+  const configuracoesFn = useServerFn(getConfiguracoes);
 
-const { data: configuracoes } = useQuery({
-  queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
-  queryFn: () =>
-    configuracoesFn({
-      data: {
-        chaves: ["modulos.pesquisa_satisfacao"],
-      },
-    }),
-  enabled: open && !!tenantId,
-});
+  const { data: configuracoes } = useQuery({
+    queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+    queryFn: () =>
+      configuracoesFn({
+        data: {
+          chaves: ["modulos.pesquisa_satisfacao"],
+        },
+      }),
+    enabled: open && !!tenantId,
+  });
 
-const pesquisaEnabled =
-  configuracoes?.some(
-    (config) =>
-      config.chave === "modulos.pesquisa_satisfacao" &&
-      config.valor === "true"
-  ) ?? false;
+  const pesquisaEnabled =
+    configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
+    ) ?? false;
 
   const [form, setForm] = useState({
     display_name: fila?.display_name ?? "",
@@ -656,47 +654,47 @@ const pesquisaEnabled =
           </div>
 
           {pesquisaEnabled && (
-          <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={form.pesquisa}
-                onCheckedChange={(v) =>
-                  setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
-                }
-              />
-              <div>
-                <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-                <p className="text-xs text-muted-foreground">
-                  {" "}
-                  Executa uma pesquisa ao finalizar a chamada.
-                </p>
+            <div className="col-span-2 rounded-md border p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form.pesquisa}
+                  onCheckedChange={(v) =>
+                    setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
+                  }
+                />
+                <div>
+                  <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+                  <p className="text-xs text-muted-foreground">
+                    {" "}
+                    Executa uma pesquisa ao finalizar a chamada.
+                  </p>
+                </div>
               </div>
-            </div>
-            {form.pesquisa && (
-              <Select
-                value={form.pesquisa_id?.toString() ?? ""}
-                onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma pesquisa" />
-                </SelectTrigger>
+              {form.pesquisa && (
+                <Select
+                  value={form.pesquisa_id?.toString() ?? ""}
+                  onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma pesquisa" />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  {pesquisas.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {" "}
-                      {p.nome_pesquisa}
-                    </SelectItem>
-                  ))}
-                  {pesquisas.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhuma pesquisa encontrada
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+                  <SelectContent>
+                    {pesquisas.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {" "}
+                        {p.nome_pesquisa}
+                      </SelectItem>
+                    ))}
+                    {pesquisas.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhuma pesquisa encontrada
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           )}
           <div className="grid grid-cols-3 gap-3 border-t pt-3">
             <div className="space-y-1">

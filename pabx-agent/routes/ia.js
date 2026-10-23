@@ -60,39 +60,39 @@ ORDER BY ia.created_at ASC;
       [tenant],
     );
 
-res.json({
-  ia: rows.map((r) => ({
-    id: r.id,
-    nome: r.nome,
+    res.json({
+      ia: rows.map((r) => ({
+        id: r.id,
+        nome: r.nome,
 
-    confianca_minima: Number(r.confianca_minima),
-    tempo_maximo: r.tempo_maximo,
-    silencio_apos_fala: Number(r.silencio_apos_fala),
-    ativa: !!r.ativa,
+        confianca_minima: Number(r.confianca_minima),
+        tempo_maximo: r.tempo_maximo,
+        silencio_apos_fala: Number(r.silencio_apos_fala),
+        ativa: !!r.ativa,
 
-    modelo_logico: {
-      id: r.modelo_logico_id,
-      nome: r.modelo_logico_nome,
-      provider: r.modelo_logico_provider,
-      modelo: r.modelo_logico_modelo,
-    },
+        modelo_logico: {
+          id: r.modelo_logico_id,
+          nome: r.modelo_logico_nome,
+          provider: r.modelo_logico_provider,
+          modelo: r.modelo_logico_modelo,
+        },
 
-    modelo_voz: {
-      id: r.modelo_voz_id,
-      nome: r.modelo_voz_nome,
-      provider: r.modelo_voz_provider,
-      modelo: r.modelo_voz_modelo,
-    },
+        modelo_voz: {
+          id: r.modelo_voz_id,
+          nome: r.modelo_voz_nome,
+          provider: r.modelo_voz_provider,
+          modelo: r.modelo_voz_modelo,
+        },
 
-    voz: r.voice_id
-      ? {
-          id: r.voice_id,
-          nome: r.voice_nome,
-          voice_id: r.voice_provider_id,
-        }
-      : null,
-  })),
-});
+        voz: r.voice_id
+          ? {
+              id: r.voice_id,
+              nome: r.voice_nome,
+              voice_id: r.voice_provider_id,
+            }
+          : null,
+      })),
+    });
   } catch (e) {
     res.status(500).json({
       error: String(e.message || e),
@@ -205,9 +205,9 @@ router.post("/ia", async (req, res) => {
       nome,
       ia_model_id_logica,
       ia_voice_id,
-      confianca_minima = 0.750,
+      confianca_minima = 0.75,
       tempo_maximo = 15,
-      silencio_apos_fala = 1.50,
+      silencio_apos_fala = 1.5,
       ativa = true,
     } = req.body;
 
@@ -291,9 +291,9 @@ router.put("/ia/:id", async (req, res) => {
       nome,
       ia_model_id_logica,
       ia_voice_id,
-      confianca_minima = 0.750,
+      confianca_minima = 0.75,
       tempo_maximo = 15,
-      silencio_apos_fala = 1.50,
+      silencio_apos_fala = 1.5,
       ativa = true,
     } = req.body;
 
@@ -517,13 +517,7 @@ router.put("/ia-voices/:id", async (req, res) => {
       WHERE id = ?
         AND tenant_id = ?
       `,
-      [
-        nome.trim(),
-        voice_id.trim(),
-        ia_model_id,
-        id,
-        tenant,
-      ],
+      [nome.trim(), voice_id.trim(), ia_model_id, id, tenant],
     );
 
     return res.status(200).json({

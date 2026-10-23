@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Cable, RefreshCw, Plus, Pencil, Trash2, Lock } from "lucide-react";
+import { Cable, RefreshCw, Plus, Pencil, Trash2, Lock, HelpCircle } from "lucide-react";
 import {
   listTroncos,
   listTroncosStatus,
@@ -47,6 +47,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -250,6 +251,7 @@ function TroncoFormDialog({
     registrar: (tronco?.registrar === "sim") as boolean,
     login: tronco?.login ?? "",
     senha: tronco?.senha ?? "",
+    roteamento_simplificado: tronco?.roteamento_simplificado === 1,
   });
 
   useEffect(() => {
@@ -263,6 +265,7 @@ function TroncoFormDialog({
         registrar: tronco.registrar === "sim",
         login: tronco.login ?? "",
         senha: tronco.senha ?? "",
+        roteamento_simplificado: tronco.roteamento_simplificado === 1,
       });
     } else if (open && !tronco) {
       setForm({
@@ -274,6 +277,7 @@ function TroncoFormDialog({
         registrar: false,
         login: "",
         senha: "",
+        roteamento_simplificado: true,
       });
     }
   }, [open, tronco]);
@@ -293,6 +297,7 @@ function TroncoFormDialog({
         registrar: (form.registrar ? "sim" : "não") as "sim" | "não",
         login: form.registrar ? form.login : "",
         senha: form.registrar ? form.senha : "",
+        roteamento_simplificado: form.roteamento_simplificado ? 1 : 0,
       };
       return editing
         ? updateFn({ data: { tronco_pjsip: tronco!.tronco_pjsip, ...body } })
@@ -376,13 +381,59 @@ function TroncoFormDialog({
               maxLength={20}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={form.registrar}
-              onCheckedChange={(v) => setForm({ ...form, registrar: v })}
-            />
-            Registrar (envia REGISTER para operadora)
-          </label>
+          <div className="flex items-center gap-1.5">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.roteamento_simplificado}
+                onCheckedChange={(v) => setForm({ ...form, roteamento_simplificado: v })}
+              />
+              Roteamento Simplificado
+            </label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="font-medium text-xs mb-1">
+                    Deixe ativo para utilizar as regras do sistema, ao desmarcar, será necessário
+                    configurar regras novas em "Regras".
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={form.registrar}
+                onCheckedChange={(v) => setForm({ ...form, registrar: v })}
+              />
+              Registrar
+            </label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="font-medium text-xs mb-1">
+                    Necessário Login e Senha para enviar um Register a operadora.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           {form.registrar && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">

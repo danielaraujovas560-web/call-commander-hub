@@ -172,10 +172,7 @@ export function ReportFilters({
       {showLimit && (
         <div className="space-y-1">
           <Label className="text-xs">Limite</Label>
-          <Select
-            value={String(limit)}
-            onValueChange={(val) => setLimit(Number(val))}
-          >
+          <Select value={String(limit)} onValueChange={(val) => setLimit(Number(val))}>
             <SelectTrigger className="h-9 w-full">
               <SelectValue />
             </SelectTrigger>

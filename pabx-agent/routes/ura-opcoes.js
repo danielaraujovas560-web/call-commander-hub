@@ -9,12 +9,7 @@ router.post("/uras/:ura_identifier/opcoes", async (req, res) => {
 
   const uraIdentifier = req.params.ura_identifier;
 
-  const {
-    chave,
-    descricao,
-    tipo_destino,
-    destino,
-  } = req.body || {};
+  const { chave, descricao, tipo_destino, destino } = req.body || {};
 
   if (!chave || !tipo_destino || !destino) {
     return res.status(400).json({
@@ -84,12 +79,7 @@ router.put("/uras/:ura_identifier/opcoes/:id", async (req, res) => {
     });
   }
 
-  const {
-    chave,
-    descricao,
-    tipo_destino,
-    destino,
-  } = req.body || {};
+  const { chave, descricao, tipo_destino, destino } = req.body || {};
 
   const sets = [];
   const vals = [];
@@ -101,11 +91,7 @@ router.put("/uras/:ura_identifier/opcoes/:id", async (req, res) => {
 
   if (descricao !== undefined) {
     sets.push("descricao = ?");
-    vals.push(
-      descricao != null
-        ? String(descricao).trim()
-        : null,
-    );
+    vals.push(descricao != null ? String(descricao).trim() : null);
   }
 
   if (tipo_destino !== undefined) {

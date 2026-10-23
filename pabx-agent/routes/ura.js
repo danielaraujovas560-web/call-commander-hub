@@ -156,17 +156,8 @@ router.post("/uras", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
 
-  const {
-    nome,
-    tipo,
-    ia_id,
-    saudacao_ia,
-    audio,
-    max_digits,
-    tentativas,
-    timeout,
-    ativo,
-  } = req.body || {};
+  const { nome, tipo, ia_id, saudacao_ia, audio, max_digits, tentativas, timeout, ativo } =
+    req.body || {};
 
   if (!nome) {
     return res.status(400).json({
@@ -266,17 +257,8 @@ router.put("/uras/:ura_identifier", async (req, res) => {
 
   const uraIdentifier = req.params.ura_identifier;
 
-  const {
-    nome,
-    tipo,
-    ia_id,
-    saudacao_ia,
-    audio,
-    max_digits,
-    tentativas,
-    timeout,
-    ativo,
-  } = req.body || {};
+  const { nome, tipo, ia_id, saudacao_ia, audio, max_digits, tentativas, timeout, ativo } =
+    req.body || {};
 
   try {
     const [current] = await pool.query(
@@ -332,15 +314,9 @@ router.put("/uras/:ura_identifier", async (req, res) => {
       const tentativasNova = tentativas ?? atual.tentativas;
       const timeoutNovo = timeout ?? atual.timeout;
 
-      if (
-        !audioNovo ||
-        maxDigitsNovo == null ||
-        tentativasNova == null ||
-        timeoutNovo == null
-      ) {
+      if (!audioNovo || maxDigitsNovo == null || tentativasNova == null || timeoutNovo == null) {
         return res.status(400).json({
-          error:
-            "audio, max_digits, tentativas e timeout da URA são obrigatórios",
+          error: "audio, max_digits, tentativas e timeout da URA são obrigatórios",
         });
       }
     }
@@ -405,18 +381,9 @@ router.put("/uras/:ura_identifier", async (req, res) => {
         ia_id: null,
         saudacao_ia: null,
         audio: audio ?? atual.audio,
-        max_digits:
-          max_digits !== undefined
-            ? Number(max_digits)
-            : atual.max_digits,
-        tentativas:
-          tentativas !== undefined
-            ? Number(tentativas)
-            : atual.tentativas,
-        timeout:
-          timeout !== undefined
-            ? Number(timeout)
-            : atual.timeout,
+        max_digits: max_digits !== undefined ? Number(max_digits) : atual.max_digits,
+        tentativas: tentativas !== undefined ? Number(tentativas) : atual.tentativas,
+        timeout: timeout !== undefined ? Number(timeout) : atual.timeout,
       };
     }
 

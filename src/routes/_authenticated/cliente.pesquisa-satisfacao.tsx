@@ -80,7 +80,7 @@ export const Route = createFileRoute("/_authenticated/cliente/pesquisa-satisfaca
     });
 
     const iaEnabled = configuracoes?.some(
-      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true"
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
     );
     if (!iaEnabled) {
       throw new Error("403: Módulo não autorizado");

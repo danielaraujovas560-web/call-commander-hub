@@ -56,6 +56,7 @@ export interface IaVoice {
 }
 
 const iaInputSchema = z.object({
+  tenant_id: z.number().int().positive().optional(),
   nome: z.string().trim().min(1).max(100),
   ia_model_id_logica: z.number().int().positive(),
   ia_voice_id: z.number().int().positive(),
@@ -66,6 +67,7 @@ const iaInputSchema = z.object({
 });
 
 const iaVoiceInputSchema = z.object({
+  tenant_id: z.number().int().positive().optional(),
   nome: z.string().trim().min(1).max(100),
   voice_id: z.string().trim().min(1).max(100),
   ia_model_id: z.number().int().positive(),
@@ -81,16 +83,11 @@ export const listIa = createServerFn({ method: "GET" })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      data.tenant_id,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    const res = await authenticatedAgentFetch<{ ia: IA[] }>(
-      context,
-      `/ia?tenant=${tenantId}`,
-      { tenantId },
-    );
+    const res = await authenticatedAgentFetch<{ ia: IA[] }>(context, `/ia?tenant=${tenantId}`, {
+      tenantId,
+    });
 
     return {
       tenantId,
@@ -112,11 +109,15 @@ export const listIaModels = createServerFn({ method: "GET" })
 
 export const listIaVoices = createServerFn({ method: "GET" })
   .middleware([requireAuth])
-  .handler(async ({ context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      undefined,
-    );
+  .validator((d: unknown) =>
+    z
+      .object({
+        tenant_id: z.number().int().positive().optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     const res = await authenticatedAgentFetch<{
       vozes: IaVoice[];
@@ -132,20 +133,13 @@ export const createIa = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((d: unknown) => iaInputSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      undefined,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    return await authenticatedAgentFetch(
-      context,
-      "/ia",
-      {
-        method: "POST",
-        tenantId,
-        body: data,
-      },
-    );
+    return await authenticatedAgentFetch(context, "/ia", {
+      method: "POST",
+      tenantId,
+      body: data,
+    });
   });
 
 export const updateIa = createServerFn({ method: "POST" })
@@ -159,22 +153,15 @@ export const updateIa = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      undefined,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     const { id, ...body } = data;
 
-    return await authenticatedAgentFetch(
-      context,
-      `/ia/${id}`,
-      {
-        method: "PUT",
-        tenantId,
-        body,
-      },
-    );
+    return await authenticatedAgentFetch(context, `/ia/${id}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const deleteIa = createServerFn({ method: "POST" })
@@ -183,23 +170,17 @@ export const deleteIa = createServerFn({ method: "POST" })
     z
       .object({
         id: z.number().int().positive(),
+        tenant_id: z.number().int().positive(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      undefined,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    return await authenticatedAgentFetch(
-      context,
-      `/ia/${data.id}`,
-      {
-        method: "DELETE",
-        tenantId,
-      },
-    );
+    return await authenticatedAgentFetch(context, `/ia/${data.id}`, {
+      method: "DELETE",
+      tenantId,
+    });
   });
 
 export const createIaVoice = createServerFn({
@@ -208,20 +189,13 @@ export const createIaVoice = createServerFn({
   .middleware([requireAuth])
   .validator((d: unknown) => iaVoiceInputSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      undefined,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    return await authenticatedAgentFetch(
-      context,
-      "/ia-voices",
-      {
-        method: "POST",
-        tenantId,
-        body: data,
-      },
-    );
+    return await authenticatedAgentFetch(context, "/ia-voices", {
+      method: "POST",
+      tenantId,
+      body: data,
+    });
   });
 
 export const updateIaVoice = createServerFn({
@@ -237,22 +211,15 @@ export const updateIaVoice = createServerFn({
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      undefined,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
     const { id, ...body } = data;
 
-    return await authenticatedAgentFetch(
-      context,
-      `/ia-voices/${id}`,
-      {
-        method: "PUT",
-        tenantId,
-        body,
-      },
-    );
+    return await authenticatedAgentFetch(context, `/ia-voices/${id}`, {
+      method: "PUT",
+      tenantId,
+      body,
+    });
   });
 
 export const deleteIaVoice = createServerFn({
@@ -263,21 +230,15 @@ export const deleteIaVoice = createServerFn({
     z
       .object({
         id: z.number().int().positive(),
+        tenant_id: z.number().int().positive(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(
-      context.token,
-      undefined,
-    );
+    const tenantId = await resolveTenantId(context.token, data.tenant_id);
 
-    return await authenticatedAgentFetch(
-      context,
-      `/ia-voices/${data.id}`,
-      {
-        method: "DELETE",
-        tenantId,
-      },
-    );
+    return await authenticatedAgentFetch(context, `/ia-voices/${data.id}`, {
+      method: "DELETE",
+      tenantId,
+    });
   });
