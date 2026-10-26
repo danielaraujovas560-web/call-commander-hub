@@ -27,6 +27,7 @@ import {
   UsersRound,
   Settings,
   Brain,
+  Plug,
 } from "lucide-react";
 
 import { setStoredToken } from "@/lib/auth/attach-auth";
@@ -202,6 +203,7 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
     { to: "/cliente/troncos", label: "Troncos", icon: Cable, exact: false },
     { to: "/cliente/regras", label: "Regras", icon: GitBranch, exact: false },
     { to: "/cliente/ia", label: "IA", icon: Brain, enabled: iaEnabled },
+    { to: "/cliente/integracoes", label: "Integrações", icon: Plug },
   ] as const;
 
   const relatorios = [

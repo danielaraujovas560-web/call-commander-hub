@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const META_API_VERSION = "v25.0";
+const META_API_VERSION = "v26.0";
 
 function normalizarTelefone(numero) {
   const telefone = String(numero ?? "").replace(/\D/g, "");
@@ -62,7 +62,7 @@ async function enviarTemplateMeta({
         "Content-Type": "application/json",
       },
       timeout: 15000,
-    }
+    },
   );
 
   return {

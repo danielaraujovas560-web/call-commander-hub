@@ -6,6 +6,7 @@ import { authenticatedAgentFetch } from "./agent.server";
 
 export interface RoteamentoItem {
   numero: string;
+  whatsapp_config_id: number | null;
   tipo_destino: string;
   destino: string;
   descricao: string | null;
@@ -28,6 +29,7 @@ export const listRoteamento = createServerFn({ method: "GET" })
 
 const RoteamentoInput = z.object({
   tenant_id: z.number().int().positive().optional(),
+  whatsapp_config_id: z.number().int().positive().nullable().optional(),
   numero: z.string().min(1),
   tipo_destino: z.enum(["RAMAL", "FILA", "URA", "EXTERNO", "REGRA_HORARIO", "AUDIO"]),
   destino: z.coerce.string().trim().min(1).max(50),

@@ -42,12 +42,10 @@ router.post("/regras", async (req, res) => {
     !expressao ||
     !expressao_transformada
   ) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "tronco_identifier, tronco_nome, regra_nome, tipo, tipo_ligacao, expressao e expressao_transformada obrigatórios",
-      });
+    return res.status(400).json({
+      error:
+        "tronco_identifier, tronco_nome, regra_nome, tipo, tipo_ligacao, expressao e expressao_transformada obrigatórios",
+    });
   }
   try {
     const [rows] = await pool.query(

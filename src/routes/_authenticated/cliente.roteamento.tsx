@@ -138,6 +138,7 @@ function RoteamentoPage() {
               <TableHead>Descrição</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Destino</TableHead>
+              <TableHead>Integração</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -164,6 +165,7 @@ function RoteamentoPage() {
                   <Badge variant="outline">{getAcaoLabel(r.tipo_destino)}</Badge>
                 </TableCell>
                 <TableCell>{renderDestinoLabel(destinos, r.tipo_destino, r.destino)}</TableCell>
+                <TableCell>{r.whatsapp_config_id === 1 ? "Sim" : "Não"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setEditing(r)}>
@@ -185,7 +187,7 @@ function RoteamentoPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => delMut.mutate(r.id)}>
+                            <AlertDialogAction onClick={() => delMut.mutate(r.numero)}>
                               Remover
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -229,6 +231,9 @@ function RoteamentoFormDialog({
   const editing = !!item;
 
   const [numero, setNumero] = useState<string>(item?.numero ? String(item.numero) : "");
+  const [whatsConfig, setWhatsConfig] = useState<number | null>(
+    item?.whatsapp_config_id != null ? Number(item.whatsapp_config_id) : null,
+  );
   const [dest, setDest] = useState<DestinoValue>(
     item ? parseDestinoFromBackend(item.tipo_destino, item.destino) : { ...emptyDestino },
   );
@@ -236,6 +241,7 @@ function RoteamentoFormDialog({
 
   useEffect(() => {
     if (open) {
+      setWhatsConfig(item?.whatsapp_config_id != null ? Number(item.whatsapp_config_id) : null);
       setNumero(item?.numero ? String(item.numero) : "");
       setDest(
         item ? parseDestinoFromBackend(item.tipo_destino, item.destino) : { ...emptyDestino },
@@ -252,6 +258,7 @@ function RoteamentoFormDialog({
     mutationFn: () => {
       const body = {
         tenant_id: tenantId,
+        whatsapp_config_id: whatsConfig,
         numero: numero,
         tipo_destino: dest.tipo as Exclude<DestinoTipo, "INTERNO">,
         destino: buildDestinoForBackend(dest),
@@ -292,13 +299,23 @@ function RoteamentoFormDialog({
           }}
           className="space-y-3"
         >
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label>Número *</Label>
             <Input
               value={numero}
               onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))}
               placeholder="Ex.: 2733334444"
               disabled={editing && !isAdmin}
+            />
+            <Label>WebHook</Label>
+            <Input
+              type="number"
+              value={whatsConfig ?? ""}
+              onChange={(e) => {
+                const valor = e.target.value;
+                setWhatsConfig(valor === "" ? null : Number(valor));
+              }}
+              placeholder="Escolha o WebHook"
             />
           </div>
           <DestinoPicker

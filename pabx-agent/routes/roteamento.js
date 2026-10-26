@@ -7,7 +7,7 @@ router.get("/roteamento", async (req, res) => {
   if (!tenant) return;
   try {
     const [rows] = await pool.query(
-      `SELECT numero, tipo_destino, destino,
+      `SELECT numero, whatsapp_config_id, tipo_destino, destino,
               descricao
          FROM roteamento
         WHERE tenant_id = ?
@@ -23,7 +23,7 @@ router.get("/roteamento", async (req, res) => {
 router.post("/roteamento", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
-  const { numero, tipo_destino, destino, descricao } = req.body || {};
+  const { numero, whatsapp_config_id, tipo_destino, destino, descricao } = req.body || {};
   if (!numero || !tipo_destino || !destino) {
     return res.status(400).json({ error: "numero, tipo_destino e destino obrigatórios" });
   }
@@ -31,8 +31,8 @@ router.post("/roteamento", async (req, res) => {
     const tipo = String(tipo_destino).toUpperCase();
 
     const [r] = await pool.query(
-      `INSERT INTO roteamento (numero, tenant_id, tipo_destino, destino, descricao) VALUES (?, ?, ?, ?, ?)`,
-      [numero, tenant, tipo, destino, descricao ?? null],
+      `INSERT INTO roteamento (numero, whatsapp_config_id, tenant_id, tipo_destino, destino, descricao) VALUES (?, ?, ?, ?, ?, ?)`,
+      [numero, whatsapp_config_id ?? null, tenant, tipo, destino, descricao ?? null],
     );
     res.json({ ok: true, numero: numero });
   } catch (e) {
@@ -47,7 +47,7 @@ router.put("/roteamento/:numero", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
   const numeroAtual = req.params.numero;
-  const { numero, tipo_destino, destino, descricao } = req.body || {};
+  const { numero, whatsapp_config_id, tipo_destino, destino, descricao } = req.body || {};
   const sets = [];
   const vals = [];
   const tipo = tipo_destino !== undefined ? String(tipo_destino).toUpperCase() : undefined;
@@ -64,6 +64,10 @@ router.put("/roteamento/:numero", async (req, res) => {
     }
     sets.push("numero = ?");
     vals.push(numero);
+  }
+  if (whatsapp_config_id !== undefined) {
+    sets.push("whatsapp_config_id = ?");
+    vals.push(whatsapp_config_id);
   }
   if (tipo !== undefined) {
     sets.push("tipo_destino = ?");

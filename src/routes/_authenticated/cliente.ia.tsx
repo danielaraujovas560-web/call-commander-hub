@@ -95,6 +95,27 @@ export const Route = createFileRoute("/_authenticated/cliente/ia")({
   component: IaPage,
 });
 
+function FieldHelp({ text }: { text: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label="Ajuda sobre o campo"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          <p className="text-xs">{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 function IaPage() {
   const { tenantId } = useClienteContext();
   const qc = useQueryClient();
@@ -734,7 +755,8 @@ function IaPage() {
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       <p className="font-medium text-xs mb-1">
-                        Escreva o nome da voz em minusculo.
+                        Escreva o identificador da voz em minúsculo (ex.: sarah), conforme o
+                        provedor de TTS.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -746,9 +768,6 @@ function IaPage() {
                 onChange={(e) => setVoiceForm({ ...voiceForm, voice_id: e.target.value })}
                 placeholder="Ex: sarah"
               />
-              <p className="text-xs text-muted-foreground">
-                Identificador da voz no provedor de TTS.
-              </p>
             </div>
           </div>
 
@@ -824,7 +843,10 @@ function IaPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>Voz</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Voz</Label>
+                <FieldHelp text="O modelo de voz será definido pela voz selecionada." />
+              </div>
 
               <Select
                 value={iaForm.ia_voice_id}
@@ -842,14 +864,13 @@ function IaPage() {
                   ))}
                 </SelectContent>
               </Select>
-
-              <p className="text-xs text-muted-foreground">
-                O modelo de voz será definido pela voz selecionada.
-              </p>
             </div>
 
             <div className="space-y-1">
-              <Label>Confiança mínima</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Confiança mínima</Label>
+                <FieldHelp text="Ex.: 0.750 significa 75% de confiança mínima." />
+              </div>
 
               <Input
                 type="number"
@@ -859,13 +880,13 @@ function IaPage() {
                 value={iaForm.confianca_minima}
                 onChange={(e) => setIaForm({ ...iaForm, confianca_minima: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Ex: 0.750 significa 75% de confiança mínima.
-              </p>
             </div>
 
             <div className="space-y-1">
-              <Label>Tempo máximo</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Tempo máximo</Label>
+                <FieldHelp text="Tempo máximo permitido para processamento da IA, em segundos." />
+              </div>
 
               <Input
                 type="number"
@@ -874,13 +895,13 @@ function IaPage() {
                 value={iaForm.tempo_maximo}
                 onChange={(e) => setIaForm({ ...iaForm, tempo_maximo: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Tempo máximo permitido para processamento da IA.
-              </p>
             </div>
 
             <div className="space-y-1">
-              <Label>Silêncio após fala</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Silêncio após fala</Label>
+                <FieldHelp text="Tempo de silêncio, em segundos, antes do processamento." />
+              </div>
 
               <Input
                 type="number"
@@ -889,9 +910,6 @@ function IaPage() {
                 value={iaForm.silencio_apos_fala}
                 onChange={(e) => setIaForm({ ...iaForm, silencio_apos_fala: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Tempo de silêncio, em segundos, antes do processamento.
-              </p>
             </div>
           </div>
 
