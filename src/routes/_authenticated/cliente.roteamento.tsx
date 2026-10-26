@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Router as RouterIcon, RefreshCw, Plus, Pencil, Trash2 } from "lucide-react";
+import { Router as RouterIcon, RefreshCw, Plus, Pencil, Trash2, Search, Phone, GitBranch, MessageCircle, Loader2 } from "lucide-react";
 import {
   listRoteamento,
   createRoteamento,
@@ -24,6 +24,7 @@ import {
 } from "@/components/destino-picker";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useIsAdmin } from "@/hooks/use-role";
 import {
@@ -91,6 +92,7 @@ function RoteamentoPage() {
   });
   const rows = data?.roteamento ?? [];
   const [editing, setEditing] = useState<RoteamentoItem | null>(null);
+  const [busca, setBusca] = useState("");
 
   const destinosFn = useServerFn(listUraDestinos);
   const { data: destinos } = useQuery({
@@ -109,98 +111,184 @@ function RoteamentoPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const termo = busca.trim().toLowerCase();
+  const filteredRows = rows.filter((r) =>
+    !termo ||
+    String(r.numero ?? "").toLowerCase().includes(termo) ||
+    String(r.descricao ?? "").toLowerCase().includes(termo) ||
+    getAcaoLabel(r.tipo_destino).toLowerCase().includes(termo) ||
+    String(r.destino ?? "").toLowerCase().includes(termo)
+  );
+  const totalIntegrados = rows.filter((r) => r.whatsapp_config_id != null).length;
+  const totalTipos = new Set(rows.map((r) => r.tipo_destino)).size;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
             <RouterIcon className="h-6 w-6" /> Roteamento
           </h1>
-          <p className="text-sm text-muted-foreground">Cada número aponta para 1 destino.</p>
+          <p className="text-sm text-muted-foreground">Gerencie os números e seus destinos de chamadas.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Atualizar roteamentos"
+            title="Atualizar roteamentos"
+            onClick={() => void refetch()}
+            disabled={!tenantId || isFetching}
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
           {isAdmin && <RoteamentoFormDialog tenantId={tenantId} />}
         </div>
       </div>
-      {error && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          {(error as Error).message}
-        </div>
-      )}
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Destino</TableHead>
-              <TableHead>Integração</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">
-                  Carregando…
-                </TableCell>
-              </TableRow>
-            )}
-            {!isLoading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                  Sem roteamentos.
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map((r) => (
-              <TableRow key={r.numero}>
-                <TableCell className="font-mono">{r.numero}</TableCell>
-                <TableCell>{r.descricao ?? "-"}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{getAcaoLabel(r.tipo_destino)}</Badge>
-                </TableCell>
-                <TableCell>{renderDestinoLabel(destinos, r.tipo_destino, r.destino)}</TableCell>
-                <TableCell>{r.whatsapp_config_id === 1 ? "Sim" : "Não"}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditing(r)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remover roteamento de {r.numero}?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Não remove o número, apenas o roteamento.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => delMut.mutate(r.numero)}>
-                              Remover
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="flex items-center justify-between pt-6">
+            <div>
+              <p className="text-sm text-muted-foreground">Roteamentos</p>
+              <p className="text-3xl font-bold">{rows.length}</p>
+            </div>
+            <Phone className="h-8 w-8 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between pt-6">
+            <div>
+              <p className="text-sm text-muted-foreground">Com integração</p>
+              <p className="text-3xl font-bold">{totalIntegrados}</p>
+            </div>
+            <MessageCircle className="h-8 w-8 text-green-600" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between pt-6">
+            <div>
+              <p className="text-sm text-muted-foreground">Tipos de destino em uso</p>
+              <p className="text-3xl font-bold">{totalTipos}</p>
+            </div>
+            <GitBranch className="h-8 w-8 text-muted-foreground" />
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Números e destinos</CardTitle>
+              <CardDescription>Consulte e gerencie os roteamentos do cliente atual.</CardDescription>
+            </div>
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Número, descrição, destino…"
+                className="pl-9"
+                aria-label="Buscar roteamentos"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {error ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              Falha ao listar roteamentos: {(error as Error).message}
+              <Button className="ml-2" size="sm" variant="outline" onClick={() => void refetch()}>
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead>Número</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Destino</TableHead>
+                    <TableHead>Integração</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!tenantId || isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                        <span className="inline-flex items-center gap-2">
+                          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                          {!tenantId ? "Aguardando identificação do cliente…" : "Carregando…"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                        {busca ? "Nenhum roteamento encontrado para esta busca." : "Nenhum roteamento cadastrado."}
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredRows.map((r) => (
+                    <TableRow key={r.numero} className="hover:bg-muted/30">
+                      <TableCell className="whitespace-nowrap font-mono font-medium">{r.numero}</TableCell>
+                      <TableCell className="max-w-64 truncate" title={r.descricao ?? undefined}>
+                        {r.descricao || <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{getAcaoLabel(r.tipo_destino)}</Badge>
+                      </TableCell>
+                      <TableCell>{renderDestinoLabel(destinos, r.tipo_destino, r.destino)}</TableCell>
+                      <TableCell>
+                        <Badge variant={r.whatsapp_config_id != null ? "default" : "secondary"}>
+                          {r.whatsapp_config_id != null ? "Vinculada" : "Nenhuma"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" title="Editar roteamento" aria-label={`Editar roteamento ${r.numero}`} onClick={() => setEditing(r)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {isAdmin && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" title="Remover roteamento" aria-label={`Remover roteamento ${r.numero}`}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remover roteamento de {r.numero}?</AlertDialogTitle>
+                                  <AlertDialogDescription>Não remove o número, apenas o roteamento.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction disabled={delMut.isPending} onClick={() => delMut.mutate(r.numero)}>
+                                    {delMut.isPending ? "Removendo…" : "Remover"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {!isLoading && !error && rows.length > 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Exibindo {filteredRows.length} de {rows.length} roteamentos.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {editing && (
         <RoteamentoFormDialog
           tenantId={tenantId}

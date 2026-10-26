@@ -491,11 +491,13 @@ function ClienteIntegracoes() {
         <div className="flex gap-2">
           <Button
             variant="outline"
+            size="icon"
+            aria-label="Atualizar integrações"
+            title="Atualizar integrações"
             onClick={() => void refresh()}
             disabled={!tenantId || isFetching}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-            Atualizar
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
           {isAdmin && (
             <Button
@@ -584,22 +586,37 @@ function ClienteIntegracoes() {
             </p>
           ) : (
             filtered.map((item) => (
-              <div key={item.id} className="space-y-3 rounded-xl border p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <MessageCircle className="h-5 w-5 text-green-600" />
-                    <strong>{item.nome_empresa || `Integração #${item.id}`}</strong>
-                    <Badge variant="outline">Meta Cloud API</Badge>
-                    <Badge variant={item.ativo ? "default" : "secondary"}>
-                      {item.ativo ? "Ativa" : "Inativa"}
-                    </Badge>
-                    <Badge variant="secondary">
-                      {item.total_dids ?? (item.dids ?? []).length} DID(s)
-                    </Badge>
+              <div
+                key={item.id}
+                className="overflow-hidden rounded-xl border bg-card transition-colors hover:border-border/90 hover:shadow-sm"
+              >
+                {/* Cabeçalho: identidade, situação e ações */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3 sm:px-5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-background">
+                      <MessageCircle className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="break-words text-sm font-semibold sm:text-base">
+                          {item.nome_empresa || `Integração #${item.id}`}
+                        </h3>
+                        <Badge variant={item.ativo ? "default" : "secondary"}>
+                          {item.ativo ? "Ativa" : "Inativa"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">WhatsApp · Meta Cloud API</p>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    <Button variant="outline" size="sm" onClick={() => setPreviewItem(item)}>
-                      <Eye className="mr-2 h-4 w-4" /> Visualizar mensagem
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Visualizar mensagem"
+                      title="Visualizar mensagem"
+                      onClick={() => setPreviewItem(item)}
+                    >
+                      <Eye className="h-4 w-4" />
                     </Button>
                     {isAdmin && (
                       <>
@@ -607,6 +624,7 @@ function ClienteIntegracoes() {
                           variant="ghost"
                           size="icon"
                           aria-label="Editar integração"
+                          title="Editar integração"
                           onClick={() => {
                             setEditing(item);
                             setFormOpen(true);
@@ -618,6 +636,7 @@ function ClienteIntegracoes() {
                           variant="ghost"
                           size="icon"
                           aria-label="Excluir integração"
+                          title="Excluir integração"
                           onClick={() => setDeleting(item)}
                           disabled={(item.total_dids ?? (item.dids ?? []).length) > 0}
                         >
@@ -628,49 +647,57 @@ function ClienteIntegracoes() {
                   </div>
                 </div>
 
-                <div className="grid gap-2 text-sm sm:grid-cols-2">
-                  <p>
-                    <span className="font-medium">Phone Number ID: </span>
-                    <span className="font-mono">{item.remetente}</span>
-                  </p>
-                  <p>
-                    <span className="font-medium">WABA ID: </span>
-                    <span className="font-mono">{item.waba_id || "Não configurado"}</span>
-                  </p>
-                  <p>
-                    <span className="font-medium">Template: </span>
-                    {item.template_nome}
-                  </p>
-                  <p>
-                    <span className="font-medium">Idioma: </span>
-                    {item.template_idioma}
-                  </p>
-                  <p className="flex items-center gap-1.5">
+                {/* Dados: rótulos discretos e valores legíveis */}
+                <div className="grid gap-x-6 gap-y-4 px-4 py-4 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs text-muted-foreground">Phone Number ID</p>
+                    <p className="break-all font-mono text-sm font-medium">{item.remetente || "—"}</p>
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs text-muted-foreground">WABA ID</p>
+                    <p className="break-all font-mono text-sm font-medium">{item.waba_id || "Não configurado"}</p>
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs text-muted-foreground">Template</p>
+                    <p className="break-all text-sm font-medium">{item.template_nome || "—"}</p>
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs text-muted-foreground">Idioma</p>
+                    <p className="text-sm font-medium">{item.template_idioma || "—"}</p>
+                  </div>
+                </div>
+
+                {/* Rodapé: credenciais e números associados */}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t px-4 py-3 sm:px-5">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     {item.credencial_configurada ? (
                       <KeyRound className="h-4 w-4 text-green-600" />
                     ) : (
                       <ShieldAlert className="h-4 w-4 text-amber-600" />
                     )}
-                    {item.credencial_configurada ? "Token configurado" : "Token não configurado"}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {(item.dids ?? []).length > 0 ? (
-                    item.dids.map((did) => (
-                      <Badge key={did} variant="secondary">
-                        <Phone className="mr-1 h-3 w-3" />
-                        {did}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Nenhum DID vinculado</p>
-                  )}
+                    <span>{item.credencial_configurada ? "Token configurado" : "Token não configurado"}</span>
+                  </div>
+                  <div className="hidden h-4 w-px bg-border sm:block" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      DIDs ({item.total_dids ?? (item.dids ?? []).length}):
+                    </span>
+                    {(item.dids ?? []).length > 0 ? (
+                      item.dids.map((did) => (
+                        <Badge key={did} variant="outline" className="gap-1 font-mono font-normal">
+                          <Phone className="h-3 w-3" />
+                          {did}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Nenhum vinculado</span>
+                    )}
+                  </div>
                 </div>
                 {isAdmin && (item.total_dids ?? (item.dids ?? []).length) > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Para excluir, desvincule primeiro os DIDs na página de Roteamento.
-                  </p>
+                  <div className="px-4 pb-3 text-xs text-muted-foreground sm:px-5">
+                    Para excluir esta integração, desvincule primeiro os DIDs na página de Roteamento.
+                  </div>
                 )}
               </div>
             ))
