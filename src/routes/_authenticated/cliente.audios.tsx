@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/audios")({
   head: () => ({ meta: [{ title: "Áudios — Cliente — Painel PABX" }] }),
@@ -120,7 +121,7 @@ function AudiosPage() {
   const audios = query.data?.audios ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-2 md:p-3">
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as "normal" | "musica_espera")}
@@ -128,7 +129,7 @@ function AudiosPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Áudios</h1>
+            <h1 className="text-xl font-semibold">Áudios</h1>
             <p className="text-sm text-muted-foreground">
               {activeTab === "normal"
                 ? "Prompts, saudações e mensagens ativas deste cliente."
@@ -151,7 +152,7 @@ function AudiosPage() {
           </div>
         </div>
 
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-md grid-cols-2 rounded-lg">
           <TabsTrigger value="normal" className="flex items-center gap-2">
             <span>🎙️</span> Áudios (URAs/Mensagens)
           </TabsTrigger>
@@ -162,9 +163,9 @@ function AudiosPage() {
 
         {/* TAB 1: ÁUDIOS NORMAIS */}
         <TabsContent value="normal" className="space-y-4">
-          <div className="rounded-md border bg-card">
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Formato</TableHead>
@@ -227,9 +228,9 @@ function AudiosPage() {
 
         {/* TAB 2: MÚSICAS DE ESPERA */}
         <TabsContent value="musica_espera" className="space-y-4">
-          <div className="rounded-md border bg-card">
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Nome da Música</TableHead>
                   <TableHead>Formato</TableHead>
@@ -336,7 +337,7 @@ function AudiosPage() {
               </label>
             </div>
             <div className="space-y-1">
-              <Label>Nome de Exibição</Label>
+              <div className="flex items-center gap-1.5"><Label>Nome de Exibição</Label> <FieldHelp text="Esse é o nome que identificará o áudio no painel." /></div>
               <Input
                 value={uploadName}
                 onChange={(e) => setUploadName(e.target.value)}
@@ -347,9 +348,7 @@ function AudiosPage() {
                     : "Ex: Música Comercial Bossa Nova"
                 }
               />
-              <p className="text-xs text-muted-foreground">
-                Esse é o nome que identificará o áudio no painel.
-              </p>
+              
             </div>
           </div>
           <DialogFooter>
@@ -373,7 +372,7 @@ function AudiosPage() {
             <DialogTitle>Renomear áudio</DialogTitle>
           </DialogHeader>
           <div className="space-y-1">
-            <Label>Novo nome</Label>
+            <div className="flex items-center gap-1.5"><Label>Novo nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de audios." /></div>
             <Input value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={120} />
           </div>
           <DialogFooter>

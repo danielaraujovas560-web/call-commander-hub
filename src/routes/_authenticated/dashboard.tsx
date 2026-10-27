@@ -54,14 +54,14 @@ function ClientesChart({ ativos, inativos }: { ativos: number; inativos: number 
   const ativosAnimados = Math.round(ativos * (animacao / pctAtivos || 0));
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm">
+      <CardHeader className="space-y-1.5 p-4">
         <CardTitle>Clientes ativos x inativos</CardTitle>
 
         <CardDescription>Visão geral da base de clientes cadastrados</CardDescription>
       </CardHeader>
 
-      <CardContent className="flex min-h-[220px] items-center justify-center gap-8">
+      <CardContent className="flex min-h-[220px] items-center justify-center gap-8 p-4">
         <svg width={size} height={size} className="shrink-0">
           <circle
             cx={size / 2}
@@ -139,20 +139,20 @@ function Dashboard() {
   ];
 
   return (
-    <div className="relative min-h-[calc(100vh-8rem)] space-y-6 pb-8">
+    <div className="relative min-h-[calc(100vh-8rem)] space-y-4 pb-8 p-2 md:p-3">
       <div>
-        <h1 className="text-2xl font-bold">Bem-vindo ao seu painel</h1>
+        <h1 className="text-xl font-bold">Bem-vindo ao seu painel</h1>
         <p className="text-muted-foreground">Gerencie clientes e ramais do seu PABX virtual.</p>
       </div>
 
       <div className={isAdmin ? "grid gap-4 md:grid-cols-2" : "grid gap-4 md:grid-cols-2"}>
-        <Card className="h-90">
-          <CardHeader>
+        <Card className="h-90 shadow-sm">
+          <CardHeader className="space-y-1.5 p-4">
             <CardTitle>Funções do PABX</CardTitle>
             <CardDescription>Recursos atualmente disponíveis no sistema</CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
                 <div className="rounded-md bg-primary/10 p-2 text-primary">
@@ -218,13 +218,13 @@ function Dashboard() {
         </Card>
 
         {/* CONTATO / SUPORTE */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm">
+          <CardHeader className="space-y-1.5 p-4">
             <CardTitle>Contato / Suporte</CardTitle>
             <CardDescription>Fale com quem cuida desse painel</CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 p-4">
             <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
               <div className="rounded-md bg-primary/10 p-2 text-primary">
                 <User className="h-4 w-4" />

@@ -18,7 +18,7 @@ import { Badge, notaColors } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -97,7 +97,7 @@ function Page() {
         }}
         className="w-full space-y-4"
       >
-        <TabsList>
+        <TabsList className="rounded-lg">
           <TabsTrigger value="ramal" className="flex items-center gap-2">
             <Phone className="h-4 w-4" /> Ramal
           </TabsTrigger>
@@ -133,14 +133,14 @@ function Page() {
               { key: "to", label: "Até", type: "datetime-local" },
             ]}
           />
-          <div className="rounded-md border bg-card">
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
             <ReportShell
               loading={isLoading}
               error={error as Error | null}
               empty={!isLoading && rows.length === 0}
             >
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Linkedid</TableHead>
@@ -161,7 +161,7 @@ function Page() {
                       <TableCell>{r.destino}</TableCell>
                       <TableCell>#{r.pergunta_id}</TableCell>
                       <TableCell>
-                        <Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge>
+                        <Badge className={notaColors[Number(r.nota)]} className="whitespace-nowrap">{r.nota}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -227,14 +227,14 @@ function Page() {
               { key: "to", label: "Até", type: "datetime-local" },
             ]}
           />
-          <div className="rounded-md border bg-card">
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
             <ReportShell
               loading={isLoading}
               error={error as Error | null}
               empty={!isLoading && rows.length === 0}
             >
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Linkedid</TableHead>
@@ -257,7 +257,7 @@ function Page() {
                       <TableCell>{r.fila}</TableCell>
                       <TableCell>#{r.pergunta_id}</TableCell>
                       <TableCell>
-                        <Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge>
+                        <Badge className={notaColors[Number(r.nota)]} className="whitespace-nowrap">{r.nota}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}

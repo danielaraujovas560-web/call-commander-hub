@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { Check, Plus, Search, Trash2, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -97,7 +98,7 @@ function WhitelistPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-2 md:p-3">
       {/* Cabeçalho */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -106,7 +107,7 @@ function WhitelistPage() {
           </div>
 
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Whitelist</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Whitelist</h1>
 
             <p className="text-sm text-muted-foreground">
               Gerencie os endereços IP liberados no firewall.
@@ -133,7 +134,7 @@ function WhitelistPage() {
 
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label htmlFor="ip">Endereço IP</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="ip">Endereço IP</Label> <FieldHelp text="Defina o valor de Endereço IP para este registro." /></div>
 
                 <Input
                   id="ip"
@@ -173,16 +174,16 @@ function WhitelistPage() {
 
       {/* Resumo */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2 space-y-1.5 p-4">
             <CardDescription>IPs liberados</CardDescription>
 
             <CardTitle className="text-2xl">{whitelist.length}</CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2 space-y-1.5 p-4">
             <CardDescription>Liberações</CardDescription>
 
             <CardTitle className="text-2xl">
@@ -193,14 +194,14 @@ function WhitelistPage() {
       </div>
 
       {/* Lista */}
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm">
+        <CardHeader className="space-y-1.5 p-4">
           <CardTitle>Endereços liberados</CardTitle>
 
           <CardDescription>IPs registrados atualmente na whitelist global.</CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-4">
           <div className="mb-4 flex items-center">
             <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -227,7 +228,7 @@ function WhitelistPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-md border">
+            <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr>
@@ -255,13 +256,13 @@ function WhitelistPage() {
                       <td className="px-4 py-3 text-muted-foreground">{item.motivo || "—"}</td>
 
                       <td className="px-4 py-3">
-                        <Badge variant={item.origem === "AUTO" ? "secondary" : "outline"}>
+                        <Badge variant={item.origem === "AUTO" ? "secondary" : "outline"} className="whitespace-nowrap">
                           {item.origem === "AUTO" ? "Automático" : "Manual"}
                         </Badge>
                       </td>
 
                       <td className="px-4 py-3">
-                        <Badge variant="success">Liberado</Badge>
+                        <Badge variant="success" className="whitespace-nowrap">Liberado</Badge>
                       </td>
 
                       <td className="px-4 py-3 text-muted-foreground">

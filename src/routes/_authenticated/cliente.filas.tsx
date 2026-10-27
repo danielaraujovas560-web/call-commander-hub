@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,7 +64,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/filas")({
   head: () => ({ meta: [{ title: "Filas — Cliente — Painel PABX" }] }),
@@ -123,10 +124,10 @@ function FilasPage() {
   const atLimit = max > 0 && count >= max;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             <ListOrdered className="h-6 w-6" /> Filas
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -151,9 +152,9 @@ function FilasPage() {
           {(error as Error).message}
         </div>
       )}
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Descrição</TableHead>
@@ -342,7 +343,7 @@ function AgentesDialog({
         {!isLoading && (
           <div className="rounded-md border">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Ramal</TableHead>
@@ -575,7 +576,7 @@ function FilaFormDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label>Nome *</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de filas." /></div>
             <Input
               value={form.display_name}
               onChange={(e) => setForm({ ...form, display_name: e.target.value })}
@@ -584,7 +585,7 @@ function FilaFormDialog({
             />
           </div>
           <div className="space-y-1">
-            <Label>Descrição</Label>
+            <div className="flex items-center gap-1.5"><Label>Descrição</Label> <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." /></div>
             <Input
               value={form.description ?? ""}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -592,7 +593,7 @@ function FilaFormDialog({
             />
           </div>
           <div className="space-y-1">
-            <Label>Música de espera</Label>
+            <div className="flex items-center gap-1.5"><Label>Música de espera</Label> <FieldHelp text="Áudio ou música reproduzido ao chamador durante esta etapa." /></div>
             <Select
               value={form.musiconhold}
               onValueChange={(v) => setForm({ ...form, musiconhold: v })}
@@ -611,7 +612,7 @@ function FilaFormDialog({
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Estratégia</Label>
+            <div className="flex items-center gap-1.5"><Label>Estratégia</Label> <FieldHelp text="Define como as chamadas serão distribuídas entre os agentes da fila." /></div>
             <Select value={form.strategy} onValueChange={(v) => setForm({ ...form, strategy: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a estratégia" />
@@ -626,7 +627,7 @@ function FilaFormDialog({
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Chama ramal ocupado?</Label>
+            <div className="flex items-center gap-1.5"><Label>Chama ramal ocupado?</Label> <FieldHelp text="Selecione ou informe o número do ramal interno do PABX." /></div>
             <Select
               value={form.ringinuse}
               onValueChange={(v) => setForm({ ...form, ringinuse: v as "no" | "yes" })}
@@ -698,7 +699,7 @@ function FilaFormDialog({
           )}
           <div className="grid grid-cols-3 gap-3 border-t pt-3">
             <div className="space-y-1">
-              <Label title="Tempo de toque máximo no agente">Timeout Agente</Label>
+              <div className="flex items-center gap-1.5"><Label>Timeout Agente</Label> <FieldHelp text="Tempo de toque máximo no agente" /></div>
               <Input
                 type="number"
                 min={0}
@@ -714,7 +715,7 @@ function FilaFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label title="Tempo de espera para rediscar no Agente">Intervalo (s)</Label>
+              <div className="flex items-center gap-1.5"><Label>Intervalo (s)</Label> <FieldHelp text="Tempo de espera para rediscar no Agente" /></div>
               <Input
                 type="number"
                 min={0}
@@ -727,7 +728,7 @@ function FilaFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label title="Tempo máximo da fila">Timeout fila</Label>
+              <div className="flex items-center gap-1.5"><Label>Timeout fila</Label> <FieldHelp text="Tempo máximo da fila" /></div>
               <Input
                 type="number"
                 min={0}

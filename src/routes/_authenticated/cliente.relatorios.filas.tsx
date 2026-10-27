@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
 import { reasonOptions, getReasonLabel, eventOptions, getEventLabel } from "@/lib/report-labels";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -103,8 +103,8 @@ function Page() {
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
+    <div className="space-y-4 p-2 md:p-3">
+      <h1 className="text-xl font-bold flex items-center gap-2">
         <ListOrdered className="h-6 w-6" /> Relatório — Filas
       </h1>
       <ReportFilters
@@ -125,14 +125,14 @@ function Page() {
           { key: "to", label: "Até", type: "datetime-local" },
         ]}
       />
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <ReportShell
           loading={isLoading}
           error={error as Error | null}
           empty={!isLoading && rows.length === 0}
         >
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>Linked ID</TableHead>
                 <TableHead>Fila</TableHead>
@@ -152,7 +152,7 @@ function Page() {
                   <TableCell>{r.display_name}</TableCell>
                   <TableCell>{r.agente}</TableCell>
                   <TableCell>
-                    <Badge variant={r.evento === "AGENTE_ATENDEU" ? "default" : "secondary"}>
+                    <Badge variant={r.evento === "AGENTE_ATENDEU" ? "default" : "secondary"} className="whitespace-nowrap">
                       {getEventLabel(r.evento)}
                     </Badge>
                   </TableCell>

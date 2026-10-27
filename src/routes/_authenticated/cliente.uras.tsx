@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,7 +76,7 @@ import {
 } from "@/components/ui/select";
 
 import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/uras")({
   head: () => ({
@@ -174,10 +175,10 @@ function UrasPage() {
   const atLimit = max > 0 && count >= max;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             <Workflow className="h-6 w-6" />
             URAs
           </h1>
@@ -208,9 +209,9 @@ function UrasPage() {
         </div>
       )}
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Tipo</TableHead>
@@ -242,7 +243,7 @@ function UrasPage() {
                 <TableCell className={u.ativo ? "" : "text-muted-foreground"}>{u.nome}</TableCell>
 
                 <TableCell>
-                  <Badge variant="outline">{u.tipo}</Badge>
+                  <Badge variant="outline" className="whitespace-nowrap">{u.tipo}</Badge>
                 </TableCell>
 
                 <TableCell>
@@ -546,7 +547,7 @@ function UraFormDialog({
           className="space-y-4"
         >
           <div className="space-y-1">
-            <Label>Nome *</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de uras." /></div>
 
             <Input
               value={form.nome}
@@ -562,7 +563,7 @@ function UraFormDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Tipo de URA *</Label>
+            <div className="flex items-center gap-1.5"><Label>Tipo de URA *</Label> <FieldHelp text="Defina o valor de Tipo de URA para este registro." /></div>
 
             <Select
               value={form.tipo}
@@ -588,7 +589,7 @@ function UraFormDialog({
           {form.tipo === "Normal" && (
             <>
               <div className="space-y-1">
-                <Label>Áudio *</Label>
+                <div className="flex items-center gap-1.5"><Label>Áudio *</Label> <FieldHelp text="Áudio ou música reproduzido ao chamador durante esta etapa." /></div>
 
                 <Select
                   value={form.audio}
@@ -621,7 +622,7 @@ function UraFormDialog({
 
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <Label>Máx. dígitos</Label>
+                  <div className="flex items-center gap-1.5"><Label>Máx. dígitos</Label> <FieldHelp text="Defina o valor de Máx. dígitos para este registro." /></div>
 
                   <Input
                     type="number"
@@ -638,7 +639,7 @@ function UraFormDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label>Tentativas</Label>
+                  <div className="flex items-center gap-1.5"><Label>Tentativas</Label> <FieldHelp text="Defina o valor de Tentativas para este registro." /></div>
 
                   <Input
                     type="number"
@@ -655,7 +656,7 @@ function UraFormDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label>Timeout (s)</Label>
+                  <div className="flex items-center gap-1.5"><Label>Timeout (s)</Label> <FieldHelp text="Tempo limite em segundos antes de interromper a operação ou avançar para a próxima etapa." /></div>
 
                   <Input
                     type="number"
@@ -677,7 +678,7 @@ function UraFormDialog({
           {form.tipo === "IA" && (
             <>
               <div className="space-y-1">
-                <Label>IA *</Label>
+                <div className="flex items-center gap-1.5"><Label>IA *</Label> <FieldHelp text="Defina o valor de IA para este registro." /></div>
 
                 <Select
                   value={form.ia_id}
@@ -710,7 +711,7 @@ function UraFormDialog({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Saudação da IA *</Label>
+                <div className="flex items-center gap-1.5"><Label>Saudação da IA *</Label> <FieldHelp text="Esse texto será utilizado pela IA/TTS como saudação." /></div>
 
                 <Input
                   value={form.saudacao_ia}
@@ -724,9 +725,7 @@ function UraFormDialog({
                   placeholder="Ex.: Olá! Sou a assistente virtual da empresa. Como posso ajudar?"
                 />
 
-                <p className="text-xs text-muted-foreground">
-                  Esse texto será utilizado pela IA/TTS como saudação.
-                </p>
+                
               </div>
             </>
           )}
@@ -972,7 +971,7 @@ function UraOpcoesDialog({
 
         <div className="rounded-md border">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>Chave</TableHead>
 
@@ -996,7 +995,7 @@ function UraOpcoesDialog({
                   </TableCell>
 
                   <TableCell>
-                    <Badge variant="outline">{String(o.tipo_destino).toUpperCase()}</Badge>
+                    <Badge variant="outline" className="whitespace-nowrap">{String(o.tipo_destino).toUpperCase()}</Badge>
                   </TableCell>
 
                   <TableCell>{renderDestino(o)}</TableCell>
@@ -1051,7 +1050,7 @@ function UraOpcoesDialog({
 
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Chave *</Label>
+              <div className="flex items-center gap-1.5"><Label>Chave *</Label> <FieldHelp text="Defina o valor de Chave para este registro." /></div>
 
               <Input
                 value={form.chave}
@@ -1075,7 +1074,7 @@ function UraOpcoesDialog({
             </div>
 
             <div className="space-y-1">
-              <Label>Descrição</Label>
+              <div className="flex items-center gap-1.5"><Label>Descrição</Label> <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." /></div>
 
               <Input
                 value={form.descricao}

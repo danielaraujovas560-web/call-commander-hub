@@ -31,7 +31,7 @@ import {
   usePersistentFilter,
 } from "@/components/report-filters";
 import { formatarDataHora } from "@/lib/utils";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 type TipoUra = "Normal" | "IA";
 
@@ -183,14 +183,14 @@ function Page() {
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="flex items-center gap-2 text-2xl font-bold">
+    <div className="space-y-4 p-2 md:p-3">
+      <h1 className="flex items-center gap-2 text-xl font-bold">
         <Workflow className="h-6 w-6" />
         Relatório — URAs
       </h1>
 
       <Tabs value={tipoUra} onValueChange={(value) => mudarTipo(value as TipoUra)}>
-        <TabsList className={`grid w-fit ${iaEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
+        <TabsList className={`grid w-fit ${iaEnabled ? "grid-cols-2" : "grid-cols-1"}`} className="rounded-lg">
           <TabsTrigger value="Normal" className="gap-2">
             <Phone className="h-4 w-4" />
             URA Normal
@@ -224,14 +224,14 @@ function Page() {
         ]}
       />
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <ReportShell
           loading={isLoading}
           error={error as Error | null}
           empty={!isLoading && rowsUra.length === 0}
         >
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>Linked ID</TableHead>
                 <TableHead>DID</TableHead>
@@ -368,9 +368,9 @@ function Page() {
                         Nenhum evento de consumo de IA foi encontrado para este registro.
                       </p>
                     ) : (
-                      <div className="overflow-x-auto rounded-md border">
+                      <div className="overflow-x-auto rounded-xl border">
                         <Table>
-                          <TableHeader>
+                          <TableHeader className="bg-muted/40">
                             <TableRow>
                               <TableHead>Data/Hora</TableHead>
                               <TableHead>Componente</TableHead>

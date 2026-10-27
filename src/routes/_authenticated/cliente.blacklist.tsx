@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,7 +42,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/blacklist")({
   head: () => ({ meta: [{ title: "Blacklist — Cliente — Painel PABX" }] }),
@@ -102,10 +103,10 @@ function BlacklistPage() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             <ShieldBan className="h-6 w-6" /> Blacklist
           </h1>
           <p className="text-sm text-muted-foreground">Números e prefixos bloqueados.</p>
@@ -144,9 +145,9 @@ function BlacklistPage() {
         </div>
       )}
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Destino</TableHead>
               <TableHead>Regra</TableHead>
@@ -179,10 +180,10 @@ function BlacklistPage() {
               >
                 <TableCell className="font-mono">{b.destino}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{b.regra}</Badge>
+                  <Badge variant="outline" className="whitespace-nowrap">{b.regra}</Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{b.tipo}</Badge>
+                  <Badge variant="secondary" className="whitespace-nowrap">{b.tipo}</Badge>
                 </TableCell>
                 <TableCell className="text-xs">{b.motivo || "-"}</TableCell>
                 <TableCell className="text-xs">{b.data_hora_desbloqueio}</TableCell>
@@ -348,8 +349,8 @@ function BlacklistDialog({
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Regra</Label>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5"><Label>Regra</Label> <FieldHelp text="Defina o valor de Regra para este registro." /></div>
 
             <Select
               value={form.regra}
@@ -372,8 +373,8 @@ function BlacklistDialog({
             </Select>
           </div>
 
-          <div>
-            <Label>Tipo</Label>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5"><Label>Tipo</Label> <FieldHelp text="Defina o valor de Tipo para este registro." /></div>
 
             <Select
               value={form.tipo}
@@ -396,8 +397,8 @@ function BlacklistDialog({
             </Select>
           </div>
 
-          <div className="col-span-2">
-            <Label>Destino (número ou prefixo)</Label>
+          <div className="space-y-1.5 col-span-2">
+            <div className="flex items-center gap-1.5"><Label>Destino (número ou prefixo)</Label> <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." /></div>
 
             <Input
               value={form.destino}
@@ -410,8 +411,8 @@ function BlacklistDialog({
             />
           </div>
 
-          <div className="col-span-2">
-            <Label>Motivo (opcional)</Label>
+          <div className="space-y-1.5 col-span-2">
+            <div className="flex items-center gap-1.5"><Label>Motivo (opcional)</Label> <FieldHelp text="Defina o valor de Motivo (opcional) para este registro." /></div>
 
             <Input
               value={form.motivo}
@@ -424,8 +425,8 @@ function BlacklistDialog({
             />
           </div>
 
-          <div className="col-span-2">
-            <Label>Data/hora de desbloqueio</Label>
+          <div className="space-y-1.5 col-span-2">
+            <div className="flex items-center gap-1.5"><Label>Data/hora de desbloqueio</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
 
             <Input
               type="datetime-local"

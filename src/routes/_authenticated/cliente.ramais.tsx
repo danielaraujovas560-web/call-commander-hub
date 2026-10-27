@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,7 +76,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/ramais")({
   head: () => ({ meta: [{ title: "Ramais — Cliente — Painel PABX" }] }),
@@ -155,10 +156,10 @@ function RamaisPage() {
   const atLimit = max > 0 && count >= max;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             <PhoneCall className="h-6 w-6" /> Ramais
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -206,9 +207,9 @@ function RamaisPage() {
         </div>
       )}
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               {modoSelecao && (
                 <TableHead className="w-10">
@@ -288,11 +289,11 @@ function RamaisPage() {
                 <TableCell className="font-mono text-xs">{r.callerid ?? "-"}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    {r.fixo && <Badge variant="secondary">Fixo</Badge>}
-                    {r.movel && <Badge variant="secondary">Móvel</Badge>}
-                    {r.ddi && <Badge variant="secondary">DDI</Badge>}
-                    {r.especial && <Badge variant="secondary">Especial</Badge>}
-                    {r.cng && <Badge variant="secondary">CNG</Badge>}
+                    {r.fixo && <Badge variant="secondary" className="whitespace-nowrap">Fixo</Badge>}
+                    {r.movel && <Badge variant="secondary" className="whitespace-nowrap">Móvel</Badge>}
+                    {r.ddi && <Badge variant="secondary" className="whitespace-nowrap">DDI</Badge>}
+                    {r.especial && <Badge variant="secondary" className="whitespace-nowrap">Especial</Badge>}
+                    {r.cng && <Badge variant="secondary" className="whitespace-nowrap">CNG</Badge>}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -628,7 +629,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           className="grid grid-cols-2 gap-3"
         >
           <div className="space-y-1">
-            <Label>Ramal *</Label>
+            <div className="flex items-center gap-1.5"><Label>Ramal *</Label> <FieldHelp text="Selecione ou informe o número do ramal interno do PABX." /></div>
             <Input
               value={form.ramal}
               onChange={(e) => setForm({ ...form, ramal: e.target.value.replace(/\D/g, "") })}
@@ -638,7 +639,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
             />
           </div>
           <div className="space-y-1">
-            <Label>DDD *</Label>
+            <div className="flex items-center gap-1.5"><Label>DDD *</Label> <FieldHelp text="Código de área (DDD) utilizado nas chamadas deste registro." /></div>
             <Select value={form.ddd} onValueChange={(value) => setForm({ ...form, ddd: value })}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione o DDD" />
@@ -654,12 +655,12 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           </div>
 
           <div className="col-span-2 space-y-1">
-            <Label>Nome (opcional — usa nº do ramal se vazio)</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome (opcional — usa nº do ramal se vazio)</Label> <FieldHelp text="Selecione ou informe o número do ramal interno do PABX." /></div>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
 
           <div className="col-span-2 space-y-1">
-            <Label>Tronco *</Label>
+            <div className="flex items-center gap-1.5"><Label>Tronco *</Label> <FieldHelp text="Tronco SIP/PJSIP responsável pelo encaminhamento das chamadas." /></div>
             <Select
               value={form.tronco}
               onValueChange={(v) =>
@@ -689,7 +690,7 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
           </div>
 
           <div className="col-span-2 space-y-1">
-            <Label>CallerID (opcional — qualquer texto)</Label>
+            <div className="flex items-center gap-1.5"><Label>CallerID (opcional — qualquer texto)</Label> <FieldHelp text="Identificação de chamada que será apresentada quando esse recurso originar ligações." /></div>
             <Input
               value={form.callerid}
               onChange={(e) => setForm({ ...form, callerid: e.target.value })}
@@ -834,7 +835,7 @@ function TransbordoTroncosSelector({
         {selected.map((troncoPjsip) => {
           const t = available.find((x) => x.tronco_pjsip === troncoPjsip);
           return (
-            <Badge key={troncoPjsip} variant="secondary" className="gap-1">
+            <Badge key={troncoPjsip} variant="secondary" className="gap-1 whitespace-nowrap">
               {t?.nome ?? `#${troncoPjsip}`}
               <button
                 type="button"
@@ -1027,11 +1028,11 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           className="grid grid-cols-2 gap-3"
         >
           <div className="col-span-2 space-y-1">
-            <Label>Nome</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de ramais." /></div>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div className="space-y-1">
-            <Label>DDD</Label>
+            <div className="flex items-center gap-1.5"><Label>DDD</Label> <FieldHelp text="Código de área (DDD) utilizado nas chamadas deste registro." /></div>
             <Select value={form.ddd} onValueChange={(value) => setForm({ ...form, ddd: value })}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione o DDD" />
@@ -1046,7 +1047,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>CallerID</Label>
+            <div className="flex items-center gap-1.5"><Label>CallerID</Label> <FieldHelp text="Identificação de chamada que será apresentada quando esse recurso originar ligações." /></div>
             <Input
               value={form.callerid}
               onChange={(e) => setForm({ ...form, callerid: e.target.value })}
@@ -1054,7 +1055,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
             />
           </div>
           <div className="col-span-2 space-y-1">
-            <Label>Tronco</Label>
+            <div className="flex items-center gap-1.5"><Label>Tronco</Label> <FieldHelp text="Tronco SIP/PJSIP responsável pelo encaminhamento das chamadas." /></div>
             <Select
               value={form.tronco}
               onValueChange={(v) =>
@@ -1423,7 +1424,7 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
 
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label>Número inicial *</Label>
+            <div className="flex items-center gap-1.5"><Label>Número inicial *</Label> <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." /></div>
             <Input
               value={form.ramal_inicial}
               onChange={(e) =>
@@ -1438,7 +1439,7 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
           </div>
 
           <div className="space-y-1">
-            <Label>Quantidade *</Label>
+            <div className="flex items-center gap-1.5"><Label>Quantidade *</Label> <FieldHelp text="Defina o valor de Quantidade para este registro." /></div>
             <Input
               type="number"
               min={1}
@@ -1469,7 +1470,7 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
           )}
 
           <div className="space-y-1">
-            <Label>DDD *</Label>
+            <div className="flex items-center gap-1.5"><Label>DDD *</Label> <FieldHelp text="Código de área (DDD) utilizado nas chamadas deste registro." /></div>
             <Select
               value={form.ddd}
               onValueChange={(value) =>
@@ -1494,7 +1495,7 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
           </div>
 
           <div className="col-span-2 space-y-1">
-            <Label>Tronco *</Label>
+            <div className="flex items-center gap-1.5"><Label>Tronco *</Label> <FieldHelp text="Tronco SIP/PJSIP responsável pelo encaminhamento das chamadas." /></div>
 
             <Select
               value={form.tronco}
@@ -1527,7 +1528,7 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
           </div>
 
           <div className="col-span-2 space-y-1">
-            <Label>CallerID</Label>
+            <div className="flex items-center gap-1.5"><Label>CallerID</Label> <FieldHelp text="Identificação de chamada que será apresentada quando esse recurso originar ligações." /></div>
 
             <Input
               value={form.callerid}

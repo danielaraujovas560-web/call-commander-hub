@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +13,8 @@ import {
   Volume2,
   Trash2,
   HelpCircle,
+  Search,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +36,8 @@ import {
 import { getConfiguracoes } from "@/lib/configuracoes.functions";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -65,7 +70,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/ia")({
   head: () => ({
@@ -95,32 +100,12 @@ export const Route = createFileRoute("/_authenticated/cliente/ia")({
   component: IaPage,
 });
 
-function FieldHelp({ text }: { text: string }) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            aria-label="Ajuda sobre o campo"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p className="text-xs">{text}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
 function IaPage() {
   const { tenantId } = useClienteContext();
   const qc = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<"vozes" | "ias">("ias");
+  const [busca, setBusca] = useState("");
 
   const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
   const [iaDialogOpen, setIaDialogOpen] = useState(false);
@@ -187,8 +172,20 @@ function IaPage() {
   const voices = voicesQuery.data?.vozes ?? [];
   const models = modelsQuery.data?.modelos ?? [];
   const ias = iaQuery.data?.ia ?? [];
+  const termoBusca = busca.trim().toLocaleLowerCase("pt-BR");
+  const iasVisiveis = ias.filter((item) =>
+    !termoBusca ||
+    [item.nome, item.modelo_logico?.nome, item.modelo_logico?.provider, item.voz?.nome]
+      .some((valor) => String(valor ?? "").toLocaleLowerCase("pt-BR").includes(termoBusca)),
+  );
+  const vozesVisiveis = voices.filter((item) =>
+    !termoBusca ||
+    [item.nome, item.voice_id, item.modelo?.nome, item.modelo?.provider]
+      .some((valor) => String(valor ?? "").toLocaleLowerCase("pt-BR").includes(termoBusca)),
+  );
 
   const logicalModels = models.filter((model) => model.tipo === "Logico");
+  const totalIasAtivas = ias.filter((ia) => ia.ativa).length;
 
   // =========================
   // REFRESH
@@ -425,68 +422,77 @@ function IaPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Inteligência Artificial</h1>
+          <p className="text-sm text-muted-foreground">Configure as IAs e vozes utilizadas no atendimento.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" aria-label="Atualizar dados" title="Atualizar dados" onClick={refresh} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          </Button>
+          {activeTab === "vozes" ? (
+            <Button onClick={openNewVoice}><Plus className="mr-2 h-4 w-4" />Nova voz</Button>
+          ) : (
+            <Button onClick={openNewIa}><Plus className="mr-2 h-4 w-4" />Nova IA</Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
+            <div><p className="text-sm text-muted-foreground">Inteligências artificiais</p><p className="text-2xl font-bold">{ias.length}</p></div>
+            <Bot className="h-7 w-7 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
+            <div><p className="text-sm text-muted-foreground">IAs ativas</p><p className="text-2xl font-bold">{totalIasAtivas}</p></div>
+            <CheckCircle2 className="h-7 w-7 text-green-600" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
+            <div><p className="text-sm text-muted-foreground">Vozes cadastradas</p><p className="text-2xl font-bold">{voices.length}</p></div>
+            <Volume2 className="h-7 w-7 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as "vozes" | "ias")}
-        className="w-full space-y-6"
+        onValueChange={(value) => { setActiveTab(value as "vozes" | "ias"); setBusca(""); }}
+        className="w-full space-y-3"
       >
-        {/* =========================
-            CABEÇALHO
-        ========================= */}
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold">Inteligência Artificial</h1>
-
-            <p className="text-sm text-muted-foreground">
-              Configure as vozes e inteligências artificiais deste cliente.
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button variant="outline" size="icon" onClick={refresh} disabled={isFetching}>
-              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-            </Button>
-
-            {activeTab === "vozes" ? (
-              <Button onClick={openNewVoice}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova voz
-              </Button>
-            ) : (
-              <Button onClick={openNewIa}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova IA
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* =========================
-            TABS
-        ========================= */}
-
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="ias" className="flex items-center gap-2">
-            <Bot className="h-4 w-4" />
-            IAs
-          </TabsTrigger>
-
-          <TabsTrigger value="vozes" className="flex items-center gap-2">
-            <Volume2 className="h-4 w-4" />
-            Vozes
-          </TabsTrigger>
+        <TabsList className="grid w-full max-w-xs grid-cols-2">
+          <TabsTrigger value="ias" className="gap-2"><Bot className="h-4 w-4" />IAs</TabsTrigger>
+          <TabsTrigger value="vozes" className="gap-2"><Volume2 className="h-4 w-4" />Vozes</TabsTrigger>
         </TabsList>
 
         {/* =========================
             TAB IAS
         ========================= */}
 
-        <TabsContent value="ias" className="space-y-4">
-          <div className="rounded-md border bg-card">
+        <TabsContent value="ias" className="mt-0">
+          <Card className="overflow-hidden">
+            <CardHeader className="p-4 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base">Inteligências artificiais</CardTitle>
+                  <CardDescription>Modelos configurados para o atendimento.</CardDescription>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar IA ou modelo..." className="h-9 pl-9" aria-label="Buscar inteligências artificiais" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="overflow-x-auto rounded-lg border">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Modelo lógico</TableHead>
@@ -500,22 +506,22 @@ function IaPage() {
               <TableBody>
                 {iaQuery.isLoading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center">
+                    <TableCell colSpan={6} className="py-10 text-center">
                       Carregando…
                     </TableCell>
                   </TableRow>
                 )}
 
-                {!iaQuery.isLoading && ias.length === 0 && (
+                {!iaQuery.isLoading && iasVisiveis.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                      Nenhuma IA cadastrada para este cliente.
+                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                      {busca ? "Nenhuma IA corresponde à busca." : "Nenhuma IA cadastrada para este cliente."}
                     </TableCell>
                   </TableRow>
                 )}
 
-                {ias.map((ia) => (
-                  <TableRow key={ia.id}>
+                {iasVisiveis.map((ia) => (
+                  <TableRow key={ia.id} className="hover:bg-muted/30">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Bot className="h-4 w-4 text-muted-foreground" />
@@ -549,11 +555,7 @@ function IaPage() {
                     <TableCell>{(ia.confianca_minima * 100).toFixed(0)}%</TableCell>
 
                     <TableCell>
-                      {ia.ativa ? (
-                        <span className="text-sm text-green-600">Ativa</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Inativa</span>
-                      )}
+                      <Badge variant={ia.ativa ? "default" : "secondary"}>{ia.ativa ? "Ativa" : "Inativa"}</Badge>
                     </TableCell>
 
                     <TableCell className="text-right">
@@ -585,17 +587,33 @@ function IaPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* =========================
             TAB VOZES
         ========================= */}
 
-        <TabsContent value="vozes" className="space-y-4">
-          <div className="rounded-md border bg-card">
+        <TabsContent value="vozes" className="mt-0">
+          <Card className="overflow-hidden">
+            <CardHeader className="p-4 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base">Vozes</CardTitle>
+                  <CardDescription>Vozes disponíveis para as inteligências artificiais.</CardDescription>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar voz ou ID..." className="h-9 pl-9" aria-label="Buscar vozes" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="overflow-x-auto rounded-lg border">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Provider</TableHead>
@@ -614,16 +632,16 @@ function IaPage() {
                   </TableRow>
                 )}
 
-                {!voicesQuery.isLoading && voices.length === 0 && (
+                {!voicesQuery.isLoading && vozesVisiveis.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                      Nenhuma voz cadastrada para este cliente.
+                      {busca ? "Nenhuma voz corresponde à busca." : "Nenhuma voz cadastrada para este cliente."}
                     </TableCell>
                   </TableRow>
                 )}
 
-                {voices.map((voice) => (
-                  <TableRow key={voice.id}>
+                {vozesVisiveis.map((voice) => (
+                  <TableRow key={voice.id} className="hover:bg-muted/30">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Volume2 className="h-4 w-4 text-muted-foreground" />
@@ -665,7 +683,9 @@ function IaPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -682,14 +702,14 @@ function IaPage() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingVoice ? "Editar voz" : "Nova voz"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Label>Nome</Label>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de ia." /></div>
 
               <Input
                 value={voiceForm.nome}
@@ -701,23 +721,7 @@ function IaPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
                 <Label>Modelo de voz</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <HelpCircle className="w-4 h-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="font-medium text-xs mb-1">
-                        Novos modelos de vez deverão ser solicitados ao Administrador para cadastro.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <FieldHelp text="Novos modelos de vez deverão ser solicitados ao Administrador para cadastro." />
               </div>
 
               <Select
@@ -743,24 +747,7 @@ function IaPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
                 <Label>Voice ID</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <HelpCircle className="w-4 h-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="font-medium text-xs mb-1">
-                        Escreva o identificador da voz em minúsculo (ex.: sarah), conforme o
-                        provedor de TTS.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <FieldHelp text="Escreva o identificador da voz em minúsculo (ex.: sarah), conforme o provedor de TTS." />
               </div>
 
               <Input
@@ -803,14 +790,14 @@ function IaPage() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingIa ? "Editar IA" : "Nova IA"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Label>Nome</Label>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de ia." /></div>
 
               <Input
                 value={iaForm.nome}
@@ -819,8 +806,8 @@ function IaPage() {
               />
             </div>
 
-            <div className="space-y-1">
-              <Label>Modelo lógico</Label>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5"><Label>Modelo lógico</Label> <FieldHelp text="Modelo de IA responsável pelo processamento e pela tomada de decisão." /></div>
 
               <Select
                 value={iaForm.ia_model_id_logica}

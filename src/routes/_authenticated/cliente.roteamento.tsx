@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,7 +57,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 // Roteamento pode apontar para qualquer ação (inclui HORARIO_ATENDIMENTO
 // para redirecionar a chamada pra regra que decide dentro/fora).
@@ -123,10 +124,10 @@ function RoteamentoPage() {
   const totalTipos = new Set(rows.map((r) => r.tipo_destino)).size;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-2 md:p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
+          <h1 className="flex items-center gap-2 text-xl font-bold">
             <RouterIcon className="h-6 w-6" /> Roteamento
           </h1>
           <p className="text-sm text-muted-foreground">Gerencie os números e seus destinos de chamadas.</p>
@@ -148,7 +149,7 @@ function RoteamentoPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardContent className="flex items-center justify-between pt-6">
+          <CardContent className="flex items-center justify-between pt-6 p-4">
             <div>
               <p className="text-sm text-muted-foreground">Roteamentos</p>
               <p className="text-3xl font-bold">{rows.length}</p>
@@ -157,7 +158,7 @@ function RoteamentoPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center justify-between pt-6">
+          <CardContent className="flex items-center justify-between pt-6 p-4">
             <div>
               <p className="text-sm text-muted-foreground">Com integração</p>
               <p className="text-3xl font-bold">{totalIntegrados}</p>
@@ -166,7 +167,7 @@ function RoteamentoPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center justify-between pt-6">
+          <CardContent className="flex items-center justify-between pt-6 p-4">
             <div>
               <p className="text-sm text-muted-foreground">Tipos de destino em uso</p>
               <p className="text-3xl font-bold">{totalTipos}</p>
@@ -177,7 +178,7 @@ function RoteamentoPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle>Números e destinos</CardTitle>
@@ -195,7 +196,7 @@ function RoteamentoPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           {error ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
               Falha ao listar roteamentos: {(error as Error).message}
@@ -388,14 +389,14 @@ function RoteamentoFormDialog({
           className="space-y-3"
         >
           <div className="space-y-2">
-            <Label>Número *</Label>
+            <div className="flex items-center gap-1.5"><Label>Número *</Label> <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." /></div>
             <Input
               value={numero}
               onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))}
               placeholder="Ex.: 2733334444"
               disabled={editing && !isAdmin}
             />
-            <Label>WebHook</Label>
+            <div className="flex items-center gap-1.5"><Label>WebHook</Label> <FieldHelp text="Selecione a integração responsável pelas notificações e eventos deste roteamento." /></div>
             <Input
               type="number"
               value={whatsConfig ?? ""}
@@ -413,7 +414,7 @@ function RoteamentoFormDialog({
             allow={ACOES_ROTEAMENTO}
           />
           <div className="space-y-1">
-            <Label>Descrição</Label>
+            <div className="flex items-center gap-1.5"><Label>Descrição</Label> <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." /></div>
             <Input
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}

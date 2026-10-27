@@ -77,12 +77,12 @@ function ConfigPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-2 md:p-3">
       {/* Cabeçalho */}
       <div>
         <div className="flex items-center gap-2">
           <Settings2 className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Configurações</h1>
+          <h1 className="text-xl font-bold">Configurações</h1>
         </div>
 
         <p className="mt-1 text-sm text-muted-foreground">
@@ -106,15 +106,15 @@ function ConfigPage() {
               </div>
             </div>
 
-            <Card>
-              <CardHeader>
+            <Card className="shadow-sm">
+              <CardHeader className="space-y-1.5 p-4">
                 <CardTitle className="text-base">Proteção contra ataques</CardTitle>
                 <CardDescription>
                   Configurações utilizadas pelo sistema de bloqueio automático.
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 p-4">
                 <ConfigRow
                   title="Tentativas antes do bloqueio"
                   description={maxAuthFailures?.descricao}
@@ -222,7 +222,7 @@ function ConfigRow({
         <div className="flex items-center gap-2">
           <p className="font-medium">{title}</p>
 
-          {badge && <Badge variant="secondary">{badge}</Badge>}
+          {badge && <Badge variant="secondary" className="whitespace-nowrap">{badge}</Badge>}
         </div>
 
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
@@ -230,14 +230,14 @@ function ConfigRow({
 
       <div className="shrink-0">
         {status === undefined ? (
-          <Badge variant="outline">{value}</Badge>
+          <Badge variant="outline" className="whitespace-nowrap">{value}</Badge>
         ) : status ? (
-          <Badge className="gap-1">
+          <Badge className="gap-1 whitespace-nowrap">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Ativado
           </Badge>
         ) : (
-          <Badge variant="secondary" className="gap-1">
+          <Badge variant="secondary" className="gap-1 whitespace-nowrap">
             <XCircle className="h-3.5 w-3.5" />
             Desativado
           </Badge>
@@ -263,8 +263,8 @@ function ModuleCard({
   onToggle: () => void;
 }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm">
+      <CardHeader className="space-y-1.5 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
@@ -280,7 +280,7 @@ function ModuleCard({
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="p-4">
         <p className="text-sm text-muted-foreground">{description}</p>
       </CardContent>
     </Card>

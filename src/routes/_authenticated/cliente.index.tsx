@@ -11,7 +11,7 @@ import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRamalMonitor, estadoRamalLabel } from "@/hooks/use-ramal-monitor";
 import { MonitoramentoRamais } from "@/components/monitoramento-ramais";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/")({
   head: () => ({ meta: [{ title: "Cliente — Painel PABX" }] }),
@@ -67,10 +67,10 @@ function ClienteOverview() {
   const vagosUra = Math.max(0, cotaUra - criadosUra);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             <Building2 className="h-6 w-6" />
             {isLoading ? "Carregando…" : (cliente?.razao_social ?? "Cliente não encontrado")}
           </h1>
@@ -78,7 +78,7 @@ function ClienteOverview() {
             ID: <span className="font-mono">{tenantId}</span>
           </p>
         </div>
-        <Badge variant="outline" className="font-mono">
+        <Badge variant="outline" className="font-mono whitespace-nowrap">
           Tenant #{tenantId ?? "..."}
         </Badge>
       </div>
@@ -89,7 +89,7 @@ function ClienteOverview() {
         </div>
       )}
       <Tabs defaultValue="visao-geral" className="w-full">
-        <TabsList>
+        <TabsList className="rounded-lg">
           <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
 
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
@@ -97,25 +97,25 @@ function ClienteOverview() {
 
         <TabsContent value="visao-geral" className="mt-6 space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader>
+            <Card className="shadow-sm">
+              <CardHeader className="space-y-1.5 p-4">
                 <CardTitle className="text-sm text-muted-foreground">Email</CardTitle>
               </CardHeader>
-              <CardContent className="font-mono text-sm break-all">
+              <CardContent className="font-mono text-sm break-all p-4">
                 {cliente?.email ?? "—"}
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
+            <Card className="shadow-sm">
+              <CardHeader className="space-y-1.5 p-4">
                 <CardTitle className="text-sm text-muted-foreground">CNPJ/CPF</CardTitle>
               </CardHeader>
-              <CardContent className="font-mono text-sm">{cliente?.cnpj ?? "—"}</CardContent>
+              <CardContent className="font-mono text-sm p-4">{cliente?.cnpj ?? "—"}</CardContent>
             </Card>
-            <Card>
-              <CardHeader>
+            <Card className="shadow-sm">
+              <CardHeader className="space-y-1.5 p-4">
                 <CardTitle className="text-sm text-muted-foreground">Cota de ramais</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-bold">{cotaRamal}</CardContent>
+              <CardContent className="text-2xl font-bold p-4">{cotaRamal}</CardContent>
             </Card>
           </div>
 
@@ -182,11 +182,11 @@ function RamaisChart({
   const criadosAnimados = Math.round(criadosRamal * (animacao / pctCriado || 0));
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm">
+      <CardHeader className="space-y-1.5 p-4">
         <CardTitle className="text-sm">Ramais criados</CardTitle>
       </CardHeader>
-      <CardContent className="flex items-center gap-4">
+      <CardContent className="flex items-center gap-4 p-4">
         <svg width={size} height={size} className="shrink-0">
           <circle
             cx={size / 2}
@@ -282,11 +282,11 @@ function FilasChart({
   const criadosAnimados = Math.round(criadosFila * (animacao / pctCriado || 0));
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm">
+      <CardHeader className="space-y-1.5 p-4">
         <CardTitle className="text-sm">Filas criadas</CardTitle>
       </CardHeader>
-      <CardContent className="flex items-center gap-4">
+      <CardContent className="flex items-center gap-4 p-4">
         <svg width={size} height={size} className="shrink-0">
           <circle
             cx={size / 2}
@@ -381,11 +381,11 @@ function UrasChart({
   const criadosAnimados = Math.round(criadosUra * (animacao / pctCriado || 0));
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm">
+      <CardHeader className="space-y-1.5 p-4">
         <CardTitle className="text-sm">Uras criadas</CardTitle>
       </CardHeader>
-      <CardContent className="flex items-center gap-4">
+      <CardContent className="flex items-center gap-4 p-4">
         <svg width={size} height={size} className="shrink-0">
           <circle
             cx={size / 2}

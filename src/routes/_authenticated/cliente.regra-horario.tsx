@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,7 +57,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/regra-horario")({
   head: () => ({ meta: [{ title: "Horário de atendimento — Painel PABX" }] }),
@@ -130,10 +131,10 @@ function Page() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             <Clock className="h-6 w-6" /> Horário de Atendimento Personalizado
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -154,9 +155,9 @@ function Page() {
         </div>
       )}
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Dias</TableHead>
@@ -189,13 +190,13 @@ function Page() {
                   {r.hora_inicial} → {r.hora_final}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="default">{r.acao_dentro}</Badge>{" "}
+                  <Badge variant="default" className="whitespace-nowrap">{r.acao_dentro}</Badge>{" "}
                   <span className="text-xs ml-1">
                     {renderDestinoLabel(destinos, r.acao_dentro, r.destino_dentro)}
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{r.acao_fora}</Badge>{" "}
+                  <Badge variant="secondary" className="whitespace-nowrap">{r.acao_fora}</Badge>{" "}
                   <span className="text-xs ml-1">
                     {renderDestinoLabel(destinos, r.acao_fora, r.destino_fora)}
                   </span>
@@ -360,7 +361,7 @@ function RegraFormDialog({
           className="space-y-3"
         >
           <div className="space-y-1">
-            <Label>Nome *</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de regra-horario." /></div>
             <Input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
@@ -386,7 +387,7 @@ function RegraFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>Hora inicial *</Label>
+              <div className="flex items-center gap-1.5"><Label>Hora inicial *</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
               <Input
                 type="time"
                 value={horaIni}
@@ -395,7 +396,7 @@ function RegraFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label>Hora final *</Label>
+              <div className="flex items-center gap-1.5"><Label>Hora final *</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
               <Input
                 type="time"
                 value={horaFim}

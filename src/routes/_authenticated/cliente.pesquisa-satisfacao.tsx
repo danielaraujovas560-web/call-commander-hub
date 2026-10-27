@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -52,7 +53,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 interface PerguntaInput {
   id?: number;
@@ -146,9 +147,9 @@ function Page() {
         </div>
       )}
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Nome da Pesquisa</TableHead>
               <TableHead>Total de Perguntas</TableHead>
@@ -175,10 +176,10 @@ function Page() {
               <TableRow key={p.id}>
                 <TableCell className="font-medium">{p.nome_pesquisa}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{p.perguntas?.length ?? 0} pergunta(s)</Badge>
+                  <Badge variant="outline" className="whitespace-nowrap">{p.perguntas?.length ?? 0} pergunta(s)</Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={p.ativo ? "default" : "secondary"}>
+                  <Badge variant={p.ativo ? "default" : "secondary"} className="whitespace-nowrap">
                     {p.ativo ? "Ativo" : "Inativo"}
                   </Badge>
                 </TableCell>
@@ -361,7 +362,7 @@ function PesquisaFormDialog({
           className="space-y-4 flex-1 overflow-y-auto pr-1"
         >
           <div className="space-y-1">
-            <Label>Nome da Pesquisa *</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome da Pesquisa *</Label> <FieldHelp text="Pesquisa de satisfação apresentada conforme as regras de atendimento configuradas." /></div>
             <Input
               value={nomePesquisa}
               onChange={(e) => setNomePesquisa(e.target.value)}
@@ -404,7 +405,7 @@ function PesquisaFormDialog({
                   className="flex gap-3 items-start bg-muted/40 p-3 rounded-md border relative"
                 >
                   <div className="w-20 space-y-1">
-                    <Label className="text-xs">Ordem *</Label>
+                    <div className="flex items-center gap-1.5"><Label className="text-xs">Ordem *</Label> <FieldHelp text="Defina o valor de Ordem para este registro." /></div>
                     <Input
                       type="number"
                       value={pergunta.ordem}
@@ -422,7 +423,7 @@ function PesquisaFormDialog({
                   </div>
 
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Arquivo de Áudio *</Label>
+                    <div className="flex items-center gap-1.5"><Label className="text-xs">Arquivo de Áudio *</Label> <FieldHelp text="Áudio ou música reproduzido ao chamador durante esta etapa." /></div>
                     <Select
                       value={pergunta.audio}
                       onValueChange={(val) => updatePergunta(index, "audio", val)}
@@ -456,7 +457,7 @@ function PesquisaFormDialog({
                   </div>
 
                   <div className="w-20 space-y-1">
-                    <Label className="text-xs">Dígitos Máx. *</Label>
+                    <div className="flex items-center gap-1.5"><Label className="text-xs">Dígitos Máx. *</Label> <FieldHelp text="Defina o valor de Dígitos Máx. para este registro." /></div>
                     <Input
                       type="number"
                       value={pergunta.max_digit}

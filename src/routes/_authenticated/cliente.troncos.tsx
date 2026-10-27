@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,7 +56,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/troncos")({
   head: () => ({ meta: [{ title: "Troncos — Cliente — Painel PABX" }] }),
@@ -106,10 +107,10 @@ function TroncosPage() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl font-bold flex items-center gap-2">
             <Cable className="h-6 w-6" /> Troncos
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -136,9 +137,9 @@ function TroncosPage() {
         </div>
       )}
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>IP</TableHead>
@@ -171,7 +172,7 @@ function TroncosPage() {
                 <TableCell className="font-mono text-xs">{t.ip ?? "-"}</TableCell>
                 <TableCell className="font-mono">{t.porta ?? "-"}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{t.tipo}</Badge>
+                  <Badge variant="outline" className="whitespace-nowrap">{t.tipo}</Badge>
                 </TableCell>
                 <TableCell className="font-mono">{t.techprefix ?? "-"}</TableCell>
                 <TableCell>{t.registrar === "sim" ? "Sim" : "Não"}</TableCell>
@@ -334,7 +335,7 @@ function TroncoFormDialog({
         >
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label>Nome *</Label>
+              <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de troncos." /></div>
               <Input
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
@@ -343,7 +344,7 @@ function TroncoFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label>Tipo</Label>
+              <div className="flex items-center gap-1.5"><Label>Tipo</Label> <FieldHelp text="Defina o valor de Tipo para este registro." /></div>
               <Select value={form.tipo} onValueChange={(v: any) => setForm({ ...form, tipo: v })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -357,7 +358,7 @@ function TroncoFormDialog({
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2 space-y-1">
-              <Label>IP / DNS *</Label>
+              <div className="flex items-center gap-1.5"><Label>IP / DNS *</Label> <FieldHelp text="Defina o valor de IP / DNS para este registro." /></div>
               <Input
                 value={form.ip}
                 onChange={(e) => setForm({ ...form, ip: e.target.value })}
@@ -365,7 +366,7 @@ function TroncoFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label>Porta</Label>
+              <div className="flex items-center gap-1.5"><Label>Porta</Label> <FieldHelp text="Defina o valor de Porta para este registro." /></div>
               <Input
                 value={form.porta}
                 onChange={(e) => setForm({ ...form, porta: e.target.value })}
@@ -374,7 +375,7 @@ function TroncoFormDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Techprefix (só números)</Label>
+            <div className="flex items-center gap-1.5"><Label>Techprefix (só números)</Label> <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." /></div>
             <Input
               value={form.techprefix}
               onChange={(e) => setForm({ ...form, techprefix: e.target.value.replace(/\D/g, "") })}
@@ -389,24 +390,7 @@ function TroncoFormDialog({
               />
               Roteamento Simplificado
             </label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="font-medium text-xs mb-1">
-                    Deixe ativo para utilizar as regras do sistema, ao desmarcar, será necessário
-                    configurar regras novas em "Regras".
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <FieldHelp text="Deixe ativo para utilizar as regras do sistema, ao desmarcar, será necessário configurar regras novas em 'Regras'." />
           </div>
           <div className="flex items-center gap-1.5">
             <label className="flex items-center gap-2 text-sm">
@@ -416,35 +400,19 @@ function TroncoFormDialog({
               />
               Registrar
             </label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="font-medium text-xs mb-1">
-                    Necessário Login e Senha para enviar um Register a operadora.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <FieldHelp text="Necessário Login e Senha para enviar um Register a operadora." />
           </div>
           {form.registrar && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label>Login</Label>
+                <div className="flex items-center gap-1.5"><Label>Login</Label> <FieldHelp text="Defina o valor de Login para este registro." /></div>
                 <Input
                   value={form.login}
                   onChange={(e) => setForm({ ...form, login: e.target.value })}
                 />
               </div>
               <div className="space-y-1">
-                <Label>Senha</Label>
+                <div className="flex items-center gap-1.5"><Label>Senha</Label> <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." /></div>
                 <Input
                   value={form.senha}
                   onChange={(e) => setForm({ ...form, senha: e.target.value })}

@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -79,10 +80,10 @@ function UsersAdmin() {
   const admins = users.filter((u) => u.role === "admin");
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-2 md:p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Administração</h1>
+          <h1 className="text-xl font-bold">Administração</h1>
           <p className="text-muted-foreground">
             Gerencie usuários clientes e administradores do painel.
           </p>
@@ -94,7 +95,7 @@ function UsersAdmin() {
         <p>Carregando…</p>
       ) : (
         <Tabs defaultValue="clientes" className="w-full">
-          <TabsList>
+          <TabsList className="rounded-lg">
             <TabsTrigger value="clientes" className="gap-2">
               <Users className="h-4 w-4" />
               Usuários ({clientes.length})
@@ -134,9 +135,9 @@ function UsersTable({
     );
   }
   return (
-    <div className="rounded-md border bg-card">
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/40">
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Nome</TableHead>
@@ -288,11 +289,11 @@ function EditUserDialog({ user, onDone }: { user: AdminUser; onDone: () => void 
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <Label>Nome</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de usuarios." /></div>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div>
-            <Label>Email</Label>
+            <div className="flex items-center gap-1.5"><Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." /></div>
             <Input
               type="email"
               value={form.email}
@@ -300,7 +301,7 @@ function EditUserDialog({ user, onDone }: { user: AdminUser; onDone: () => void 
             />
           </div>
           <div>
-            <Label>Nova senha (opcional)</Label>
+            <div className="flex items-center gap-1.5"><Label>Nova senha (opcional)</Label> <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." /></div>
             <Input
               type="password"
               value={form.password}
@@ -309,7 +310,7 @@ function EditUserDialog({ user, onDone }: { user: AdminUser; onDone: () => void 
             />
           </div>
           <div>
-            <Label>Perfil</Label>
+            <div className="flex items-center gap-1.5"><Label>Perfil</Label> <FieldHelp text="Defina o valor de Perfil para este registro." /></div>
             <Select
               value={form.role}
               onValueChange={(v) => setForm({ ...form, role: v as "admin" | "cliente" })}
@@ -396,7 +397,7 @@ function TenantCell({
     <div className="flex flex-wrap items-center gap-1">
       {tenants.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
       {tenants.map((t) => (
-        <Badge key={t.tenant_id} variant={t.is_default ? "default" : "secondary"} className="gap-1">
+        <Badge key={t.tenant_id} variant={t.is_default ? "default" : "secondary"} className="gap-1 whitespace-nowrap">
           {t.label ? `${t.label} (#${t.tenant_id})` : `#${t.tenant_id}`}
           <button
             type="button"
@@ -422,7 +423,7 @@ function TenantCell({
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Cliente</Label>
+              <div className="flex items-center gap-1.5"><Label>Cliente</Label> <FieldHelp text="Defina o valor de Cliente para este registro." /></div>
               <Select
                 value={tenantId}
                 onValueChange={(value) => {
@@ -518,11 +519,11 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <Label>Nome</Label>
+            <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de usuarios." /></div>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div>
-            <Label>Email</Label>
+            <div className="flex items-center gap-1.5"><Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." /></div>
             <Input
               type="email"
               value={form.email}
@@ -530,7 +531,7 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <Label>Senha</Label>
+            <div className="flex items-center gap-1.5"><Label>Senha</Label> <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." /></div>
             <Input
               type="password"
               value={form.password}
@@ -539,7 +540,7 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <Label>Perfil</Label>
+            <div className="flex items-center gap-1.5"><Label>Perfil</Label> <FieldHelp text="Defina o valor de Perfil para este registro." /></div>
             <Select
               value={form.role}
               onValueChange={(v) => setForm({ ...form, role: v as "admin" | "cliente" })}

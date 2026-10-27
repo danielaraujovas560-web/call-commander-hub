@@ -35,7 +35,7 @@ import { tipoOptionsMapaDDD } from "@/lib/report-labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { formatarDataHora } from "@/lib/utils";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -245,13 +245,13 @@ function Page() {
   }, [rowsMapaEnt, rowsMapaSai]);
 
   return (
-    <div className="w-full max-w-full space-y-6">
-      <h1 className="text-2xl font-bold flex items-center gap-2 w-full">
+    <div className="w-full max-w-full space-y-4 p-2 md:p-3">
+      <h1 className="text-xl font-bold flex items-center gap-2 w-full">
         <MapPin className="h-6 w-6" /> Relatório — Por DDD
       </h1>
 
       <Tabs defaultValue="mapa" className="w-full space-y-4">
-        <TabsList>
+        <TabsList className="rounded-lg">
           <TabsTrigger value="mapa" className="flex items-center gap-2">
             <Map className="h-4 w-4" /> Visão Geral (Mapa)
           </TabsTrigger>
@@ -334,7 +334,7 @@ function Page() {
                 </div>
 
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-muted/40">
                     <TableRow>
                       <TableHead>DDD</TableHead>
                       <TableHead>Número</TableHead>
@@ -423,7 +423,7 @@ function Page() {
 
             <div className="rounded-lg border bg-card overflow-hidden w-full shadow-sm">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>DDD</TableHead>
                     <TableHead>Estado</TableHead>
@@ -497,7 +497,7 @@ function Page() {
         <TabsContent value="rank">
           <Tabs defaultValue="geral">
             <div className="flex justify-center">
-              <TabsList>
+              <TabsList className="rounded-lg">
                 <TabsTrigger value="geral">Geral</TabsTrigger>
                 <TabsTrigger value="atendidas">Atendidas</TabsTrigger>
                 <TabsTrigger value="discadas">Mais Discados</TabsTrigger>
@@ -602,7 +602,7 @@ function Page() {
 
             <div className="rounded-lg border bg-card overflow-hidden w-full shadow-sm">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>DDD</TableHead>
                     <TableHead>Estado</TableHead>

@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { Ban, Plus, Search, Trash2, ShieldBan } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -97,7 +98,7 @@ function BlacklistPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-2 md:p-3">
       {/* Cabeçalho */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -106,7 +107,7 @@ function BlacklistPage() {
           </div>
 
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Blacklist</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Blacklist</h1>
 
             <p className="text-sm text-muted-foreground">
               Gerencie os endereços IP bloqueados pelo firewall.
@@ -133,7 +134,7 @@ function BlacklistPage() {
 
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label htmlFor="ip">Endereço IP</Label>
+                <div className="flex items-center gap-1.5"><Label htmlFor="ip">Endereço IP</Label> <FieldHelp text="Defina o valor de Endereço IP para este registro." /></div>
 
                 <Input
                   id="ip"
@@ -173,16 +174,16 @@ function BlacklistPage() {
 
       {/* Resumo */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2 space-y-1.5 p-4">
             <CardDescription>IPs bloqueados</CardDescription>
 
             <CardTitle className="text-2xl">{blacklist.length}</CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2 space-y-1.5 p-4">
             <CardDescription>Bloqueios automáticos</CardDescription>
 
             <CardTitle className="text-2xl">
@@ -193,14 +194,14 @@ function BlacklistPage() {
       </div>
 
       {/* Lista */}
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm">
+        <CardHeader className="space-y-1.5 p-4">
           <CardTitle>Endereços bloqueados</CardTitle>
 
           <CardDescription>IPs registrados atualmente na blacklist global.</CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-4">
           <div className="mb-4 flex items-center">
             <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -227,7 +228,7 @@ function BlacklistPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-md border">
+            <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr>
@@ -255,13 +256,13 @@ function BlacklistPage() {
                       <td className="px-4 py-3 text-muted-foreground">{item.motivo || "—"}</td>
 
                       <td className="px-4 py-3">
-                        <Badge variant={item.origem === "AUTO" ? "secondary" : "outline"}>
+                        <Badge variant={item.origem === "AUTO" ? "secondary" : "outline"} className="whitespace-nowrap">
                           {item.origem === "AUTO" ? "Automático" : "Manual"}
                         </Badge>
                       </td>
 
                       <td className="px-4 py-3">
-                        <Badge variant="destructive">Bloqueado</Badge>
+                        <Badge variant="destructive" className="whitespace-nowrap">Bloqueado</Badge>
                       </td>
 
                       <td className="px-4 py-3 text-muted-foreground">

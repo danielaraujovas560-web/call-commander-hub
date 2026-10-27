@@ -19,7 +19,7 @@ import { ReportShell } from "@/components/report-shell";
 import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
 import { statusOptions, getStatusLabel, tipoOptions, contextOptions } from "@/lib/report-labels";
 import { formatarDataHora } from "@/lib/utils";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 
 function getTodayFilters(): ReportFilterValues {
   const now = new Date();
@@ -108,8 +108,8 @@ function Page() {
     }
   };
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
+    <div className="space-y-4 p-2 md:p-3">
+      <h1 className="text-xl font-bold flex items-center gap-2">
         <PhoneCall className="h-6 w-6" /> Relatório — Geral
       </h1>
       <ReportFilters
@@ -132,14 +132,14 @@ function Page() {
           { key: "to", label: "Até", type: "datetime-local" },
         ]}
       />
-      <div className="rounded-md border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <ReportShell
           loading={isLoading}
           error={error as Error | null}
           empty={!isLoading && rows.length === 0}
         >
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>Linked ID</TableHead>
                 <TableHead>Origem</TableHead>
@@ -166,7 +166,7 @@ function Page() {
                   <TableCell>{r.tipo_chamada}</TableCell>
                   <TableCell className="w-24 font-mono whitespace-nowrap">{r.duracao}</TableCell>
                   <TableCell className="w-40 whitespace-nowrap">
-                    <Badge variant={r.status === "ANSWER" ? "default" : "secondary"}>
+                    <Badge variant={r.status === "ANSWER" ? "default" : "secondary"} className="whitespace-nowrap">
                       {getStatusLabel(r.status)}
                     </Badge>
                   </TableCell>

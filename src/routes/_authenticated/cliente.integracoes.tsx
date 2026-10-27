@@ -1,3 +1,4 @@
+import { FieldHelp } from "@/components/field-help";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +19,7 @@ import {
   Trash2,
   HelpCircle,
 } from "lucide-react";
-import { useClienteContext } from "./_cliente-context";
+import { useClienteContext } from "@/context/cliente-context";
 import { useIsAdmin } from "@/hooks/use-role";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,27 +94,6 @@ function formFromItem(item: IntegracaoComWaba): FormState {
     ativo: Boolean(item.ativo),
     access_token: "", // Nunca carregar o token antigo no navegador.
   };
-}
-
-function FieldHelp({ text }: { text: string }) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            aria-label="Ajuda sobre o campo"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p className="text-xs">{text}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
 }
 
 function ItemDialog({
@@ -482,10 +462,10 @@ function ClienteIntegracoes() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-2 md:p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Integrações</h1>
+          <h1 className="text-xl font-bold">Integrações</h1>
           <p className="text-sm text-muted-foreground">WhatsApp da empresa e números vinculados.</p>
         </div>
         <div className="flex gap-2">
@@ -515,7 +495,7 @@ function ClienteIntegracoes() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardContent className="flex justify-between pt-6">
+          <CardContent className="flex justify-between pt-6 p-4">
             <div>
               <p className="text-sm text-muted-foreground">Integrações</p>
               <p className="text-3xl font-bold">{integracoes.length}</p>
@@ -524,7 +504,7 @@ function ClienteIntegracoes() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex justify-between pt-6">
+          <CardContent className="flex justify-between pt-6 p-4">
             <div>
               <p className="text-sm text-muted-foreground">Ativas</p>
               <p className="text-3xl font-bold">{totalAtivas}</p>
@@ -533,7 +513,7 @@ function ClienteIntegracoes() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex justify-between pt-6">
+          <CardContent className="flex justify-between pt-6 p-4">
             <div>
               <p className="text-sm text-muted-foreground">DIDs vinculados</p>
               <p className="text-3xl font-bold">{totalDids}</p>
@@ -544,7 +524,7 @@ function ClienteIntegracoes() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4">
           <div className="flex flex-wrap justify-between gap-3">
             <div>
               <CardTitle>WhatsApp</CardTitle>
@@ -562,7 +542,7 @@ function ClienteIntegracoes() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 p-4">
           {!tenantId ? (
             <p className="py-12 text-center text-muted-foreground">
               Aguardando identificação do cliente…
@@ -755,5 +735,3 @@ function ClienteIntegracoes() {
     </div>
   );
 }
-
-export default ClienteIntegracoes;
