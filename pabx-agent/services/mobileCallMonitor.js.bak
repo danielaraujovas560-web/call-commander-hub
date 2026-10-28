@@ -1,0 +1,39 @@
+const { onCallEvent } = require("../ami");
+
+function iniciarMobileCallMonitor() {
+    return onCallEvent((event) => {
+        const nome = event.event || event.Event;
+        const linkedid = event.linkedid || event.Linkedid;
+        const canal = event.channel || event.Channel || "";
+        const destino =
+            event.destchannel || event.DestChannel || "";
+        const dialString =
+            event.dialstring || event.DialString || "";
+        const status =
+            event.dialstatus || event.DialStatus || "";
+
+        // Limita os logs aos canais envolvidos
+        // na discagem mobile.
+        const mobile =
+            canal.includes("@ramal-mobile") ||
+            destino.includes("@ramal-mobile") ||
+            dialString.includes("@ramal-mobile") ||
+            canal.includes("-mobile-") ||
+            destino.includes("-mobile-");
+
+        if (!mobile) return;
+
+        console.log("[MOBILE AMI]", {
+            evento: nome,
+            linkedid,
+            canal,
+            destino,
+            dialString,
+            status
+        });
+    });
+}
+
+module.exports = {
+    iniciarMobileCallMonitor
+};

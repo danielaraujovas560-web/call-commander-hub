@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 import tailwindcss from "@tailwindcss/vite";
-import viteTsConfigPaths from "vite-tsconfig-paths";
 import react from "@vitejs/plugin-react";
 
 // Configuração padrão do TanStack Start com SSR em Node.
@@ -21,7 +20,6 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
-    viteTsConfigPaths(),
     nitro({
       preset: "node-server",
       bodyLimit: 100 * 1024 * 1024,
@@ -35,6 +33,7 @@ export default defineConfig({
   },
   resolve: {
     alias: { "@": `${process.cwd()}/src` },
+    tsconfigPaths: true,
     dedupe: ["react", "react-dom", "@tanstack/react-query", "@tanstack/query-core"],
   },
   optimizeDeps: {

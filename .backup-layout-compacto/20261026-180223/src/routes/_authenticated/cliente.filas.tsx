@@ -1,0 +1,766 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/use-role";
+import { ListOrdered, RefreshCw, Plus, Pencil, Trash2, Users } from "lucide-react";
+import { RecordingBadge } from "@/components/recording-badge";
+import { ToggleAtivoBadge } from "@/components/toggle-ativo-badge";
+import {
+  listFilas,
+  createFila,
+  updateFila,
+  deleteFila,
+  getFilaAgentes,
+  addFilaAgente,
+  removeFilaAgente,
+  setFilaAgentePenalty,
+  type Fila,
+  toggleFilaAtivo,
+} from "@/lib/filas.functions";
+import { listRamais } from "@/lib/ramais.functions";
+import { listPesquisaSatisfacao } from "@/lib/pesquisa.functions";
+import { listAudios } from "@/lib/audios.functions";
+import { getConfiguracoes } from "@/lib/configuracoes.functions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useClienteContext } from "./_cliente-context";
+
+export const Route = createFileRoute("/_authenticated/cliente/filas")({
+  head: () => ({ meta: [{ title: "Filas — Cliente — Painel PABX" }] }),
+  component: FilasPage,
+});
+
+const STRATEGY_LABELS: Record<string, string> = {
+  ringall: "Tocar Todos",
+  rrmemory: "Sequencial (Atendida)",
+  leastrecent: "Menos Recente",
+  fewestcalls: "Menos Chamadas",
+  random: "Aleatório",
+};
+
+function FilasPage() {
+  const { isAdmin } = useIsAdmin();
+  const { tenantId, cliente } = useClienteContext();
+  const qc = useQueryClient();
+  const fn = useServerFn(listFilas);
+
+  const max = cliente?.quantidade_filas ?? 0;
+
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ["filas", tenantId],
+    queryFn: () => fn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
+  });
+  const filas = data?.filas ?? [];
+  const [agentesDe, setAgentesDe] = useState<Fila | null>(null);
+  const [editing, setEditing] = useState<Fila | null>(null);
+  const delFn = useServerFn(deleteFila);
+  const delMut = useMutation({
+    mutationFn: (name: string) => delFn({ data: { name, tenant_id: tenantId } }),
+    onSuccess: () => {
+      toast.success("Fila removida");
+      qc.invalidateQueries({ queryKey: ["filas", tenantId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleFilaAtivoFn = useServerFn(toggleFilaAtivo);
+  const toggleAtivoMut = useMutation({
+    mutationFn: ({ name, ativo }: { name: string; ativo: boolean }) =>
+      toggleFilaAtivoFn({ data: { name, ativo, tenant_id: tenantId } }),
+    onSuccess: () => {
+      toast.success("Fila atualizada");
+      qc.invalidateQueries({
+        queryKey: ["filas", tenantId],
+      });
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
+
+  const count = data?.filas.length ?? 0;
+  const atLimit = max > 0 && count >= max;
+
+  return (
+    <div className="space-y-4 p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <ListOrdered className="h-6 w-6" /> Filas
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {count} {max > 0 ? `/ ${max}` : ""} filas cadastradas.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          </Button>
+          <FilaFormDialog tenantId={tenantId} disabled={atLimit} />
+        </div>
+      </div>
+      {atLimit && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700">
+          {" "}
+          Limite de {max} {max === 1 ? "fila" : "filas"} atingido para este cliente.
+        </div>
+      )}
+      {error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {(error as Error).message}
+        </div>
+      )}
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <Table>
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Estratégia</TableHead>
+              <TableHead>Timeout Agente</TableHead>
+              <TableHead>Timeout Fila</TableHead>
+              <TableHead>Agentes</TableHead>
+              <TableHead>Gravação</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-10">
+                  Carregando…
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && filas.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                  Nenhuma fila.
+                </TableCell>
+              </TableRow>
+            )}
+            {filas.map((f) => (
+              <TableRow key={f.name} className={f.ativo ? "" : "opacity-60"}>
+                <TableCell className="font-medium">{f.display_name}</TableCell>
+                <TableCell>{f.description ?? "-"}</TableCell>
+                <TableCell>
+                  {f.strategy ? STRATEGY_LABELS[f.strategy] || f.strategy : "-"}
+                </TableCell>
+                <TableCell>{f.timeout ?? "-"}</TableCell>
+                <TableCell>{f.fila_timeout ?? "-"}</TableCell>
+                <TableCell>{f.membros}</TableCell>
+                <TableCell>
+                  <RecordingBadge state={f.gravacao} showLabel />
+                </TableCell>
+                <TableCell>
+                  <ToggleAtivoBadge
+                    ativo={f.ativo}
+                    isPending={toggleAtivoMut.isPending}
+                    onToggle={() => {
+                      toggleAtivoMut.mutate({ name: f.name, ativo: !f.ativo });
+                    }}
+                  />
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => setAgentesDe(f)}>
+                      <Users className="h-4 w-4 mr-1" /> Agentes
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setEditing(f)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover fila {f.display_name}?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Remove os agentes e a configuração da fila.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => delMut.mutate(f.name)}>
+                            Remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      {agentesDe && (
+        <AgentesDialog tenantId={tenantId} fila={agentesDe} onClose={() => setAgentesDe(null)} />
+      )}
+      {editing && (
+        <FilaFormDialog
+          tenantId={tenantId}
+          fila={editing}
+          open
+          onOpenChange={(v) => !v && setEditing(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AgentesDialog({
+  tenantId,
+  fila,
+  onClose,
+}: {
+  tenantId: number;
+  fila: Fila;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const fn = useServerFn(getFilaAgentes);
+  const { data, isLoading } = useQuery({
+    queryKey: ["fila-agentes", tenantId, fila.name],
+    queryFn: () => fn({ data: { tenant_id: tenantId, name: fila.name } }),
+    enabled: !!tenantId,
+  });
+
+  const ramaisFn = useServerFn(listRamais);
+  const { data: rd } = useQuery({
+    queryKey: ["ramais", tenantId],
+    queryFn: () => ramaisFn({ data: { tenant_id: tenantId } }),
+    enabled: !!tenantId,
+  });
+  const ramais = rd?.ramais ?? [];
+
+  const [novoRamal, setNovoRamal] = useState("");
+  const [novaPrioridade, setNovaPrioridade] = useState(0);
+
+  function invalidateAll() {
+    qc.invalidateQueries({ queryKey: ["fila-agentes", tenantId, fila.name] });
+    qc.invalidateQueries({ queryKey: ["filas", tenantId] });
+  }
+
+  const addFn = useServerFn(addFilaAgente);
+  const addMut = useMutation({
+    mutationFn: () =>
+      addFn({
+        data: { tenant_id: tenantId, name: fila.name, ramal: novoRamal, penalty: novaPrioridade },
+      }),
+    onSuccess: () => {
+      toast.success("Agente adicionado");
+      invalidateAll();
+      setNovoRamal("");
+      setNovaPrioridade(0);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeFn = useServerFn(removeFilaAgente);
+  const removeMut = useMutation({
+    mutationFn: (agenteId: string) =>
+      removeFn({ data: { tenant_id: tenantId, agente_id: agenteId } }),
+    onSuccess: () => {
+      toast.success("Agente removido");
+      invalidateAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const penaltyFn = useServerFn(setFilaAgentePenalty);
+  const penaltyMut = useMutation({
+    mutationFn: (vars: { agenteId: string; penalty: number }) =>
+      penaltyFn({ data: { tenant_id: tenantId, agente_id: vars.agenteId, penalty: vars.penalty } }),
+    onSuccess: () => {
+      toast.success("Prioridade atualizada");
+      invalidateAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const agentes = data?.agentes ?? [];
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{fila.display_name} — Agentes</DialogTitle>
+          <DialogDescription>
+            Alterações aqui têm efeito imediato na fila (via AMI).
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading && (
+          <div className="py-6 text-center text-sm text-muted-foreground">Carregando…</div>
+        )}
+        {!isLoading && (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader className="bg-muted/40">
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Ramal</TableHead>
+                  <TableHead className="w-28">Prioridade</TableHead>
+                  <TableHead className="w-16 text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {agentes.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>{a.membername ?? "-"}</TableCell>
+                    <TableCell className="font-mono">{a.ramal ?? "-"}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        defaultValue={a.penalty ?? 0}
+                        className="h-8 w-20"
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          if (v !== (a.penalty ?? 0))
+                            penaltyMut.mutate({ agenteId: a.id, penalty: v });
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => removeMut.mutate(a.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {agentes.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                      Sem agentes.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        <div className="rounded-md border p-3 space-y-2">
+          <div className="text-sm font-medium">Adicionar agente</div>
+          <div className="grid grid-cols-[1fr_100px_36px] gap-2 items-center">
+            <Select value={novoRamal} onValueChange={setNovoRamal}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o ramal" />
+              </SelectTrigger>
+              <SelectContent>
+                {ramais.map((r) => (
+                  <SelectItem key={r.id} value={String(r.ramal)}>
+                    {r.ramal_nome ? r.ramal_nome.replace(/-/g, " ") : "(sem nome)"} — {r.ramal}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={novaPrioridade}
+              onChange={(e) => setNovaPrioridade(Number(e.target.value))}
+            />
+            <Button
+              type="button"
+              size="icon"
+              disabled={!novoRamal || addMut.isPending}
+              onClick={() => addMut.mutate()}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FilaFormDialog({
+  tenantId,
+  disabled,
+  fila,
+  open: co,
+  onOpenChange,
+}: {
+  tenantId: number;
+  disabled?: boolean;
+  fila?: Fila;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = co ?? internalOpen;
+  const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setInternalOpen(v));
+  const editing = !!fila;
+
+  const mohAudiosFn = useServerFn(listAudios);
+
+  const { data: responseAudios, isLoading } = useQuery({
+    queryKey: ["audios", "musica_espera"],
+    queryFn: () => mohAudiosFn({ data: { tipo: "musica_espera" } }),
+    enabled: open,
+  });
+
+  const mohAudios = responseAudios?.audios || responseAudios || [];
+
+  const pesquisasFn = useServerFn(listPesquisaSatisfacao);
+
+  const { data: pesquisasData } = useQuery({
+    queryKey: ["pesquisas", tenantId],
+    queryFn: () => pesquisasFn({ data: { tenant_id: tenantId } }),
+    enabled: open,
+  });
+
+  const pesquisas = pesquisasData?.pesquisas ?? [];
+
+  const configuracoesFn = useServerFn(getConfiguracoes);
+
+  const { data: configuracoes } = useQuery({
+    queryKey: ["configuracoes", tenantId, "modulos.pesquisa_satisfacao"],
+    queryFn: () =>
+      configuracoesFn({
+        data: {
+          chaves: ["modulos.pesquisa_satisfacao"],
+        },
+      }),
+    enabled: open && !!tenantId,
+  });
+
+  const pesquisaEnabled =
+    configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
+    ) ?? false;
+
+  const [form, setForm] = useState({
+    display_name: fila?.display_name ?? "",
+    description: fila?.description ?? "",
+    musiconhold: (fila?.musiconhold as string) ?? "musiconhold-default",
+    strategy: (fila?.strategy as string) ?? "ringall",
+    timeout: fila?.timeout ?? 15,
+    retry: fila?.retry ?? 5,
+    ringinuse: fila?.ringinuse ?? "",
+    fila_timeout: fila?.fila_timeout ?? 30,
+    gravacao: fila?.gravacao ?? false,
+    pesquisa: fila?.pesquisa ?? false,
+    pesquisa_id: fila?.pesquisa_id ?? null,
+  });
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        display_name: fila?.display_name ?? "",
+        description: fila?.description ?? "",
+        musiconhold: (fila?.musiconhold as string) ?? "musiconhold-default",
+        strategy: (fila?.strategy as string) ?? "ringall",
+        timeout: fila?.timeout ?? 15,
+        retry: fila?.retry ?? 5,
+        ringinuse: fila?.ringinuse ?? "",
+        fila_timeout: fila?.fila_timeout ?? 30,
+        gravacao: fila?.gravacao ?? false,
+        pesquisa: fila?.pesquisa ?? false,
+        pesquisa_id: fila?.pesquisa_id ?? null,
+      });
+    }
+  }, [open, fila]);
+
+  const qc = useQueryClient();
+  const createFn = useServerFn(createFila);
+  const updateFn = useServerFn(updateFila);
+  const mut = useMutation({
+    mutationFn: () => {
+      const body = {
+        tenant_id: tenantId,
+        display_name: form.display_name,
+        description: form.description,
+        musiconhold: form.musiconhold,
+        strategy: form.strategy as
+          "ringall" | "rrmemory" | "leastrecent" | "fewestcalls" | "random",
+        timeout: Number(form.timeout) || 0,
+        fila_timeout: Number(form.fila_timeout) || 0,
+        retry: Number(form.retry) || 0,
+        ringinuse: form.ringinuse as "no" | "yes",
+        gravacao: form.gravacao,
+        pesquisa: form.pesquisa,
+        pesquisa_id: form.pesquisa ? form.pesquisa_id : undefined,
+      };
+      return editing ? updateFn({ data: { name: fila!.name, ...body } }) : createFn({ data: body });
+    },
+    onSuccess: () => {
+      toast.success(editing ? "Fila atualizada" : "Fila criada");
+      qc.invalidateQueries({ queryKey: ["filas", tenantId] });
+      setOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      {!editing && (
+        <DialogTrigger asChild>
+          <Button disabled={disabled}>
+            <Plus className="mr-2 h-4 w-4" /> Nova fila
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent
+        className="max-w-lg"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (!form.display_name) {
+              toast.error("Atenção: insira o nome da fila antes de salvar.");
+              return;
+            }
+            mut.mutate();
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>{editing ? `Editar fila ${fila!.display_name}` : "Nova fila"}</DialogTitle>
+          <DialogDescription>
+            {editing
+              ? "Configuração da fila."
+              : 'Depois de criar, adicione os agentes pelo botão "Agentes".'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Nome *</Label>
+            <Input
+              value={form.display_name}
+              onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+              required
+              maxLength={120}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Descrição</Label>
+            <Input
+              value={form.description ?? ""}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              maxLength={255}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Música de espera</Label>
+            <Select
+              value={form.musiconhold}
+              onValueChange={(v) => setForm({ ...form, musiconhold: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a música" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="musiconhold-default">Padrão do Sistema</SelectItem>
+                {mohAudios.map((audio: any) => (
+                  <SelectItem key={audio.audio_identifier} value={audio.moh_name}>
+                    {audio.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Estratégia</Label>
+            <Select value={form.strategy} onValueChange={(v) => setForm({ ...form, strategy: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a estratégia" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(STRATEGY_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Chama ramal ocupado?</Label>
+            <Select
+              value={form.ringinuse}
+              onValueChange={(v) => setForm({ ...form, ringinuse: v as "no" | "yes" })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a opção" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no">Não</SelectItem>
+                <SelectItem value="yes">Sim</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full flex items-center gap-2 rounded-md border p-3">
+            <Switch
+              checked={form.gravacao}
+              onCheckedChange={(v) => setForm({ ...form, gravacao: v })}
+            />
+            <div>
+              <p className="font-medium text-sm">Gravar chamadas</p>
+              <p className="text-xs text-muted-foreground">
+                Grava automaticamente as conversas que passarem por esta fila.
+              </p>
+            </div>
+          </div>
+
+          {pesquisaEnabled && (
+            <div className="col-span-2 rounded-md border p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form.pesquisa}
+                  onCheckedChange={(v) =>
+                    setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
+                  }
+                />
+                <div>
+                  <p className="font-medium text-sm"> Pesquisa de satisfação </p>
+                  <p className="text-xs text-muted-foreground">
+                    {" "}
+                    Executa uma pesquisa ao finalizar a chamada.
+                  </p>
+                </div>
+              </div>
+              {form.pesquisa && (
+                <Select
+                  value={form.pesquisa_id?.toString() ?? ""}
+                  onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma pesquisa" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {pesquisas.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {" "}
+                        {p.nome_pesquisa}
+                      </SelectItem>
+                    ))}
+                    {pesquisas.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhuma pesquisa encontrada
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-3 border-t pt-3">
+            <div className="space-y-1">
+              <Label title="Tempo de toque máximo no agente">Timeout Agente</Label>
+              <Input
+                type="number"
+                min={0}
+                max={3600}
+                placeholder="15"
+                value={form.timeout === null || form.timeout === undefined ? "" : form.timeout}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    timeout: e.target.value == "" ? null : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label title="Tempo de espera para rediscar no Agente">Intervalo (s)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={3600}
+                placeholder="5"
+                value={form.retry === null || form.retry === undefined ? "" : form.retry}
+                onChange={(e) =>
+                  setForm({ ...form, retry: e.target.value == "" ? null : Number(e.target.value) })
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label title="Tempo máximo da fila">Timeout fila</Label>
+              <Input
+                type="number"
+                min={0}
+                max={86400}
+                placeholder="30"
+                value={
+                  form.fila_timeout === null || form.fila_timeout === undefined
+                    ? ""
+                    : form.fila_timeout
+                }
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    fila_timeout: e.target.value == "" ? null : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              onClick={() => mut.mutate()}
+              disabled={mut.isPending || !form.display_name}
+            >
+              {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

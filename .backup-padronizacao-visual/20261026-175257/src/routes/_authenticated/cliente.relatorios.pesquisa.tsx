@@ -1,0 +1,301 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { Star, Users, Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { listCdrPesquisa } from "@/lib/relatorios.functions";
+import { getConfiguracoes } from "@/lib/configuracoes.functions";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge, notaColors } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ReportShell } from "@/components/report-shell";
+import { ReportFilters, type ReportFilterValues } from "@/components/report-filters";
+import { useClienteContext } from "./_cliente-context";
+
+function getTodayFilters(): ReportFilterValues {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const todayStr = `${year}-${month}-${day}`;
+
+  return {
+    from: `${todayStr}T00:00`,
+    to: `${todayStr}T${hours}:${minutes}`,
+  };
+}
+
+export const Route = createFileRoute("/_authenticated/cliente/relatorios/pesquisa")({
+  head: () => ({ meta: [{ title: "Pesquisa de satisfação — Painel PABX" }] }),
+  beforeLoad: async () => {
+    // Chama a server function direto no servidor/loader da rota
+    const configuracoes = await getConfiguracoes({
+      data: {
+        chaves: ["modulos.pesquisa_satisfacao"],
+      },
+    });
+
+    const pesquisaEnabled = configuracoes?.some(
+      (config) => config.chave === "modulos.pesquisa_satisfacao" && config.valor === "true",
+    );
+    if (!pesquisaEnabled) {
+      throw new Error("403: Módulo não autorizado");
+    }
+  },
+  errorComponent: () => (
+    <div className="flex h-[80vh] flex-col items-center justify-center gap-4 text-center">
+      <h1 className="text-4xl font-bold">403</h1>
+      <p className="text-muted-foreground">
+        Ops! O módulo de Pesquisa de Satisfação não está ativo.
+      </p>
+    </div>
+  ),
+  component: Page,
+});
+
+function Page() {
+  const { tenantId, cliente } = useClienteContext();
+  const [fPesquisaRamal, setFPesquisaRamal] = useState<ReportFilterValues>(() => getTodayFilters());
+  const [fPesquisaFila, setFPesquisaFila] = useState<ReportFilterValues>(() => getTodayFilters());
+  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<"ramal" | "fila">("ramal");
+  const currentFilters = activeTab === "ramal" ? fPesquisaRamal : fPesquisaFila;
+  const fn = useServerFn(listCdrPesquisa);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["cdr_pesquisa", tenantId, activeTab, currentFilters, page],
+    queryFn: () =>
+      fn({ data: { tenant_id: tenantId, tipo: activeTab.toUpperCase(), page, ...currentFilters } }),
+    enabled: !!tenantId,
+  });
+  const rows = useMemo(() => {
+    if (Array.isArray(data?.rows)) return data.rows;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data)) return data;
+    return [];
+  }, [data]);
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold flex items-center gap-2">
+        <Star className="h-6 w-6" /> Relatório — Pesquisa de satisfação
+      </h1>
+
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => {
+          setPage(1); // Reseta a página ao trocar de aba
+          setActiveTab(val as "ramal" | "fila");
+        }}
+        className="w-full space-y-4"
+      >
+        <TabsList>
+          <TabsTrigger value="ramal" className="flex items-center gap-2">
+            <Phone className="h-4 w-4" /> Ramal
+          </TabsTrigger>
+          <TabsTrigger value="fila" className="flex items-center gap-2">
+            <Users className="h-4 w-4" /> Fila
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ramal" className="w-full space-y-6">
+          <ReportFilters
+            storageKey="fPesquisaRamal"
+            tenantId={tenantId}
+            initialValues={fPesquisaRamal}
+            defaultValues={getTodayFilters()}
+            onApply={(valores) => {
+              setPage(1);
+              setFPesquisaRamal(valores);
+            }}
+            fields={[
+              { key: "linkedid", label: "Linkedid" },
+              { key: "origem", label: "Origem" },
+              { key: "destino", label: "Destino" },
+              {
+                key: "contexto",
+                label: "Contexto",
+                type: "select",
+                options: [
+                  { label: "Ativa", value: "ATIVA" },
+                  { label: "Receptiva", value: "RECEPTIVA" },
+                ],
+              },
+              { key: "from", label: "De", type: "datetime-local" },
+              { key: "to", label: "Até", type: "datetime-local" },
+            ]}
+          />
+          <div className="rounded-md border bg-card">
+            <ReportShell
+              loading={isLoading}
+              error={error as Error | null}
+              empty={!isLoading && rows.length === 0}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Linkedid</TableHead>
+                    <TableHead>Contexto</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Destino</TableHead>
+                    <TableHead>Pergunta</TableHead>
+                    <TableHead>Nota</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-xs">{r.data}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.contexto}</TableCell>
+                      <TableCell className="font-mono">{r.origem}</TableCell>
+                      <TableCell>{r.destino}</TableCell>
+                      <TableCell>#{r.pergunta_id}</TableCell>
+                      <TableCell>
+                        <Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ReportShell>
+            <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/20">
+              <span className="text-sm text-muted-foreground">
+                Total de registros: <strong>{data?.total ?? rows.length}</strong>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || isLoading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                </Button>
+
+                <span className="text-sm">
+                  Página <strong>{page}</strong> de <strong>{data?.totalPages ?? 1}</strong>
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= (data?.totalPages ?? 1) || isLoading}
+                  onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
+                >
+                  Próxima <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+        <TabsContent value="fila" className="w-full space-y-6">
+          <ReportFilters
+            storageKey="fPesquisaFila"
+            tenantId={tenantId}
+            initialValues={fPesquisaFila}
+            defaultValues={getTodayFilters()}
+            onApply={(valores) => {
+              setPage(1);
+              setFPesquisaFila(valores);
+            }}
+            fields={[
+              { key: "linkedid", label: "Linkedid" },
+              { key: "origem", label: "Origem" },
+              { key: "destino", label: "Destino" },
+              { key: "status", label: "Fila" },
+              {
+                key: "contexto",
+                label: "Contexto",
+                type: "select",
+                options: [
+                  { label: "Ativa", value: "ATIVA" },
+                  { label: "Receptiva", value: "RECEPTIVA" },
+                ],
+              },
+              { key: "from", label: "De", type: "datetime-local" },
+              { key: "to", label: "Até", type: "datetime-local" },
+            ]}
+          />
+          <div className="rounded-md border bg-card">
+            <ReportShell
+              loading={isLoading}
+              error={error as Error | null}
+              empty={!isLoading && rows.length === 0}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Linkedid</TableHead>
+                    <TableHead>Contexto</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Destino</TableHead>
+                    <TableHead>Fila</TableHead>
+                    <TableHead>Pergunta</TableHead>
+                    <TableHead>Nota</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-xs">{r.data}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.contexto}</TableCell>
+                      <TableCell className="font-mono">{r.origem}</TableCell>
+                      <TableCell>{r.destino}</TableCell>
+                      <TableCell>{r.fila}</TableCell>
+                      <TableCell>#{r.pergunta_id}</TableCell>
+                      <TableCell>
+                        <Badge className={notaColors[Number(r.nota)]}>{r.nota}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ReportShell>
+            <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/20">
+              <span className="text-sm text-muted-foreground">
+                Total de registros: <strong>{data?.total ?? rows.length}</strong>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || isLoading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                </Button>
+
+                <span className="text-sm">
+                  Página <strong>{page}</strong> de <strong>{data?.totalPages ?? 1}</strong>
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= (data?.totalPages ?? 1) || isLoading}
+                  onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
+                >
+                  Próxima <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

@@ -36,3 +36,4 @@ dist-ssr
 .env.*
 !.env.example
 src/routeTree.gen.ts
+.config_firebase

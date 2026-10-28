@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Search,
   CheckCircle2,
+  Brain,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -425,7 +426,9 @@ function IaPage() {
     <div className="min-w-0 space-y-4 p-2 md:p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Inteligência Artificial</h1>
+          <h1 className="flex items-center gap-2 text-xl font-bold">
+            <Brain className="h-6 w-6" /> Inteligência Artificial
+          </h1>
           <p className="text-sm text-muted-foreground">Configure as IAs e vozes utilizadas no atendimento.</p>
         </div>
         <div className="flex items-center gap-2">

@@ -123,7 +123,7 @@ function Page() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-2 md:p-3">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">

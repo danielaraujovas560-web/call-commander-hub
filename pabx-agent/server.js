@@ -10,6 +10,8 @@ const requireJwt = require("./middleware/jwt");
 const tenantMiddleware = require("./middleware/auth-middle");
 const pool = require("./config/db");
 const { restoreQueueMembers } = require("./utils/queue-restore");
+const { createMobilePushRouter } = require("./routes/mobilePush");
+const { iniciarMobileCallMonitor } = require("./services/mobileCallMonitor");
 
 // Rotas
 const interno = require("./routes/interno");
@@ -110,6 +112,8 @@ async function getActiveQueueMembers() {
   });
 }
 
+iniciarMobileCallMonitor();
+
 onAmiConnect(async () => {
   const ariClient = await connectARI();
   if (ariClient) iniciarMonitor(ariClient, server, pool.query.bind(pool));
@@ -155,7 +159,7 @@ app.use(clientes);
 app.use(configGeral);
 
 app.use(tenantMiddleware);
-
+app.use("/api/mobile-push", createMobilePushRouter({ pool }));
 app.use(tenantRoutes);
 app.use(auditLogs);
 app.use(dashboard);

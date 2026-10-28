@@ -14,6 +14,7 @@ const ROTAS_LIVRES = [
   "/ramal-auth/",
   "/config/",
   "/api/internal/",
+  "/api/mobile-push/",
 ];
 
 function hmacMiddleware(req, res, next) {

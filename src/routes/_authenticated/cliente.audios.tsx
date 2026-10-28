@@ -129,7 +129,9 @@ function AudiosPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold">Áudios</h1>
+          <h1 className="flex items-center gap-2 text-xl font-bold">
+            <Music className="h-6 w-6" /> Áudios
+          </h1>
             <p className="text-sm text-muted-foreground">
               {activeTab === "normal"
                 ? "Prompts, saudações e mensagens ativas deste cliente."

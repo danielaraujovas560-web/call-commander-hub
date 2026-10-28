@@ -87,7 +87,10 @@ function getEndpointsDeviceState(timeoutMs = 4000) {
     let settled = false;
 
     const onEvent = (evt) => {
-      const evtActionId = evt.actionid || evt.ActionID;
+
+  const eventName = evt.event || evt.Event;
+
+  const evtActionId = evt.actionid || evt.ActionID;
       if (evtActionId !== actionId) return;
       const name = evt.event || evt.Event;
 
@@ -371,6 +374,36 @@ function checkReachable(endpoint) {
   }
 }
 
+function onCallEvent(callback) {
+    const eventos = new Set([
+        "DialBegin",
+        "DialEnd",
+        "Hangup"
+    ]);
+
+    const listener = (event) => {
+        const nome = event.event || event.Event;
+
+        if (!eventos.has(nome)) return;
+
+        try {
+            callback(event);
+        } catch (erro) {
+            console.error(
+                "[AMI CALL] Erro no listener:",
+                erro
+            );
+        }
+    };
+
+    ami.on("managerevent", listener);
+
+    // Permite remover o listener posteriormente.
+    return () => {
+        ami.removeListener("managerevent", listener);
+    };
+}
+
 module.exports = {
   getEndpointsDeviceState,
   amiCommand,
@@ -382,4 +415,5 @@ module.exports = {
   queueRefresh,
   onAmiConnect,
   getQueueStatus,
+  onCallEvent,
 };

@@ -135,7 +135,7 @@ function RouteComponent() {
     finally { setExcluindoId(null); setConfirmarRegra(null); }
   }
 
-  return <div className="space-y-6 p-4 md:p-6">
+  return <div className="space-y-4 p-2 md:p-3">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="flex items-center gap-2 text-xl font-bold tracking-tight"><RouteIcon className="size-6 text-muted-foreground" /> Regras de roteamento</h1><p className="mt-1 text-sm text-muted-foreground">Consulte, configure e teste as regras de discagem dos troncos.</p></div>
       <Button variant="outline" size="icon" title="Atualizar regras" aria-label="Atualizar regras" onClick={() => void recarregarRegras()} disabled={atualizandoRegras || !tenantId}><RefreshCw className={`size-4 ${atualizandoRegras ? "animate-spin" : ""}`} /></Button>
