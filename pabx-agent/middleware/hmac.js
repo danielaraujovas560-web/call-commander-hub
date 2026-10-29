@@ -15,6 +15,7 @@ const ROTAS_LIVRES = [
   "/config/",
   "/api/internal/",
   "/api/mobile-push/",
+  "/ramais-agenda",
 ];
 
 function hmacMiddleware(req, res, next) {

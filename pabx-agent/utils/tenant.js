@@ -11,12 +11,6 @@ async function resolveTenantId(userId, role, override) {
     );
     if (linked) return overrideId;
 
-    const [[cliente]] = await pool.query(
-      "SELECT 1 AS ok FROM clientes WHERE tenant_id = ? LIMIT 1",
-      [overrideId],
-    );
-    if (cliente) return overrideId;
-
     throw new Error("Sem permissão para este tenant.");
   }
 
