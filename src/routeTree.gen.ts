@@ -13,6 +13,7 @@ import { Route as RamalRouteImport } from './routes/ramal'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiCdrExportarRouteImport } from './routes/api/cdr-exportar'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClienteRouteImport } from './routes/_authenticated/cliente'
 import { Route as AuthenticatedClientesIndexRouteImport } from './routes/_authenticated/clientes.index'
@@ -58,6 +59,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCdrExportarRoute = ApiCdrExportarRouteImport.update({
+  id: '/api/cdr-exportar',
+  path: '/api/cdr-exportar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/ramal': typeof RamalRoute
   '/cliente': typeof AuthenticatedClienteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/cdr-exportar': typeof ApiCdrExportarRoute
   '/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/ramal': typeof RamalRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/cdr-exportar': typeof ApiCdrExportarRoute
   '/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/servidor': typeof AuthenticatedAdminServidorRoute
@@ -291,6 +299,7 @@ export interface FileRoutesById {
   '/ramal': typeof RamalRoute
   '/_authenticated/cliente': typeof AuthenticatedClienteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/cdr-exportar': typeof ApiCdrExportarRoute
   '/_authenticated/admin/blacklist': typeof AuthenticatedAdminBlacklistRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/servidor': typeof AuthenticatedAdminServidorRoute
@@ -325,6 +334,7 @@ export interface FileRouteTypes {
     | '/ramal'
     | '/cliente'
     | '/dashboard'
+    | '/api/cdr-exportar'
     | '/admin/blacklist'
     | '/admin/configuracoes'
     | '/admin/servidor'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/ramal'
     | '/dashboard'
+    | '/api/cdr-exportar'
     | '/admin/blacklist'
     | '/admin/configuracoes'
     | '/admin/servidor'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/ramal'
     | '/_authenticated/cliente'
     | '/_authenticated/dashboard'
+    | '/api/cdr-exportar'
     | '/_authenticated/admin/blacklist'
     | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/servidor'
@@ -421,6 +433,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   RamalRoute: typeof RamalRoute
+  ApiCdrExportarRoute: typeof ApiCdrExportarRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -451,6 +464,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cdr-exportar': {
+      id: '/api/cdr-exportar'
+      path: '/api/cdr-exportar'
+      fullPath: '/api/cdr-exportar'
+      preLoaderRoute: typeof ApiCdrExportarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -729,6 +749,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   RamalRoute: RamalRoute,
+  ApiCdrExportarRoute: ApiCdrExportarRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

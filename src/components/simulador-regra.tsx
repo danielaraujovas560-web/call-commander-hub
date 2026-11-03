@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { CheckCircle2, FlaskConical, XCircle, HelpCircle } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FieldHelp } from "@/components/field-help";
 import {
   Select,
   SelectContent,
@@ -219,25 +218,7 @@ export function SimuladorRegra({ modelo, regras }: SimuladorRegraProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
                 <Label htmlFor="simulador-ddd">DDD do agente</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <HelpCircle className="w-4 h-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="font-medium text-xs mb-1">
-                        {
-                          "Esse cabeçalho só aparece quando usado '${DDD_AGENTE}' em uma expressão. Selecione o DDD para testar junto da regra."
-                        }
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <FieldHelp text="Esse cabeçalho só aparece quando usado '${DDD_AGENTE}' em uma expressão. Selecione o DDD para testar junto da regra." />
               </div>
 
               <Select

@@ -75,7 +75,7 @@ export const listCdrEntrada = createServerFn({ method: "GET" })
 export const listCdrRamal = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .validator((d: unknown) => CdrFilter.parse(d))
-  .handler(({ data, context }) => fetchCdr("/cdr/ramal", context.token, data));
+  .handler(({ data, context }) => fetchCdr("/cdr/geral", context.token, data));
 
 export const listCdrFila = createServerFn({ method: "GET" })
   .middleware([requireAuth])

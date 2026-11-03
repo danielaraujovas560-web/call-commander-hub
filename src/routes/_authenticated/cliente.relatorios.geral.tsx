@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { PhoneCall, Headset, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CdrExportButton } from "@/components/cdr-export-button";
 import { listCdrRamal } from "@/lib/relatorios.functions";
 import { downloadGravacao } from "@/lib/ramais.functions";
 import { formatarDuracaoCDR } from "@/lib/format";
@@ -110,14 +111,19 @@ function Page() {
   };
   return (
     <div className="space-y-4 p-2 md:p-3">
-      <h1 className="text-xl font-bold flex items-center gap-2">
-        <PhoneCall className="h-6 w-6" /> Relatório — Geral
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <PhoneCall className="h-6 w-6" /> Relatório — Geral
+        </h1>
+      </div>
       <ReportFilters
         storageKey="fRamais"
         tenantId={tenantId}
         initialValues={fRamais}
         defaultValues={getTodayFilters()}
+        showExport={1}
+        exportType="geral"
+        exportFilters={fRamais}
         onApply={(valores) => {
           setPage(1);
           setFRamais(valores);
@@ -158,7 +164,7 @@ function Page() {
             </TableHeader>
             <TableBody>
               {rows.map((r: any) => (
-                <TableRow key={r.linkedid} className="h-10">
+                <TableRow key={r.id} className="h-10">
                   <TableCell className="font-mono text-xs">{r.linkedid}</TableCell>
                   <TableCell className="font-mono">{r.agente}</TableCell>
                   <TableCell className="font-mono">{r.destino}</TableCell>

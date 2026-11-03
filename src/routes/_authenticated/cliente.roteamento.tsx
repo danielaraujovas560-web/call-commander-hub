@@ -15,6 +15,11 @@ import {
   GitBranch,
   MessageCircle,
   Loader2,
+  Hash,
+  Webhook,
+  FileText,
+  ArrowRightLeft,
+  Save,
 } from "lucide-react";
 import {
   listRoteamento,
@@ -427,66 +432,137 @@ function RoteamentoFormDialog({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Editar roteamento" : "Novo roteamento"}</DialogTitle>
-          <DialogDescription>Cada número aponta para um único destino.</DialogDescription>
+      <DialogContent className="max-h-[90vh] overflow-y-auto p-0 sm:max-w-xl">
+        <DialogHeader className="border-b bg-muted/20 px-6 pb-5 pt-6 text-left">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border bg-background shadow-sm">
+            <RouterIcon className="h-5 w-5 text-primary" />
+          </div>
+          <DialogTitle className="text-xl font-semibold tracking-tight">
+            {editing ? "Editar roteamento" : "Novo roteamento"}
+          </DialogTitle>
+          <DialogDescription className="text-sm leading-relaxed">
+            Configure o número, a integração e o destino das chamadas.
+          </DialogDescription>
         </DialogHeader>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
             mut.mutate();
           }}
-          className="space-y-3"
         >
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Label>Número *</Label>{" "}
-              <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." />
-            </div>
-            <Input
-              value={numero}
-              onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))}
-              placeholder="Ex.: 2733334444"
-              disabled={editing && !isAdmin}
-            />
-            <div className="flex items-center gap-1.5">
-              <Label>WebHook</Label>{" "}
-              <FieldHelp text="Selecione a integração responsável pelas notificações e eventos deste roteamento." />
-            </div>
-            <Input
-              type="number"
-              value={whatsConfig ?? ""}
-              onChange={(e) => {
-                const valor = e.target.value;
-                setWhatsConfig(valor === "" ? null : Number(valor));
-              }}
-              placeholder="Escolha o WebHook"
-            />
+          <div className="space-y-5 px-6 py-5">
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <Hash className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Identificação</h3>
+                  <p className="text-xs text-muted-foreground">Número e integração vinculada</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="roteamento-numero">
+                      Número <span className="text-destructive">*</span>
+                    </Label>
+                    <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." />
+                  </div>
+                  <Input
+                    id="roteamento-numero"
+                    value={numero}
+                    onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Ex.: 2733334444"
+                    disabled={editing && !isAdmin}
+                    inputMode="numeric"
+                    className="h-10 font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="roteamento-webhook">WebHook</Label>
+                    <FieldHelp text="Selecione a integração responsável pelas notificações e eventos deste roteamento." />
+                  </div>
+                  <div className="relative">
+                    <Webhook className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="roteamento-webhook"
+                      type="number"
+                      value={whatsConfig ?? ""}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        setWhatsConfig(valor === "" ? null : Number(valor));
+                      }}
+                      placeholder="ID do WebHook"
+                      className="h-10 pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <ArrowRightLeft className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Destino das chamadas</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Defina para onde o número será direcionado
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl border bg-card p-4">
+                <DestinoPicker
+                  tenantId={tenantId}
+                  value={dest}
+                  onChange={setDest}
+                  allow={ACOES_ROTEAMENTO}
+                />
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-semibold">Informações adicionais</h3>
+              </div>
+              <div className="space-y-1.5 rounded-xl border bg-card p-4">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="roteamento-descricao">Descrição</Label>
+                  <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." />
+                </div>
+                <Input
+                  id="roteamento-descricao"
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  placeholder="Ex.: Entrada principal da empresa"
+                  className="h-10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Opcional · Visível na listagem de roteamentos
+                </p>
+              </div>
+            </section>
           </div>
-          <DestinoPicker
-            tenantId={tenantId}
-            value={dest}
-            onChange={setDest}
-            allow={ACOES_ROTEAMENTO}
-          />
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Descrição</Label>{" "}
-              <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." />
-            </div>
-            <Input
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Descrição opcional do número"
-            />
-          </div>
-          <DialogFooter>
+
+          <DialogFooter className="flex-row justify-end gap-2 border-t bg-muted/20 px-6 py-4 sm:space-x-0">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={disabled || mut.isPending}>
-              {mut.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
+              {mut.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {mut.isPending ? "Salvando…" : editing ? "Salvar alterações" : "Criar roteamento"}
             </Button>
           </DialogFooter>
         </form>

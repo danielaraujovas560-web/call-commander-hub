@@ -112,6 +112,9 @@ function Page() {
         tenantId={tenantId}
         initialValues={fFila}
         defaultValues={getTodayFilters()}
+        showExport="true"
+        exportType="fila"
+        exportFilters={fFila}
         onApply={(valores) => {
           setPage(1);
           setFFila(valores);

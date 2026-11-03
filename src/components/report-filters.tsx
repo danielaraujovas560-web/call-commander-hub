@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter, X } from "lucide-react";
+import { CdrExportButton } from "@/components/cdr-export-button";
 
 export interface ReportFilterValues {
   linkedid?: string;
@@ -81,6 +82,9 @@ interface ReportFiltersProps {
   fields: FieldConfig[];
   onApply: (v: ReportFilterValues) => void;
   showLimit?: boolean;
+  showExport?: boolean | 0 | 1;
+  exportType?: "geral" | "fila" | "ura" | "ura-ia" | "ddd" | "satisfacao";
+  exportFilters?: ReportFilterValues;
   initialValues?: ReportFilterValues;
   defaultValues?: ReportFilterValues;
   storageKey?: string;
@@ -91,6 +95,9 @@ export function ReportFilters({
   fields,
   onApply,
   showLimit = true,
+  showExport = false,
+  exportType = "geral",
+  exportFilters,
   initialValues,
   defaultValues,
   storageKey,
@@ -187,15 +194,26 @@ export function ReportFilters({
         </div>
       )}
 
-      <div className="flex items-end gap-2 md:col-span-3 lg:col-span-4">
-        <Button type="submit" size="sm">
-          <Filter className="mr-2 h-4 w-4" />
-          Aplicar
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={clear}>
-          <X className="mr-2 h-4 w-4" />
-          Limpar
-        </Button>
+      <div className="flex items-end justify-between gap-2 md:col-span-3 lg:col-span-4">
+        <div className="flex items-center gap-2">
+          <Button type="submit" size="sm">
+            <Filter className="mr-2 h-4 w-4" />
+            Aplicar
+          </Button>
+
+          <Button type="button" variant="ghost" size="sm" onClick={clear}>
+            <X className="mr-2 h-4 w-4" />
+            Limpar
+          </Button>
+        </div>
+
+        {!!showExport && (
+          <CdrExportButton
+            tenantId={tenantId ? Number(tenantId) : undefined}
+            filters={exportFilters ?? values}
+            tipo={exportType}
+          />
+        )}
       </div>
     </form>
   );

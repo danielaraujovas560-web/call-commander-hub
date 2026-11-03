@@ -161,7 +161,9 @@ function Page() {
                       <TableCell>{r.destino}</TableCell>
                       <TableCell>#{r.pergunta_id}</TableCell>
                       <TableCell>
-                        <Badge className={notaColors[Number(r.nota)]} className="whitespace-nowrap">
+                        <Badge
+                          className={`${notaColors[Number(r.nota)] ?? "bg-muted text-foreground"} whitespace-nowrap`}
+                        >
                           {r.nota}
                         </Badge>
                       </TableCell>
@@ -259,7 +261,9 @@ function Page() {
                       <TableCell>{r.fila}</TableCell>
                       <TableCell>#{r.pergunta_id}</TableCell>
                       <TableCell>
-                        <Badge className={notaColors[Number(r.nota)]} className="whitespace-nowrap">
+                        <Badge
+                          className={`${notaColors[Number(r.nota)] ?? "bg-muted text-foreground"} whitespace-nowrap`}
+                        >
                           {r.nota}
                         </Badge>
                       </TableCell>
