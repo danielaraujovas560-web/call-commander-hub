@@ -134,7 +134,10 @@ function WhitelistPage() {
 
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5"><Label htmlFor="ip">Endereço IP</Label> <FieldHelp text="Defina o valor de Endereço IP para este registro." /></div>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="ip">Endereço IP</Label>{" "}
+                  <FieldHelp text="Defina o valor de Endereço IP para este registro." />
+                </div>
 
                 <Input
                   id="ip"
@@ -256,13 +259,18 @@ function WhitelistPage() {
                       <td className="px-4 py-3 text-muted-foreground">{item.motivo || "—"}</td>
 
                       <td className="px-4 py-3">
-                        <Badge variant={item.origem === "AUTO" ? "secondary" : "outline"} className="whitespace-nowrap">
+                        <Badge
+                          variant={item.origem === "AUTO" ? "secondary" : "outline"}
+                          className="whitespace-nowrap"
+                        >
                           {item.origem === "AUTO" ? "Automático" : "Manual"}
                         </Badge>
                       </td>
 
                       <td className="px-4 py-3">
-                        <Badge variant="success" className="whitespace-nowrap">Liberado</Badge>
+                        <Badge variant="success" className="whitespace-nowrap">
+                          Liberado
+                        </Badge>
                       </td>
 
                       <td className="px-4 py-3 text-muted-foreground">

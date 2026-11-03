@@ -190,7 +190,10 @@ function Page() {
       </h1>
 
       <Tabs value={tipoUra} onValueChange={(value) => mudarTipo(value as TipoUra)}>
-        <TabsList className={`grid w-fit ${iaEnabled ? "grid-cols-2" : "grid-cols-1"}`} className="rounded-lg">
+        <TabsList
+          className={`grid w-fit ${iaEnabled ? "grid-cols-2" : "grid-cols-1"}`}
+          className="rounded-lg"
+        >
           <TabsTrigger value="Normal" className="gap-2">
             <Phone className="h-4 w-4" />
             URA Normal

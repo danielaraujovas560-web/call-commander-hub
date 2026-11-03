@@ -134,42 +134,38 @@ router.post("/api/internal/web-hook-whatsapp", internalOnly, async (req, res) =>
   }
 });
 
-router.post(
-  "/api/internal/mobile-push/test-call",
-  internalOnly,
-  async (req, res) => {
-    try {
-      const { tenantId, ramal, callId, caller, callerName, callerNumber } = req.body || {};
+router.post("/api/internal/mobile-push/test-call", internalOnly, async (req, res) => {
+  try {
+    const { tenantId, ramal, callId, caller, callerName, callerNumber } = req.body || {};
 
-      if (
-        !Number.isSafeInteger(Number(tenantId)) ||
-        Number(tenantId) <= 0 ||
-        !/^\d{1,20}$/.test(String(ramal || "")) ||
-        !callId
-      ) {
-        return res.status(400).json({
-          error: "Parâmetros inválidos"
-        });
-      }
-
-      const results = await sendIncomingCallToRamal({
-        pool: db,
-        tenantId: Number(tenantId),
-        ramal,
-        callId,
-        caller,
-        callerName,
-        callerNumber,
-      });
-
-      return res.json({ ok: true, results });
-    } catch (err) {
-      console.error("[FCM] Erro:", err);
-      return res.status(500).json({
-        error: "Falha no envio FCM"
+    if (
+      !Number.isSafeInteger(Number(tenantId)) ||
+      Number(tenantId) <= 0 ||
+      !/^\d{1,20}$/.test(String(ramal || "")) ||
+      !callId
+    ) {
+      return res.status(400).json({
+        error: "Parâmetros inválidos",
       });
     }
+
+    const results = await sendIncomingCallToRamal({
+      pool: db,
+      tenantId: Number(tenantId),
+      ramal,
+      callId,
+      caller,
+      callerName,
+      callerNumber,
+    });
+
+    return res.json({ ok: true, results });
+  } catch (err) {
+    console.error("[FCM] Erro:", err);
+    return res.status(500).json({
+      error: "Falha no envio FCM",
+    });
   }
-);
+});
 
 module.exports = router;

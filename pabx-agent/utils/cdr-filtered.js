@@ -1,87 +1,67 @@
 const pool = require("../config/db");
 const { getTenant } = require("./tenant");
+const { construirFiltros } = require("./cdr-query");
 
 function cdrFilteredEndpoint(router, path, cfg) {
-  const exactFilters = new Set(cfg.exactFilters || []);
   router.get(path, async (req, res) => {
     const tenant = getTenant(req, res);
     if (!tenant) return;
+
     const limit = Math.min(Number(req.query.limit) || 500, 5000);
     const page = Math.max(Number(req.query.page) || 1, 1);
     const offset = (page - 1) * limit;
-    const where = [cfg.tenantWhere ? cfg.tenantWhere : `${cfg.tenantCol || "tenant_id"} = ?`];
-    const vals = [tenant];
-    for (const [key, col] of Object.entries(cfg.filters || {})) {
-      const v = req.query[key];
-      if (v !== undefined && v !== null && String(v).trim() !== "") {
-        if (exactFilters.has(key)) {
-          where.push(`${col} = ?`);
-          vals.push(`${String(v).trim()}`);
-        } else {
-          where.push(`${col} LIKE ?`);
-          vals.push(`%${String(v).trim()}%`);
-        }
-      }
-    }
-    if (cfg.dateCol) {
-      const from = req.query.from,
-        to = req.query.to;
 
-      if (from) {
-        let fromStr = String(from).replace("T", " ").trim();
-        if (fromStr.length === 10) {
-          // Se for só data "YYYY-MM-DD", inicia no começo do dia
-          fromStr += " 00:00:00";
-        } else if (fromStr.length === 16) {
-          // Se for "YYYY-MM-DD HH:mm", adiciona :00 nos segundos
-          fromStr += ":00";
-        }
-        where.push(`${cfg.dateCol} >= ?`);
-        vals.push(fromStr);
-      }
+    const { where, vals } = construirFiltros(req.query, cfg, tenant);
 
-      if (to) {
-        let toStr = String(to).replace("T", " ").trim();
-        if (toStr.length === 10) {
-          // Se for só data "YYYY-MM-DD", inclui até o fim do dia
-          toStr += " 23:59:59";
-        } else if (toStr.length === 16) {
-          // Se for "YYYY-MM-DD HH:mm", adiciona :59 nos segundos
-          toStr += ":59";
-        }
-        where.push(`${cfg.dateCol} <= ?`);
-        vals.push(toStr);
-      }
-    }
+    const from = cfg.from ?? cfg.table;
+
     if (req.query.rank === "true") {
+      if (!cfg.rankCol) {
+        return res.status(400).json({
+          error: "Ranking não disponível para este relatório",
+        });
+      }
+
       const sql = `
-            SELECT
-                ${cfg.rankCol} AS nome,
-                COUNT(*) AS total
-            FROM ${cfg.from ?? cfg.table}
-            WHERE ${where.join(" AND ")}
-            GROUP BY ${cfg.rankCol}
-            ORDER BY total DESC
-            LIMIT 5
-        `;
+        SELECT ${cfg.rankCol} AS nome, COUNT(*) AS total
+        FROM ${from}
+        WHERE ${where}
+        GROUP BY ${cfg.rankCol}
+        ORDER BY total DESC
+        LIMIT 5
+      `;
 
       try {
         const [rows] = await pool.query(sql, vals);
         return res.json({ rows });
       } catch (e) {
-        return res.status(500).json({ error: String(e.message || e) });
+        return res.status(500).json({
+          error: String(e.message || e),
+        });
       }
     }
 
     const orderCol = cfg.order || "id";
-    const from = cfg.from ?? cfg.table;
-    const countSql = `SELECT COUNT(*) AS total FROM ${from} WHERE ${where.join(" AND ")}`;
-    const sql = `SELECT ${cfg.select} FROM ${from} WHERE ${where.join(" AND ")} ORDER BY ${orderCol} DESC LIMIT ? OFFSET ?`;
-    const dataVals = [...vals, limit, offset];
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ${from}
+      WHERE ${where}
+    `;
+
+    const sql = `
+      SELECT ${cfg.select}
+      FROM ${from}
+      WHERE ${where}
+      ORDER BY ${orderCol} DESC
+      LIMIT ? OFFSET ?
+    `;
+
     try {
       const [[count]] = await pool.query(countSql, vals);
-      const [rows] = await pool.query(sql, dataVals);
-      res.json({
+      const [rows] = await pool.query(sql, [...vals, limit, offset]);
+
+      return res.json({
         rows,
         total: count.total,
         page,
@@ -89,7 +69,9 @@ function cdrFilteredEndpoint(router, path, cfg) {
         totalPages: Math.ceil(count.total / limit),
       });
     } catch (e) {
-      res.status(500).json({ error: String(e.message || e) });
+      return res.status(500).json({
+        error: String(e.message || e),
+      });
     }
   });
 }

@@ -180,10 +180,14 @@ function BlacklistPage() {
               >
                 <TableCell className="font-mono">{b.destino}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="whitespace-nowrap">{b.regra}</Badge>
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {b.regra}
+                  </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className="whitespace-nowrap">{b.tipo}</Badge>
+                  <Badge variant="secondary" className="whitespace-nowrap">
+                    {b.tipo}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-xs">{b.motivo || "-"}</TableCell>
                 <TableCell className="text-xs">{b.data_hora_desbloqueio}</TableCell>
@@ -350,7 +354,9 @@ function BlacklistDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5"><Label>Regra</Label> <FieldHelp text="Defina o valor de Regra para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Regra</Label> <FieldHelp text="Defina o valor de Regra para este registro." />
+            </div>
 
             <Select
               value={form.regra}
@@ -374,7 +380,9 @@ function BlacklistDialog({
           </div>
 
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5"><Label>Tipo</Label> <FieldHelp text="Defina o valor de Tipo para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Tipo</Label> <FieldHelp text="Defina o valor de Tipo para este registro." />
+            </div>
 
             <Select
               value={form.tipo}
@@ -398,7 +406,10 @@ function BlacklistDialog({
           </div>
 
           <div className="space-y-1.5 col-span-2">
-            <div className="flex items-center gap-1.5"><Label>Destino (número ou prefixo)</Label> <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Destino (número ou prefixo)</Label>{" "}
+              <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." />
+            </div>
 
             <Input
               value={form.destino}
@@ -412,7 +423,10 @@ function BlacklistDialog({
           </div>
 
           <div className="space-y-1.5 col-span-2">
-            <div className="flex items-center gap-1.5"><Label>Motivo (opcional)</Label> <FieldHelp text="Defina o valor de Motivo (opcional) para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Motivo (opcional)</Label>{" "}
+              <FieldHelp text="Defina o valor de Motivo (opcional) para este registro." />
+            </div>
 
             <Input
               value={form.motivo}
@@ -426,7 +440,10 @@ function BlacklistDialog({
           </div>
 
           <div className="space-y-1.5 col-span-2">
-            <div className="flex items-center gap-1.5"><Label>Data/hora de desbloqueio</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Data/hora de desbloqueio</Label>{" "}
+              <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." />
+            </div>
 
             <Input
               type="datetime-local"

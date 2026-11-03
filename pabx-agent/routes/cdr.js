@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const cdrFilteredEndpoint = require("../utils/cdr-filtered");
+const cdrExportEndpoint = require("../utils/cdr-export");
 
 cdrFilteredEndpoint(router, "/cdr/ramal", {
   select:
@@ -67,7 +68,7 @@ cdrFilteredEndpoint(router, "/cdr/pesquisa", {
   tenantWhere: "(ps.tenant_id = ? OR ps.tenant_id IS NULL)",
   order: "p.data",
   dateCol: "p.data",
-  exactFilters: ["p.tipo"],
+  exactFilters: ["tipo"],
   filters: {
     linkedid: "p.linkedid",
     origem: "COALESCE(ro.nome, p.origem)",
@@ -86,7 +87,7 @@ cdrFilteredEndpoint(router, "/cdr/cidades/entrada", {
   dateCol: "cde.data_hora",
   rankCol: "cde.ddd",
   tenantCol: "cde.tenant_id",
-  exactFilters: ["cde.status", "cde.sigla_estado"],
+  exactFilters: ["status", "sigla_estado"],
   filters: {
     origem: "cde.numero",
     destino: "cde.numero",
@@ -104,13 +105,54 @@ cdrFilteredEndpoint(router, "/cdr/cidades/saida", {
   dateCol: "cds.data_hora",
   rankCol: "cds.ddd",
   tenantCol: "cds.tenant_id",
-  exactFilters: ["cds.status", "cds.sigla_estado"],
+  exactFilters: ["status", "sigla_estado"],
   filters: {
     origem: "cds.numero",
     destino: "cds.numero",
     tipo: "cr.tipo_chamada",
     status: "cr.status",
     sigla_estado: "cds.sigla_estado",
+  },
+});
+
+// Exportação
+cdrExportEndpoint(router, "/cdr/exportar/:tipo", {
+  ramal: {
+    select:
+      "c.id, c.linkedid, c.context, c.tipo_chamada, c.origem, COALESCE(rd.nome, c.destino) AS destino, COALESCE(ro.nome, c.origem) AS agente, COALESCE(t.nome, c.tronco) AS tronco, c.status, c.nome_gravacao, c.duracao, c.date_time",
+
+    from: `cdr_geral c
+      LEFT JOIN ramais ro ON ro.tenant_id = c.tenant_id AND ro.endpoint_id = c.origem
+      LEFT JOIN ramais rd ON rd.tenant_id = c.tenant_id AND rd.endpoint_id = c.destino
+      LEFT JOIN troncos t ON t.tronco_pjsip = c.tronco`,
+
+    order: "c.date_time",
+    idCol: "c.id",
+    dateCol: "c.date_time",
+    tenantCol: "c.tenant_id",
+
+    exactFilters: ["status"],
+
+    filters: {
+      linkedid: "c.linkedid",
+      origem: "CONCAT(COALESCE(ro.nome, ''), ' ', c.origem)",
+      destino: "CONCAT(COALESCE(rd.nome, ''), ' ', c.destino)",
+      status: "c.status",
+      tipo: "c.tipo_chamada",
+      contexto: "c.context",
+    },
+
+    columns: [
+      { header: "Linked ID", key: "linkedid", width: 25 },
+      { header: "Origem", key: "agente", width: 20 },
+      { header: "Destino", key: "destino", width: 20 },
+      { header: "Tronco", key: "tronco", width: 20 },
+      { header: "Contexto", key: "context", width: 20 },
+      { header: "Tipo", key: "tipo_chamada", width: 20 },
+      { header: "Duração (seg)", key: "duracao", width: 18 },
+      { header: "Status", key: "status", width: 18 },
+      { header: "Data/Hora", key: "date_time", width: 22 },
+    ],
   },
 });
 

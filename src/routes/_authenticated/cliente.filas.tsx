@@ -576,7 +576,10 @@ function FilaFormDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de filas." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nome *</Label>{" "}
+              <FieldHelp text="Nome usado para identificar este registro na página de filas." />
+            </div>
             <Input
               value={form.display_name}
               onChange={(e) => setForm({ ...form, display_name: e.target.value })}
@@ -585,7 +588,10 @@ function FilaFormDialog({
             />
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Descrição</Label> <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Descrição</Label>{" "}
+              <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." />
+            </div>
             <Input
               value={form.description ?? ""}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -593,7 +599,10 @@ function FilaFormDialog({
             />
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Música de espera</Label> <FieldHelp text="Áudio ou música reproduzido ao chamador durante esta etapa." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Música de espera</Label>{" "}
+              <FieldHelp text="Áudio ou música reproduzido ao chamador durante esta etapa." />
+            </div>
             <Select
               value={form.musiconhold}
               onValueChange={(v) => setForm({ ...form, musiconhold: v })}
@@ -612,7 +621,10 @@ function FilaFormDialog({
             </Select>
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Estratégia</Label> <FieldHelp text="Define como as chamadas serão distribuídas entre os agentes da fila." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Estratégia</Label>{" "}
+              <FieldHelp text="Define como as chamadas serão distribuídas entre os agentes da fila." />
+            </div>
             <Select value={form.strategy} onValueChange={(v) => setForm({ ...form, strategy: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a estratégia" />
@@ -627,7 +639,10 @@ function FilaFormDialog({
             </Select>
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Chama ramal ocupado?</Label> <FieldHelp text="Selecione ou informe o número do ramal interno do PABX." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Chama ramal ocupado?</Label>{" "}
+              <FieldHelp text="Selecione ou informe o número do ramal interno do PABX." />
+            </div>
             <Select
               value={form.ringinuse}
               onValueChange={(v) => setForm({ ...form, ringinuse: v as "no" | "yes" })}
@@ -699,7 +714,9 @@ function FilaFormDialog({
           )}
           <div className="grid grid-cols-3 gap-3 border-t pt-3">
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Timeout Agente</Label> <FieldHelp text="Tempo de toque máximo no agente" /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Timeout Agente</Label> <FieldHelp text="Tempo de toque máximo no agente" />
+              </div>
               <Input
                 type="number"
                 min={0}
@@ -715,7 +732,10 @@ function FilaFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Intervalo (s)</Label> <FieldHelp text="Tempo de espera para rediscar no Agente" /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Intervalo (s)</Label>{" "}
+                <FieldHelp text="Tempo de espera para rediscar no Agente" />
+              </div>
               <Input
                 type="number"
                 min={0}
@@ -728,7 +748,9 @@ function FilaFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Timeout fila</Label> <FieldHelp text="Tempo máximo da fila" /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Timeout fila</Label> <FieldHelp text="Tempo máximo da fila" />
+              </div>
               <Input
                 type="number"
                 min={0}

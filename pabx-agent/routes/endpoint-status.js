@@ -27,10 +27,7 @@ const ONLINE_STATES = new Set([
   "ONHOLD",
 ]);
 
-const OFFLINE_STATES = new Set([
-  "UNAVAILABLE",
-  "UNREACHABLE",
-]);
+const OFFLINE_STATES = new Set(["UNAVAILABLE", "UNREACHABLE"]);
 
 function normalizeState(state) {
   return String(state ?? "")
@@ -82,15 +79,11 @@ async function fetchEndpointsMap() {
 
     return map;
   } catch (e) {
-    console.error(
-      "[AMI] fetchEndpointsMap falhou:",
-      e.message || e
-    );
+    console.error("[AMI] fetchEndpointsMap falhou:", e.message || e);
 
     // Reutiliza os dados apenas enquanto ainda estiverem recentes.
     const cacheValido =
-      _endpointsCache.lastOk > 0 &&
-      now - _endpointsCache.lastOk <= ENDPOINTS_STALE_MS;
+      _endpointsCache.lastOk > 0 && now - _endpointsCache.lastOk <= ENDPOINTS_STALE_MS;
 
     _endpointsCache.at = now;
 
@@ -120,7 +113,7 @@ router.get("/ramais/status", async (req, res) => {
       `SELECT ramal, endpoint_id
        FROM ramais
        WHERE tenant_id = ?`,
-      [tenant]
+      [tenant],
     );
 
     const map = await fetchEndpointsMap();
@@ -129,15 +122,16 @@ router.get("/ramais/status", async (req, res) => {
     for (const row of rows) {
       const ramal = String(row.ramal);
 
-      const endpointId =
-        row.endpoint_id || `t${tenant}-${ramal}`;
+      const endpointId = row.endpoint_id || `t${tenant}-${ramal}`;
 
       // Compatibilidade com nomes diferentes de endpoints.
       const candidatos = [
         endpointId,
         `${endpointId}-web`,
+        `${endpointId}-mobile`,
         ramal,
         `${ramal}-web`,
+        `${ramal}-mobile`,
       ];
 
       const nomes = [...new Set(candidatos)];
@@ -152,19 +146,13 @@ router.get("/ramais/status", async (req, res) => {
         console.log("[ENDPOINT STATUS]", {
           ramal,
           endpointId,
-          dispositivos: Object.fromEntries(
-            nomes.map((nome) => [
-              nome,
-              map[nome] ?? "UNKNOWN",
-            ])
-          ),
+          dispositivos: Object.fromEntries(nomes.map((nome) => [nome, map[nome] ?? "UNKNOWN"])),
           resultado: status,
         });
       }
     }
 
     return res.json({ endpoints });
-
   } catch (e) {
     console.error("[RAMAL STATUS]", e);
 
@@ -192,33 +180,31 @@ router.get("/troncos/status", async (req, res) => {
       `SELECT tronco_pjsip
        FROM troncos
        WHERE tenant_id = ?`,
-      [tenant]
+      [tenant],
     );
 
     const map = await fetchEndpointsMap();
 
-console.log("[DEBUG AMI] Todos os endpoints:", JSON.stringify(map, null, 2));
+    console.log("[DEBUG AMI] Todos os endpoints:", JSON.stringify(map, null, 2));
 
-console.log("[DEBUG AMI] Ramais WebRTC:", {
-  "12000": map["12000"],
-  "12000-web": map["12000-web"],
-  "19999": map["19999"],
-  "19999-web": map["19999-web"],
-});
+    console.log("[DEBUG AMI] Ramais WebRTC:", {
+      12000: map["12000"],
+      "12000-web": map["12000-web"],
+      19999: map["19999"],
+      "19999-web": map["19999-web"],
+    });
 
-console.log("[DEBUG DB] Ramais:", rows);
+    console.log("[DEBUG DB] Ramais:", rows);
 
     const endpoints = {};
 
     for (const row of rows) {
       const endpointName = String(row.tronco_pjsip);
 
-      endpoints[endpointName] =
-        map[endpointName] || "UNKNOWN";
+      endpoints[endpointName] = map[endpointName] || "UNKNOWN";
     }
 
     return res.json({ endpoints });
-
   } catch (e) {
     console.error("[TRONCO STATUS]", e);
 
@@ -250,7 +236,7 @@ router.get("/troncos/:pjsip/status", async (req, res) => {
        WHERE tenant_id = ?
        AND tronco_pjsip = ?
        LIMIT 1`,
-      [tenant, pjsip]
+      [tenant, pjsip],
     );
 
     if (!rows.length) {
@@ -263,22 +249,15 @@ router.get("/troncos/:pjsip/status", async (req, res) => {
 
     const map = await fetchEndpointsMap();
 
-    const state = normalizeState(
-      map[endpointName] || "UNKNOWN"
-    );
+    const state = normalizeState(map[endpointName] || "UNKNOWN");
 
-    const status = isOnline(state)
-      ? "online"
-      : OFFLINE_STATES.has(state)
-        ? "offline"
-        : "unknown";
+    const status = isOnline(state) ? "online" : OFFLINE_STATES.has(state) ? "offline" : "unknown";
 
     return res.json({
       endpoint: endpointName,
       state,
       status,
     });
-
   } catch (e) {
     console.error("[TRONCO STATUS INDIVIDUAL]", e);
 

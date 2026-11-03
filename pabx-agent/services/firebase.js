@@ -1,8 +1,4 @@
-const {
-  initializeApp,
-  applicationDefault,
-  getApps
-} = require("firebase-admin/app");
+const { initializeApp, applicationDefault, getApps } = require("firebase-admin/app");
 
 const { getMessaging } = require("firebase-admin/messaging");
 
@@ -10,7 +6,7 @@ function iniciarFirebase() {
   if (!getApps().length) {
     initializeApp({
       credential: applicationDefault(),
-      projectId: process.env.GOOGLE_CLOUD_PROJECT
+      projectId: process.env.GOOGLE_CLOUD_PROJECT,
     });
   }
 
@@ -29,13 +25,13 @@ async function enviarPushTeste(token) {
 
     data: {
       type: "test",
-      source: "invertus"
+      source: "invertus",
     },
 
     android: {
       priority: "high",
-      ttl: 30000
-    }
+      ttl: 30000,
+    },
   };
 
   const messageId = await messaging.send(message);
@@ -47,5 +43,5 @@ async function enviarPushTeste(token) {
 
 module.exports = {
   iniciarFirebase,
-  enviarPushTeste
+  enviarPushTeste,
 };

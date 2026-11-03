@@ -174,15 +174,24 @@ function IaPage() {
   const models = modelsQuery.data?.modelos ?? [];
   const ias = iaQuery.data?.ia ?? [];
   const termoBusca = busca.trim().toLocaleLowerCase("pt-BR");
-  const iasVisiveis = ias.filter((item) =>
-    !termoBusca ||
-    [item.nome, item.modelo_logico?.nome, item.modelo_logico?.provider, item.voz?.nome]
-      .some((valor) => String(valor ?? "").toLocaleLowerCase("pt-BR").includes(termoBusca)),
+  const iasVisiveis = ias.filter(
+    (item) =>
+      !termoBusca ||
+      [item.nome, item.modelo_logico?.nome, item.modelo_logico?.provider, item.voz?.nome].some(
+        (valor) =>
+          String(valor ?? "")
+            .toLocaleLowerCase("pt-BR")
+            .includes(termoBusca),
+      ),
   );
-  const vozesVisiveis = voices.filter((item) =>
-    !termoBusca ||
-    [item.nome, item.voice_id, item.modelo?.nome, item.modelo?.provider]
-      .some((valor) => String(valor ?? "").toLocaleLowerCase("pt-BR").includes(termoBusca)),
+  const vozesVisiveis = voices.filter(
+    (item) =>
+      !termoBusca ||
+      [item.nome, item.voice_id, item.modelo?.nome, item.modelo?.provider].some((valor) =>
+        String(valor ?? "")
+          .toLocaleLowerCase("pt-BR")
+          .includes(termoBusca),
+      ),
   );
 
   const logicalModels = models.filter((model) => model.tipo === "Logico");
@@ -429,16 +438,31 @@ function IaPage() {
           <h1 className="flex items-center gap-2 text-xl font-bold">
             <Brain className="h-6 w-6" /> Inteligência Artificial
           </h1>
-          <p className="text-sm text-muted-foreground">Configure as IAs e vozes utilizadas no atendimento.</p>
+          <p className="text-sm text-muted-foreground">
+            Configure as IAs e vozes utilizadas no atendimento.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" aria-label="Atualizar dados" title="Atualizar dados" onClick={refresh} disabled={isFetching}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Atualizar dados"
+            title="Atualizar dados"
+            onClick={refresh}
+            disabled={isFetching}
+          >
             <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
           {activeTab === "vozes" ? (
-            <Button onClick={openNewVoice}><Plus className="mr-2 h-4 w-4" />Nova voz</Button>
+            <Button onClick={openNewVoice}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova voz
+            </Button>
           ) : (
-            <Button onClick={openNewIa}><Plus className="mr-2 h-4 w-4" />Nova IA</Button>
+            <Button onClick={openNewIa}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova IA
+            </Button>
           )}
         </div>
       </div>
@@ -446,19 +470,28 @@ function IaPage() {
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
           <CardContent className="flex items-center justify-between p-4">
-            <div><p className="text-sm text-muted-foreground">Inteligências artificiais</p><p className="text-2xl font-bold">{ias.length}</p></div>
+            <div>
+              <p className="text-sm text-muted-foreground">Inteligências artificiais</p>
+              <p className="text-2xl font-bold">{ias.length}</p>
+            </div>
             <Bot className="h-7 w-7 text-muted-foreground" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center justify-between p-4">
-            <div><p className="text-sm text-muted-foreground">IAs ativas</p><p className="text-2xl font-bold">{totalIasAtivas}</p></div>
+            <div>
+              <p className="text-sm text-muted-foreground">IAs ativas</p>
+              <p className="text-2xl font-bold">{totalIasAtivas}</p>
+            </div>
             <CheckCircle2 className="h-7 w-7 text-green-600" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center justify-between p-4">
-            <div><p className="text-sm text-muted-foreground">Vozes cadastradas</p><p className="text-2xl font-bold">{voices.length}</p></div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vozes cadastradas</p>
+              <p className="text-2xl font-bold">{voices.length}</p>
+            </div>
             <Volume2 className="h-7 w-7 text-muted-foreground" />
           </CardContent>
         </Card>
@@ -466,12 +499,21 @@ function IaPage() {
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => { setActiveTab(value as "vozes" | "ias"); setBusca(""); }}
+        onValueChange={(value) => {
+          setActiveTab(value as "vozes" | "ias");
+          setBusca("");
+        }}
         className="w-full space-y-3"
       >
         <TabsList className="grid w-full max-w-xs grid-cols-2">
-          <TabsTrigger value="ias" className="gap-2"><Bot className="h-4 w-4" />IAs</TabsTrigger>
-          <TabsTrigger value="vozes" className="gap-2"><Volume2 className="h-4 w-4" />Vozes</TabsTrigger>
+          <TabsTrigger value="ias" className="gap-2">
+            <Bot className="h-4 w-4" />
+            IAs
+          </TabsTrigger>
+          <TabsTrigger value="vozes" className="gap-2">
+            <Volume2 className="h-4 w-4" />
+            Vozes
+          </TabsTrigger>
         </TabsList>
 
         {/* =========================
@@ -488,108 +530,120 @@ function IaPage() {
                 </div>
                 <div className="relative w-full sm:w-64">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar IA ou modelo..." className="h-9 pl-9" aria-label="Buscar inteligências artificiais" />
+                  <Input
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar IA ou modelo..."
+                    className="h-9 pl-9"
+                    aria-label="Buscar inteligências artificiais"
+                  />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Modelo lógico</TableHead>
-                  <TableHead>Voz</TableHead>
-                  <TableHead>Confiança</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
+                <Table>
+                  <TableHeader className="bg-muted/40">
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Modelo lógico</TableHead>
+                      <TableHead>Voz</TableHead>
+                      <TableHead>Confiança</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-              <TableBody>
-                {iaQuery.isLoading && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center">
-                      Carregando…
-                    </TableCell>
-                  </TableRow>
-                )}
+                  <TableBody>
+                    {iaQuery.isLoading && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center">
+                          Carregando…
+                        </TableCell>
+                      </TableRow>
+                    )}
 
-                {!iaQuery.isLoading && iasVisiveis.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                      {busca ? "Nenhuma IA corresponde à busca." : "Nenhuma IA cadastrada para este cliente."}
-                    </TableCell>
-                  </TableRow>
-                )}
+                    {!iaQuery.isLoading && iasVisiveis.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                          {busca
+                            ? "Nenhuma IA corresponde à busca."
+                            : "Nenhuma IA cadastrada para este cliente."}
+                        </TableCell>
+                      </TableRow>
+                    )}
 
-                {iasVisiveis.map((ia) => (
-                  <TableRow key={ia.id} className="hover:bg-muted/30">
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Bot className="h-4 w-4 text-muted-foreground" />
+                    {iasVisiveis.map((ia) => (
+                      <TableRow key={ia.id} className="hover:bg-muted/30">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Bot className="h-4 w-4 text-muted-foreground" />
 
-                        <span className="font-medium">{ia.nome}</span>
-                      </div>
-                    </TableCell>
+                            <span className="font-medium">{ia.nome}</span>
+                          </div>
+                        </TableCell>
 
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{ia.modelo_logico.nome}</div>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{ia.modelo_logico.nome}</div>
 
-                        <div className="text-xs text-muted-foreground">
-                          {ia.modelo_logico.provider}
-                        </div>
-                      </div>
-                    </TableCell>
+                            <div className="text-xs text-muted-foreground">
+                              {ia.modelo_logico.provider}
+                            </div>
+                          </div>
+                        </TableCell>
 
-                    <TableCell>
-                      {ia.voz ? (
-                        <div>
-                          <div className="font-medium">{ia.voz.nome}</div>
+                        <TableCell>
+                          {ia.voz ? (
+                            <div>
+                              <div className="font-medium">{ia.voz.nome}</div>
 
-                          <div className="text-xs text-muted-foreground">{ia.modelo_voz.nome}</div>
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
+                              <div className="text-xs text-muted-foreground">
+                                {ia.modelo_voz.nome}
+                              </div>
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
 
-                    <TableCell>{(ia.confianca_minima * 100).toFixed(0)}%</TableCell>
+                        <TableCell>{(ia.confianca_minima * 100).toFixed(0)}%</TableCell>
 
-                    <TableCell>
-                      <Badge variant={ia.ativa ? "default" : "secondary"}>{ia.ativa ? "Ativa" : "Inativa"}</Badge>
-                    </TableCell>
+                        <TableCell>
+                          <Badge variant={ia.ativa ? "default" : "secondary"}>
+                            {ia.ativa ? "Ativa" : "Inativa"}
+                          </Badge>
+                        </TableCell>
 
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setIaForm({
-                            nome: ia.nome,
-                            ia_model_id_logica: String(ia.modelo_logico.id),
-                            ia_voice_id: String(ia.voz?.id ?? ""),
-                            confianca_minima: String(ia.confianca_minima),
-                            tempo_maximo: String(ia.tempo_maximo),
-                            silencio_apos_fala: String(ia.silencio_apos_fala),
-                            ativa: ia.ativa,
-                          });
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setIaForm({
+                                nome: ia.nome,
+                                ia_model_id_logica: String(ia.modelo_logico.id),
+                                ia_voice_id: String(ia.voz?.id ?? ""),
+                                confianca_minima: String(ia.confianca_minima),
+                                tempo_maximo: String(ia.tempo_maximo),
+                                silencio_apos_fala: String(ia.silencio_apos_fala),
+                                ativa: ia.ativa,
+                              });
 
-                          openEditIa(ia);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                              openEditIa(ia);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
 
-                      <Button variant="ghost" size="icon" onClick={() => removeIa(ia)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          <Button variant="ghost" size="icon" onClick={() => removeIa(ia)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
@@ -605,87 +659,97 @@ function IaPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-base">Vozes</CardTitle>
-                  <CardDescription>Vozes disponíveis para as inteligências artificiais.</CardDescription>
+                  <CardDescription>
+                    Vozes disponíveis para as inteligências artificiais.
+                  </CardDescription>
                 </div>
                 <div className="relative w-full sm:w-64">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar voz ou ID..." className="h-9 pl-9" aria-label="Buscar vozes" />
+                  <Input
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar voz ou ID..."
+                    className="h-9 pl-9"
+                    aria-label="Buscar vozes"
+                  />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Modelo</TableHead>
-                  <TableHead>Voice ID</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
+                <Table>
+                  <TableHeader className="bg-muted/40">
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Provider</TableHead>
+                      <TableHead>Modelo</TableHead>
+                      <TableHead>Voice ID</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-              <TableBody>
-                {voicesQuery.isLoading && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-10 text-center">
-                      Carregando…
-                    </TableCell>
-                  </TableRow>
-                )}
+                  <TableBody>
+                    {voicesQuery.isLoading && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-10 text-center">
+                          Carregando…
+                        </TableCell>
+                      </TableRow>
+                    )}
 
-                {!voicesQuery.isLoading && vozesVisiveis.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                      {busca ? "Nenhuma voz corresponde à busca." : "Nenhuma voz cadastrada para este cliente."}
-                    </TableCell>
-                  </TableRow>
-                )}
+                    {!voicesQuery.isLoading && vozesVisiveis.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                          {busca
+                            ? "Nenhuma voz corresponde à busca."
+                            : "Nenhuma voz cadastrada para este cliente."}
+                        </TableCell>
+                      </TableRow>
+                    )}
 
-                {vozesVisiveis.map((voice) => (
-                  <TableRow key={voice.id} className="hover:bg-muted/30">
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    {vozesVisiveis.map((voice) => (
+                      <TableRow key={voice.id} className="hover:bg-muted/30">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Volume2 className="h-4 w-4 text-muted-foreground" />
 
-                        <span className="font-medium">{voice.nome}</span>
-                      </div>
-                    </TableCell>
+                            <span className="font-medium">{voice.nome}</span>
+                          </div>
+                        </TableCell>
 
-                    <TableCell>{voice.modelo.provider}</TableCell>
+                        <TableCell>{voice.modelo.provider}</TableCell>
 
-                    <TableCell>{voice.modelo.nome}</TableCell>
+                        <TableCell>{voice.modelo.nome}</TableCell>
 
-                    <TableCell>
-                      <span className="font-mono text-sm">{voice.voice_id}</span>
-                    </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-sm">{voice.voice_id}</span>
+                        </TableCell>
 
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setVoiceForm({
-                            nome: voice.nome,
-                            voice_id: voice.voice_id,
-                            ia_model_id: String(voice.modelo.id),
-                          });
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setVoiceForm({
+                                nome: voice.nome,
+                                voice_id: voice.voice_id,
+                                ia_model_id: String(voice.modelo.id),
+                              });
 
-                          openEditVoice(voice);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                              openEditVoice(voice);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
 
-                      <Button variant="ghost" size="icon" onClick={() => removeVoice(voice)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          <Button variant="ghost" size="icon" onClick={() => removeVoice(voice)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
@@ -712,7 +776,10 @@ function IaPage() {
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de ia." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Nome</Label>{" "}
+                <FieldHelp text="Nome usado para identificar este registro na página de ia." />
+              </div>
 
               <Input
                 value={voiceForm.nome}
@@ -800,7 +867,10 @@ function IaPage() {
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de ia." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Nome</Label>{" "}
+                <FieldHelp text="Nome usado para identificar este registro na página de ia." />
+              </div>
 
               <Input
                 value={iaForm.nome}
@@ -810,7 +880,10 @@ function IaPage() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5"><Label>Modelo lógico</Label> <FieldHelp text="Modelo de IA responsável pelo processamento e pela tomada de decisão." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Modelo lógico</Label>{" "}
+                <FieldHelp text="Modelo de IA responsável pelo processamento e pela tomada de decisão." />
+              </div>
 
               <Select
                 value={iaForm.ia_model_id_logica}

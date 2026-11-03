@@ -634,11 +634,15 @@ function ClienteIntegracoes() {
                 <div className="grid gap-x-6 gap-y-4 px-4 py-4 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
                   <div className="min-w-0 space-y-1">
                     <p className="text-xs text-muted-foreground">Phone Number ID</p>
-                    <p className="break-all font-mono text-sm font-medium">{item.remetente || "—"}</p>
+                    <p className="break-all font-mono text-sm font-medium">
+                      {item.remetente || "—"}
+                    </p>
                   </div>
                   <div className="min-w-0 space-y-1">
                     <p className="text-xs text-muted-foreground">WABA ID</p>
-                    <p className="break-all font-mono text-sm font-medium">{item.waba_id || "Não configurado"}</p>
+                    <p className="break-all font-mono text-sm font-medium">
+                      {item.waba_id || "Não configurado"}
+                    </p>
                   </div>
                   <div className="min-w-0 space-y-1">
                     <p className="text-xs text-muted-foreground">Template</p>
@@ -658,7 +662,9 @@ function ClienteIntegracoes() {
                     ) : (
                       <ShieldAlert className="h-4 w-4 text-amber-600" />
                     )}
-                    <span>{item.credencial_configurada ? "Token configurado" : "Token não configurado"}</span>
+                    <span>
+                      {item.credencial_configurada ? "Token configurado" : "Token não configurado"}
+                    </span>
                   </div>
                   <div className="hidden h-4 w-px bg-border sm:block" />
                   <div className="flex flex-wrap items-center gap-2">
@@ -679,7 +685,8 @@ function ClienteIntegracoes() {
                 </div>
                 {isAdmin && (item.total_dids ?? (item.dids ?? []).length) > 0 && (
                   <div className="px-4 pb-3 text-xs text-muted-foreground sm:px-5">
-                    Para excluir esta integração, desvincule primeiro os DIDs na página de Roteamento.
+                    Para excluir esta integração, desvincule primeiro os DIDs na página de
+                    Roteamento.
                   </div>
                 )}
               </div>

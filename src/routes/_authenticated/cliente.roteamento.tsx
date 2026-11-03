@@ -4,7 +4,18 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Router as RouterIcon, RefreshCw, Plus, Pencil, Trash2, Search, Phone, GitBranch, MessageCircle, Loader2 } from "lucide-react";
+import {
+  Router as RouterIcon,
+  RefreshCw,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Phone,
+  GitBranch,
+  MessageCircle,
+  Loader2,
+} from "lucide-react";
 import {
   listRoteamento,
   createRoteamento,
@@ -113,12 +124,19 @@ function RoteamentoPage() {
   });
 
   const termo = busca.trim().toLowerCase();
-  const filteredRows = rows.filter((r) =>
-    !termo ||
-    String(r.numero ?? "").toLowerCase().includes(termo) ||
-    String(r.descricao ?? "").toLowerCase().includes(termo) ||
-    getAcaoLabel(r.tipo_destino).toLowerCase().includes(termo) ||
-    String(r.destino ?? "").toLowerCase().includes(termo)
+  const filteredRows = rows.filter(
+    (r) =>
+      !termo ||
+      String(r.numero ?? "")
+        .toLowerCase()
+        .includes(termo) ||
+      String(r.descricao ?? "")
+        .toLowerCase()
+        .includes(termo) ||
+      getAcaoLabel(r.tipo_destino).toLowerCase().includes(termo) ||
+      String(r.destino ?? "")
+        .toLowerCase()
+        .includes(termo),
   );
   const totalIntegrados = rows.filter((r) => r.whatsapp_config_id != null).length;
   const totalTipos = new Set(rows.map((r) => r.tipo_destino)).size;
@@ -130,7 +148,9 @@ function RoteamentoPage() {
           <h1 className="flex items-center gap-2 text-xl font-bold">
             <RouterIcon className="h-6 w-6" /> Roteamento
           </h1>
-          <p className="text-sm text-muted-foreground">Gerencie os números e seus destinos de chamadas.</p>
+          <p className="text-sm text-muted-foreground">
+            Gerencie os números e seus destinos de chamadas.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -182,7 +202,9 @@ function RoteamentoPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle>Números e destinos</CardTitle>
-              <CardDescription>Consulte e gerencie os roteamentos do cliente atual.</CardDescription>
+              <CardDescription>
+                Consulte e gerencie os roteamentos do cliente atual.
+              </CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -229,55 +251,84 @@ function RoteamentoPage() {
                     </TableRow>
                   ) : filteredRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                        {busca ? "Nenhum roteamento encontrado para esta busca." : "Nenhum roteamento cadastrado."}
+                      <TableCell
+                        colSpan={6}
+                        className="py-12 text-center text-sm text-muted-foreground"
+                      >
+                        {busca
+                          ? "Nenhum roteamento encontrado para esta busca."
+                          : "Nenhum roteamento cadastrado."}
                       </TableCell>
                     </TableRow>
-                  ) : filteredRows.map((r) => (
-                    <TableRow key={r.numero} className="hover:bg-muted/30">
-                      <TableCell className="whitespace-nowrap font-mono font-medium">{r.numero}</TableCell>
-                      <TableCell className="max-w-64 truncate" title={r.descricao ?? undefined}>
-                        {r.descricao || <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{getAcaoLabel(r.tipo_destino)}</Badge>
-                      </TableCell>
-                      <TableCell>{renderDestinoLabel(destinos, r.tipo_destino, r.destino)}</TableCell>
-                      <TableCell>
-                        <Badge variant={r.whatsapp_config_id != null ? "default" : "secondary"}>
-                          {r.whatsapp_config_id != null ? "Vinculada" : "Nenhuma"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Editar roteamento" aria-label={`Editar roteamento ${r.numero}`} onClick={() => setEditing(r)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {isAdmin && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Remover roteamento" aria-label={`Remover roteamento ${r.numero}`}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Remover roteamento de {r.numero}?</AlertDialogTitle>
-                                  <AlertDialogDescription>Não remove o número, apenas o roteamento.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction disabled={delMut.isPending} onClick={() => delMut.mutate(r.numero)}>
-                                    {delMut.isPending ? "Removendo…" : "Remover"}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  ) : (
+                    filteredRows.map((r) => (
+                      <TableRow key={r.numero} className="hover:bg-muted/30">
+                        <TableCell className="whitespace-nowrap font-mono font-medium">
+                          {r.numero}
+                        </TableCell>
+                        <TableCell className="max-w-64 truncate" title={r.descricao ?? undefined}>
+                          {r.descricao || <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{getAcaoLabel(r.tipo_destino)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {renderDestinoLabel(destinos, r.tipo_destino, r.destino)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={r.whatsapp_config_id != null ? "default" : "secondary"}>
+                            {r.whatsapp_config_id != null ? "Vinculada" : "Nenhuma"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Editar roteamento"
+                              aria-label={`Editar roteamento ${r.numero}`}
+                              onClick={() => setEditing(r)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {isAdmin && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Remover roteamento"
+                                    aria-label={`Remover roteamento ${r.numero}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Remover roteamento de {r.numero}?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Não remove o número, apenas o roteamento.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      disabled={delMut.isPending}
+                                      onClick={() => delMut.mutate(r.numero)}
+                                    >
+                                      {delMut.isPending ? "Removendo…" : "Remover"}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -389,14 +440,20 @@ function RoteamentoFormDialog({
           className="space-y-3"
         >
           <div className="space-y-2">
-            <div className="flex items-center gap-1.5"><Label>Número *</Label> <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Número *</Label>{" "}
+              <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." />
+            </div>
             <Input
               value={numero}
               onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))}
               placeholder="Ex.: 2733334444"
               disabled={editing && !isAdmin}
             />
-            <div className="flex items-center gap-1.5"><Label>WebHook</Label> <FieldHelp text="Selecione a integração responsável pelas notificações e eventos deste roteamento." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>WebHook</Label>{" "}
+              <FieldHelp text="Selecione a integração responsável pelas notificações e eventos deste roteamento." />
+            </div>
             <Input
               type="number"
               value={whatsConfig ?? ""}
@@ -414,7 +471,10 @@ function RoteamentoFormDialog({
             allow={ACOES_ROTEAMENTO}
           />
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Descrição</Label> <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Descrição</Label>{" "}
+              <FieldHelp text="Texto opcional para facilitar a identificação deste registro no painel." />
+            </div>
             <Input
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}

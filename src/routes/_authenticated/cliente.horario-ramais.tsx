@@ -169,7 +169,9 @@ function Page() {
                   {trimTime(r.hora_inicial)} → {trimTime(r.hora_final)}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className="whitespace-nowrap">{r.membros}</Badge>
+                  <Badge variant="secondary" className="whitespace-nowrap">
+                    {r.membros}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -419,7 +421,10 @@ function HorarioRamalDialog({
           className="space-y-3"
         >
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de horario-ramais." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nome *</Label>{" "}
+              <FieldHelp text="Nome usado para identificar este registro na página de horario-ramais." />
+            </div>
             <Input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
@@ -445,7 +450,10 @@ function HorarioRamalDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Hora inicial *</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Hora inicial *</Label>{" "}
+                <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." />
+              </div>
               <Input
                 type="time"
                 value={horaIni}
@@ -454,7 +462,10 @@ function HorarioRamalDialog({
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Hora final *</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Hora final *</Label>{" "}
+                <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." />
+              </div>
               <Input
                 type="time"
                 value={horaFim}

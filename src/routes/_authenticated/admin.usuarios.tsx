@@ -289,11 +289,16 @@ function EditUserDialog({ user, onDone }: { user: AdminUser; onDone: () => void 
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de usuarios." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nome</Label>{" "}
+              <FieldHelp text="Nome usado para identificar este registro na página de usuarios." />
+            </div>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." />
+            </div>
             <Input
               type="email"
               value={form.email}
@@ -301,7 +306,10 @@ function EditUserDialog({ user, onDone }: { user: AdminUser; onDone: () => void 
             />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>Nova senha (opcional)</Label> <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nova senha (opcional)</Label>{" "}
+              <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." />
+            </div>
             <Input
               type="password"
               value={form.password}
@@ -310,7 +318,10 @@ function EditUserDialog({ user, onDone }: { user: AdminUser; onDone: () => void 
             />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>Perfil</Label> <FieldHelp text="Defina o valor de Perfil para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Perfil</Label>{" "}
+              <FieldHelp text="Defina o valor de Perfil para este registro." />
+            </div>
             <Select
               value={form.role}
               onValueChange={(v) => setForm({ ...form, role: v as "admin" | "cliente" })}
@@ -397,7 +408,11 @@ function TenantCell({
     <div className="flex flex-wrap items-center gap-1">
       {tenants.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
       {tenants.map((t) => (
-        <Badge key={t.tenant_id} variant={t.is_default ? "default" : "secondary"} className="gap-1 whitespace-nowrap">
+        <Badge
+          key={t.tenant_id}
+          variant={t.is_default ? "default" : "secondary"}
+          className="gap-1 whitespace-nowrap"
+        >
           {t.label ? `${t.label} (#${t.tenant_id})` : `#${t.tenant_id}`}
           <button
             type="button"
@@ -423,7 +438,10 @@ function TenantCell({
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <div className="flex items-center gap-1.5"><Label>Cliente</Label> <FieldHelp text="Defina o valor de Cliente para este registro." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Cliente</Label>{" "}
+                <FieldHelp text="Defina o valor de Cliente para este registro." />
+              </div>
               <Select
                 value={tenantId}
                 onValueChange={(value) => {
@@ -519,11 +537,16 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <div className="flex items-center gap-1.5"><Label>Nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de usuarios." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nome</Label>{" "}
+              <FieldHelp text="Nome usado para identificar este registro na página de usuarios." />
+            </div>
             <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." />
+            </div>
             <Input
               type="email"
               value={form.email}
@@ -531,7 +554,10 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>Senha</Label> <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Senha</Label>{" "}
+              <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." />
+            </div>
             <Input
               type="password"
               value={form.password}
@@ -540,7 +566,10 @@ function NewUserDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>Perfil</Label> <FieldHelp text="Defina o valor de Perfil para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Perfil</Label>{" "}
+              <FieldHelp text="Defina o valor de Perfil para este registro." />
+            </div>
             <Select
               value={form.role}
               onValueChange={(v) => setForm({ ...form, role: v as "admin" | "cliente" })}

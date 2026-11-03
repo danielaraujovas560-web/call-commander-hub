@@ -39,6 +39,12 @@ async function resolveTenantId(userId, role, override) {
 // Mantemos o getTenant por compatibilidade se alguma rota legada ainda o chamar diretamente,
 // mas agora ele é seguro e lê o tenant já validado do req.
 function getTenant(req, res) {
+  const debugTenant = getDebugTenant(req);
+
+  if (debugTenant !== null) {
+    return debugTenant;
+  }
+
   if (req.tenantId) return req.tenantId;
 
   const t = Number(req.header("X-Tenant-Id") || req.query?.tenant_id);
@@ -49,6 +55,34 @@ function getTenant(req, res) {
     return null;
   }
   return t;
+}
+
+function getDebugTenant(req) {
+  if (process.env.NODE_ENV !== "development") {
+    return null;
+  }
+
+  if (process.env.ALLOW_DEBUG_TENANT !== "true") {
+    return null;
+  }
+
+  // Esta propriedade deve ser preenchida pelo middleware
+  // após validar um token de teste específico.
+  if (req.auth?.canDebugTenant !== true) {
+    return null;
+  }
+
+  const valor = req.get("X-Debug-Tenant");
+
+  if (valor === undefined) return null;
+
+  const tenant = Number(valor);
+
+  if (!Number.isSafeInteger(tenant) || tenant <= 0) {
+    return null;
+  }
+
+  return tenant;
 }
 
 module.exports = {

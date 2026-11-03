@@ -129,9 +129,9 @@ function AudiosPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold">
-            <Music className="h-6 w-6" /> Áudios
-          </h1>
+            <h1 className="flex items-center gap-2 text-xl font-bold">
+              <Music className="h-6 w-6" /> Áudios
+            </h1>
             <p className="text-sm text-muted-foreground">
               {activeTab === "normal"
                 ? "Prompts, saudações e mensagens ativas deste cliente."
@@ -339,7 +339,10 @@ function AudiosPage() {
               </label>
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Nome de Exibição</Label> <FieldHelp text="Esse é o nome que identificará o áudio no painel." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Nome de Exibição</Label>{" "}
+                <FieldHelp text="Esse é o nome que identificará o áudio no painel." />
+              </div>
               <Input
                 value={uploadName}
                 onChange={(e) => setUploadName(e.target.value)}
@@ -350,7 +353,6 @@ function AudiosPage() {
                     : "Ex: Música Comercial Bossa Nova"
                 }
               />
-              
             </div>
           </div>
           <DialogFooter>
@@ -374,7 +376,10 @@ function AudiosPage() {
             <DialogTitle>Renomear áudio</DialogTitle>
           </DialogHeader>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Novo nome</Label> <FieldHelp text="Nome usado para identificar este registro na página de audios." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Novo nome</Label>{" "}
+              <FieldHelp text="Nome usado para identificar este registro na página de audios." />
+            </div>
             <Input value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={120} />
           </div>
           <DialogFooter>

@@ -172,7 +172,9 @@ function TroncosPage() {
                 <TableCell className="font-mono text-xs">{t.ip ?? "-"}</TableCell>
                 <TableCell className="font-mono">{t.porta ?? "-"}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="whitespace-nowrap">{t.tipo}</Badge>
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {t.tipo}
+                  </Badge>
                 </TableCell>
                 <TableCell className="font-mono">{t.techprefix ?? "-"}</TableCell>
                 <TableCell>{t.registrar === "sim" ? "Sim" : "Não"}</TableCell>
@@ -335,7 +337,10 @@ function TroncoFormDialog({
         >
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de troncos." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Nome *</Label>{" "}
+                <FieldHelp text="Nome usado para identificar este registro na página de troncos." />
+              </div>
               <Input
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
@@ -344,7 +349,9 @@ function TroncoFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Tipo</Label> <FieldHelp text="Defina o valor de Tipo para este registro." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Tipo</Label> <FieldHelp text="Defina o valor de Tipo para este registro." />
+              </div>
               <Select value={form.tipo} onValueChange={(v: any) => setForm({ ...form, tipo: v })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -358,7 +365,10 @@ function TroncoFormDialog({
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2 space-y-1">
-              <div className="flex items-center gap-1.5"><Label>IP / DNS *</Label> <FieldHelp text="Defina o valor de IP / DNS para este registro." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>IP / DNS *</Label>{" "}
+                <FieldHelp text="Defina o valor de IP / DNS para este registro." />
+              </div>
               <Input
                 value={form.ip}
                 onChange={(e) => setForm({ ...form, ip: e.target.value })}
@@ -366,7 +376,10 @@ function TroncoFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Porta</Label> <FieldHelp text="Defina o valor de Porta para este registro." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Porta</Label>{" "}
+                <FieldHelp text="Defina o valor de Porta para este registro." />
+              </div>
               <Input
                 value={form.porta}
                 onChange={(e) => setForm({ ...form, porta: e.target.value })}
@@ -375,7 +388,10 @@ function TroncoFormDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Techprefix (só números)</Label> <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Techprefix (só números)</Label>{" "}
+              <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." />
+            </div>
             <Input
               value={form.techprefix}
               onChange={(e) => setForm({ ...form, techprefix: e.target.value.replace(/\D/g, "") })}
@@ -405,14 +421,20 @@ function TroncoFormDialog({
           {form.registrar && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <div className="flex items-center gap-1.5"><Label>Login</Label> <FieldHelp text="Defina o valor de Login para este registro." /></div>
+                <div className="flex items-center gap-1.5">
+                  <Label>Login</Label>{" "}
+                  <FieldHelp text="Defina o valor de Login para este registro." />
+                </div>
                 <Input
                   value={form.login}
                   onChange={(e) => setForm({ ...form, login: e.target.value })}
                 />
               </div>
               <div className="space-y-1">
-                <div className="flex items-center gap-1.5"><Label>Senha</Label> <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." /></div>
+                <div className="flex items-center gap-1.5">
+                  <Label>Senha</Label>{" "}
+                  <FieldHelp text="Credencial de autenticação. Guarde em local seguro e evite reutilizá-la." />
+                </div>
                 <Input
                   value={form.senha}
                   onChange={(e) => setForm({ ...form, senha: e.target.value })}

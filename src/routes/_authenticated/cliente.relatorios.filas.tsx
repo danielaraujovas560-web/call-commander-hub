@@ -152,7 +152,10 @@ function Page() {
                   <TableCell>{r.display_name}</TableCell>
                   <TableCell>{r.agente}</TableCell>
                   <TableCell>
-                    <Badge variant={r.evento === "AGENTE_ATENDEU" ? "default" : "secondary"} className="whitespace-nowrap">
+                    <Badge
+                      variant={r.evento === "AGENTE_ATENDEU" ? "default" : "secondary"}
+                      className="whitespace-nowrap"
+                    >
                       {getEventLabel(r.evento)}
                     </Badge>
                   </TableCell>

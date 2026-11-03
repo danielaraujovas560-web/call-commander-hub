@@ -222,7 +222,11 @@ function ConfigRow({
         <div className="flex items-center gap-2">
           <p className="font-medium">{title}</p>
 
-          {badge && <Badge variant="secondary" className="whitespace-nowrap">{badge}</Badge>}
+          {badge && (
+            <Badge variant="secondary" className="whitespace-nowrap">
+              {badge}
+            </Badge>
+          )}
         </div>
 
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
@@ -230,7 +234,9 @@ function ConfigRow({
 
       <div className="shrink-0">
         {status === undefined ? (
-          <Badge variant="outline" className="whitespace-nowrap">{value}</Badge>
+          <Badge variant="outline" className="whitespace-nowrap">
+            {value}
+          </Badge>
         ) : status ? (
           <Badge className="gap-1 whitespace-nowrap">
             <CheckCircle2 className="h-3.5 w-3.5" />

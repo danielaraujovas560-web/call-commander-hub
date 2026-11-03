@@ -11,7 +11,7 @@ router.get("/ramais-agenda", async (req, res) => {
     // A autenticação e o tenant já passaram pelo server.js
     if (req.authType !== "ramal") {
       return res.status(403).json({
-        error: "Acesso exclusivo para ramais autenticados"
+        error: "Acesso exclusivo para ramais autenticados",
       });
     }
 
@@ -19,7 +19,7 @@ router.get("/ramais-agenda", async (req, res) => {
 
     if (!Number.isSafeInteger(tenantId) || tenantId <= 0) {
       return res.status(403).json({
-        error: "Tenant inválido"
+        error: "Tenant inválido",
       });
     }
 
@@ -33,21 +33,20 @@ router.get("/ramais-agenda", async (req, res) => {
         AND r.endpoint_id <> ?
         ORDER BY r.nome ASC, r.ramal ASC
       `,
-      [tenantId, req.ramalEndpointId]
+      [tenantId, req.ramalEndpointId],
     );
 
     return res.json({
-      ramais: rows.map(r => ({
+      ramais: rows.map((r) => ({
         ramal: String(r.ramal),
-        nome: String(r.nome || r.ramal)
-      }))
+        nome: String(r.nome || r.ramal),
+      })),
     });
-
   } catch (error) {
     console.error("[RAMAIS-AGENDA]", error);
 
     return res.status(500).json({
-      error: "Falha ao carregar agenda"
+      error: "Falha ao carregar agenda",
     });
   }
 });
@@ -516,23 +515,23 @@ router.post("/ramais/lote", async (req, res) => {
         [webEndpointId, webEndpointId, webAuthId, String(tenant), String(tenant)],
       );
 
-    const mobileEndpointId = `${endpointId}-mobile`;
-    const mobileAuthId = `auth-${mobileEndpointId}`;
+      const mobileEndpointId = `${endpointId}-mobile`;
+      const mobileAuthId = `auth-${mobileEndpointId}`;
 
-    await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [
-      mobileAuthId,
-      mobileEndpointId,
-      senha,
-    ]);
+      await conn.query(`INSERT INTO ps_auths (id, username, password) VALUES (?, ?, ?)`, [
+        mobileAuthId,
+        mobileEndpointId,
+        senha,
+      ]);
 
-    await conn.query(`INSERT INTO ps_aors (id) VALUES (?)`, [mobileEndpointId]);
+      await conn.query(`INSERT INTO ps_aors (id) VALUES (?)`, [mobileEndpointId]);
 
-    await conn.query(
-      `INSERT INTO ps_endpoints (
+      await conn.query(
+        `INSERT INTO ps_endpoints (
           id, transport, aors, auth, context, call_group, pickup_group, webrtc, media_encryption, dtls_auto_generate_cert, ice_support, use_avpf, rtcp_mux
       ) VALUES (?, 'transport-wss', ?, ?, 'Internal-default', ?, ?, 'yes', 'dtls', 'yes', 'yes', 'yes', 'yes')`,
-      [mobileEndpointId, mobileEndpointId, mobileAuthId, String(tenant), String(tenant)],
-    );
+        [mobileEndpointId, mobileEndpointId, mobileAuthId, String(tenant), String(tenant)],
+      );
 
       criados.push({
         ramal,

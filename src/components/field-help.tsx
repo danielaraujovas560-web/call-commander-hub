@@ -1,11 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { HelpCircle } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function FieldHelp({ text, children }: { text?: string; children?: ReactNode }) {
   const [open, setOpen] = useState(false);

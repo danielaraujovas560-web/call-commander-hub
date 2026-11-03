@@ -6,6 +6,7 @@ import { PhoneCall, Headset, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { listCdrRamal } from "@/lib/relatorios.functions";
 import { downloadGravacao } from "@/lib/ramais.functions";
+import { formatarDuracaoCDR } from "@/lib/format";
 import {
   Table,
   TableBody,
@@ -164,9 +165,14 @@ function Page() {
                   <TableCell>{r.tronco || "-"}</TableCell>
                   <TableCell>{r.context}</TableCell>
                   <TableCell>{r.tipo_chamada}</TableCell>
-                  <TableCell className="w-24 font-mono whitespace-nowrap">{r.duracao}</TableCell>
+                  <TableCell className="w-24 font-mono whitespace-nowrap">
+                    {formatarDuracaoCDR(r.duracao)}
+                  </TableCell>
                   <TableCell className="w-40 whitespace-nowrap">
-                    <Badge variant={r.status === "ANSWER" ? "default" : "secondary"} className="whitespace-nowrap">
+                    <Badge
+                      variant={r.status === "ANSWER" ? "default" : "secondary"}
+                      className="whitespace-nowrap"
+                    >
                       {getStatusLabel(r.status)}
                     </Badge>
                   </TableCell>

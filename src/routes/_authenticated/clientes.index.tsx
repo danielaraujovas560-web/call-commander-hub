@@ -160,7 +160,10 @@ function ClientesPage() {
                       onToggle={() => toggleAtivoMut.mutate({ id: c.id, ativo: !c.ativo })}
                     />
                   ) : (
-                    <Badge variant={c.ativo ? "default" : "secondary"} className="whitespace-nowrap">
+                    <Badge
+                      variant={c.ativo ? "default" : "secondary"}
+                      className="whitespace-nowrap"
+                    >
                       {c.ativo ? "Ativo" : "Inativo"}
                     </Badge>
                   )}
@@ -262,7 +265,10 @@ function SettingsClient({ cliente, onDone }: { cliente: Cliente; onDone: () => v
 
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <div className="flex items-center gap-1.5"><Label>Quantidade de ramais</Label> <FieldHelp text="Defina o valor de Quantidade de ramais para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Quantidade de ramais</Label>{" "}
+              <FieldHelp text="Defina o valor de Quantidade de ramais para este registro." />
+            </div>
             <Input
               type="number"
               min="0"
@@ -277,7 +283,10 @@ function SettingsClient({ cliente, onDone }: { cliente: Cliente; onDone: () => v
           </div>
 
           <div>
-            <div className="flex items-center gap-1.5"><Label>Quantidade de filas</Label> <FieldHelp text="Defina o valor de Quantidade de filas para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Quantidade de filas</Label>{" "}
+              <FieldHelp text="Defina o valor de Quantidade de filas para este registro." />
+            </div>
             <Input
               type="number"
               min="0"
@@ -292,7 +301,10 @@ function SettingsClient({ cliente, onDone }: { cliente: Cliente; onDone: () => v
           </div>
 
           <div>
-            <div className="flex items-center gap-1.5"><Label>Quantidade de URAs</Label> <FieldHelp text="Defina o valor de Quantidade de URAs para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Quantidade de URAs</Label>{" "}
+              <FieldHelp text="Defina o valor de Quantidade de URAs para este registro." />
+            </div>
             <Input
               type="number"
               min="0"
@@ -407,14 +419,20 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <div className="flex items-center gap-1.5"><Label>Nome / Razão social</Label> <FieldHelp text="Nome de exibição da empresa nesta configuração." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nome / Razão social</Label>{" "}
+              <FieldHelp text="Nome de exibição da empresa nesta configuração." />
+            </div>
             <Input
               value={form.razao_social}
               onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
             />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>CPF / CNPJ</Label> <FieldHelp text="Defina o valor de CPF / CNPJ para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>CPF / CNPJ</Label>{" "}
+              <FieldHelp text="Defina o valor de CPF / CNPJ para este registro." />
+            </div>
             <Input
               value={form.cnpj}
               onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
@@ -422,7 +440,10 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <div className="flex items-center gap-1.5"><Label>Tenant ID (PABX)</Label> <FieldHelp text="Defina o valor de Tenant ID (PABX) para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Tenant ID (PABX)</Label>{" "}
+              <FieldHelp text="Defina o valor de Tenant ID (PABX) para este registro." />
+            </div>
             <Input
               type="number"
               value={form.tenant_id}
@@ -431,7 +452,9 @@ function NewClienteDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div className="col-span-2">
-            <div className="flex items-center gap-1.5"><Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." />
+            </div>
             <Input
               type="email"
               value={form.email}
@@ -514,18 +537,26 @@ function EditClienteDialog({ cliente, onDone }: { cliente: Cliente; onDone: () =
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <div className="flex items-center gap-1.5"><Label>Nome / Razão social</Label> <FieldHelp text="Nome de exibição da empresa nesta configuração." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nome / Razão social</Label>{" "}
+              <FieldHelp text="Nome de exibição da empresa nesta configuração." />
+            </div>
             <Input
               value={form.razao_social}
               onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
             />
           </div>
           <div className="col-span-2">
-            <div className="flex items-center gap-1.5"><Label>CPF / CNPJ</Label> <FieldHelp text="Defina o valor de CPF / CNPJ para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>CPF / CNPJ</Label>{" "}
+              <FieldHelp text="Defina o valor de CPF / CNPJ para este registro." />
+            </div>
             <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
           </div>
           <div className="col-span-2">
-            <div className="flex items-center gap-1.5"><Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Email</Label> <FieldHelp text="Defina o valor de Email para este registro." />
+            </div>
             <Input
               type="email"
               value={form.email}

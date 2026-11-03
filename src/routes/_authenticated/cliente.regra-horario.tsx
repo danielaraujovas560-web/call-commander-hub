@@ -190,13 +190,17 @@ function Page() {
                   {r.hora_inicial} → {r.hora_final}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="default" className="whitespace-nowrap">{r.acao_dentro}</Badge>{" "}
+                  <Badge variant="default" className="whitespace-nowrap">
+                    {r.acao_dentro}
+                  </Badge>{" "}
                   <span className="text-xs ml-1">
                     {renderDestinoLabel(destinos, r.acao_dentro, r.destino_dentro)}
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className="whitespace-nowrap">{r.acao_fora}</Badge>{" "}
+                  <Badge variant="secondary" className="whitespace-nowrap">
+                    {r.acao_fora}
+                  </Badge>{" "}
                   <span className="text-xs ml-1">
                     {renderDestinoLabel(destinos, r.acao_fora, r.destino_fora)}
                   </span>
@@ -361,7 +365,10 @@ function RegraFormDialog({
           className="space-y-3"
         >
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5"><Label>Nome *</Label> <FieldHelp text="Nome usado para identificar este registro na página de regra-horario." /></div>
+            <div className="flex items-center gap-1.5">
+              <Label>Nome *</Label>{" "}
+              <FieldHelp text="Nome usado para identificar este registro na página de regra-horario." />
+            </div>
             <Input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
@@ -387,7 +394,10 @@ function RegraFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Hora inicial *</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Hora inicial *</Label>{" "}
+                <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." />
+              </div>
               <Input
                 type="time"
                 value={horaIni}
@@ -396,7 +406,10 @@ function RegraFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><Label>Hora final *</Label> <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." /></div>
+              <div className="flex items-center gap-1.5">
+                <Label>Hora final *</Label>{" "}
+                <FieldHelp text="Horário aplicado a esta regra. Confira os dias e o período de funcionamento." />
+              </div>
               <Input
                 type="time"
                 value={horaFim}

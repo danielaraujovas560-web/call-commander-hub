@@ -40,6 +40,7 @@ import { useIsAdmin } from "@/hooks/use-role";
 import { getClienteByTenant } from "@/lib/clientes.functions";
 import { getActiveTenantCookie } from "@/lib/tenant.session"; // Importado para ler o cookie ativo
 import { getConfiguracoes } from "@/lib/configuracoes.functions";
+import { enterprise } from "@/config";
 
 interface NavItem {
   to: string;
@@ -94,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
 
         <main className="flex-1 h-full overflow-auto">
-          <div className="mx-auto max-w-7xl p-6">{children}</div>
+          <div className="mx-auto max-w-[96rem] p-6">{children}</div>
         </main>
       </div>
     </TooltipProvider>
@@ -119,7 +120,7 @@ function MainSidebar({
         <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground">
           <PhoneCall className="h-4 w-4" />
         </div>
-        <span className="font-semibold">PABX Invertus</span>
+        <span className="font-semibold">{enterprise.name}</span>
       </div>
 
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
