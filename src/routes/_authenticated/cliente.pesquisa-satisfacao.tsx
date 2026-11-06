@@ -28,13 +28,15 @@ import {
 } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  ManagementDialogContent as DialogContent,
+  ManagementDialogHeader as DialogHeader,
+  ManagementDialogFooter as DialogFooter,
+} from "@/components/ui/management-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -407,10 +409,10 @@ function PesquisaFormDialog({
               return (
                 <div
                   key={index}
-                  className="flex gap-3 items-start bg-muted/40 p-3 rounded-md border relative"
+                  className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-lg border bg-muted/40 p-3 sm:grid-cols-[5rem_minmax(0,1fr)_5rem_2.25rem] sm:items-end"
                 >
                   <div className="w-20 space-y-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex min-h-10 items-end gap-1.5">
                       <Label className="text-xs">Ordem *</Label>{" "}
                       <FieldHelp text="Defina o valor de Ordem para este registro." />
                     </div>
@@ -426,12 +428,12 @@ function PesquisaFormDialog({
                       }
                       required
                       min={1}
-                      className={`h-8 text-center ${isDuplicated ? "border-destructive focus-visible:ring-destructive bg-destructive/5 text-destructive font-bold" : ""}`}
+                      className={`h-9 text-center ${isDuplicated ? "border-destructive focus-visible:ring-destructive bg-destructive/5 text-destructive font-bold" : ""}`}
                     />
                   </div>
 
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-1.5">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex min-h-10 items-end gap-1.5">
                       <Label className="text-xs">Arquivo de Áudio *</Label>{" "}
                       <FieldHelp text="Áudio ou música reproduzido ao chamador durante esta etapa." />
                     </div>
@@ -439,7 +441,7 @@ function PesquisaFormDialog({
                       value={pergunta.audio}
                       onValueChange={(val) => updatePergunta(index, "audio", val)}
                     >
-                      <SelectTrigger className="h-8">
+                      <SelectTrigger className="h-9 w-full">
                         <SelectValue
                           placeholder={isLoadingAudios ? "Carregando..." : "Selecione o áudio..."}
                         />
@@ -468,7 +470,7 @@ function PesquisaFormDialog({
                   </div>
 
                   <div className="w-20 space-y-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex min-h-10 items-end gap-1.5">
                       <Label className="text-xs">Dígitos Máx. *</Label>{" "}
                       <FieldHelp text="Defina o valor de Dígitos Máx. para este registro." />
                     </div>
@@ -478,7 +480,7 @@ function PesquisaFormDialog({
                       onChange={(e) => updatePergunta(index, "max_digit", Number(e.target.value))}
                       required
                       min={1}
-                      className="h-8"
+                      className="h-9"
                     />
                   </div>
 
@@ -487,7 +489,7 @@ function PesquisaFormDialog({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive mt-5"
+                      className="h-9 w-9 self-end text-destructive"
                       onClick={() => removePergunta(index)}
                     >
                       <Trash2 className="h-4 w-4" />

@@ -63,12 +63,14 @@ import {
 } from "@/components/ui/select";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ManagementDialogContent as DialogContent,
+  ManagementDialogHeader as DialogHeader,
+  ManagementDialogFooter as DialogFooter,
+} from "@/components/ui/management-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 

@@ -31,13 +31,15 @@ import {
 } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  ManagementDialogContent as DialogContent,
+  ManagementDialogHeader as DialogHeader,
+  ManagementDialogFooter as DialogFooter,
+} from "@/components/ui/management-dialog";
 import {
   AlertDialog,
   AlertDialogAction,

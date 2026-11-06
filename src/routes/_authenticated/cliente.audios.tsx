@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ManagementDialogContent as DialogContent,
+  ManagementDialogHeader as DialogHeader,
+  ManagementDialogFooter as DialogFooter,
+} from "@/components/ui/management-dialog";
 import {
   Table,
   TableBody,
