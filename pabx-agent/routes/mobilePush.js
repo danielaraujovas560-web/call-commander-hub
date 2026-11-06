@@ -1,5 +1,4 @@
 const express = require("express");
-const { getMessaging } = require("firebase-admin/messaging");
 const { iniciarFirebase } = require("../services/firebase");
 
 // Compartilhado entre a rota interna de push e o monitor AMI, neste processo Node.
@@ -31,41 +30,138 @@ function createMobilePushRouter({ pool }) {
     next();
   });
 
-  router.put("/devices", async (req, res) => {
-    const tenantId = req.ramalTenantId;
-    const ramal = String(req.ramalEndpointId);
-    const { deviceId, token } = req.body || {};
-    if (typeof deviceId !== "string" || !/^[a-zA-Z0-9._:-]{8,128}$/.test(deviceId))
-      return res.status(400).json({ error: "deviceId inválido" });
-    if (typeof token !== "string" || token.length < 40 || token.length > 512 || /\s/.test(token))
-      return res.status(400).json({ error: "Token FCM inválido" });
-    try {
-      const connection = await pool.getConnection();
-      try {
-        await connection.beginTransaction();
-        await connection.execute(
-          "DELETE FROM softphone_mobile_devices WHERE device_id = ? OR fcm_token = ?",
-          [deviceId, token],
-        );
-        await connection.execute(
-          `INSERT INTO softphone_mobile_devices
-           (tenant_id, ramal, device_id, fcm_token, enabled, last_seen_at)
-           VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
-          [tenantId, ramal, deviceId, token],
-        );
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
-      }
-      return res.json({ ok: true, ramal });
-    } catch (err) {
-      console.error("[FCM] Cadastro:", err.code || err.message);
-      return res.status(500).json({ error: "Falha ao cadastrar dispositivo" });
+
+router.put("/devices", async (req, res) => {
+  const tenantId = req.ramalTenantId;
+  const ramal = String(req.ramalEndpointId);
+
+  const { deviceId, token, brand } = req.body || {};
+
+  if (!["invertus", "alpha"].includes(brand)) {
+    return res.status(400).json({
+      error: "Marca inválida"
+    });
+  }
+
+  if (
+    typeof deviceId !== "string" ||
+    !/^[a-zA-Z0-9._:-]{8,128}$/.test(deviceId)
+  ) {
+    return res.status(400).json({
+      error: "deviceId inválido"
+    });
+  }
+
+  if (
+    typeof token !== "string" ||
+    token.length < 40 ||
+    token.length > 512 ||
+    /\s/.test(token)
+  ) {
+    return res.status(400).json({
+      error: "Token FCM inválido"
+    });
+  }
+
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // Impede que o UPSERT altere outro dispositivo
+    // apenas porque ele já possui o mesmo token.
+    const [tokenExistente] = await connection.execute(
+      `SELECT id, device_id
+       FROM softphone_mobile_devices
+       WHERE fcm_token = ?
+       FOR UPDATE`,
+      [token]
+    );
+
+    if (
+      tokenExistente.length &&
+      tokenExistente[0].device_id !== deviceId
+    ) {
+      await connection.rollback();
+
+      console.warn("[FCM] Conflito de token:", {
+        brand,
+        ramal
+      });
+
+      return res.status(409).json({
+        error: "Token FCM associado a outro dispositivo"
+      });
     }
-  });
+
+    // Cria dispositivo novo ou atualiza o existente.
+    // Preserva o ID quando device_id já existe.
+    await connection.execute(
+      `INSERT INTO softphone_mobile_devices
+       (
+         tenant_id,
+         ramal,
+         device_id,
+         fcm_token,
+         brand,
+         enabled,
+         last_seen_at
+       )
+       VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+       ON DUPLICATE KEY UPDATE
+         tenant_id = VALUES(tenant_id),
+         ramal = VALUES(ramal),
+         fcm_token = VALUES(fcm_token),
+         brand = VALUES(brand),
+         enabled = 1,
+         last_seen_at = CURRENT_TIMESTAMP`,
+      [tenantId, ramal, deviceId, token, brand]
+    );
+
+    const [rows] = await connection.execute(
+      `SELECT id
+       FROM softphone_mobile_devices
+       WHERE device_id = ?`,
+      [deviceId]
+    );
+
+    await connection.commit();
+
+    console.log("[FCM] Dispositivo sincronizado:", {
+      id: rows[0]?.id,
+      tenantId,
+      ramal,
+      brand
+    });
+
+    return res.json({
+      ok: true,
+      ramal,
+      brand
+    });
+
+  } catch (err) {
+    if (connection) {
+      await connection.rollback().catch(() => {});
+    }
+
+    console.error("[FCM] Cadastro:", err.code || err.message);
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        error: "Conflito de identificador ou token FCM"
+      });
+    }
+
+    return res.status(500).json({
+      error: "Falha ao cadastrar dispositivo"
+    });
+
+  } finally {
+    if (connection) connection.release();
+  }
+});
 
   router.delete("/devices/:deviceId", async (req, res) => {
     try {
@@ -84,32 +180,81 @@ function createMobilePushRouter({ pool }) {
 
 async function getDevices(pool, tenantId, ramal) {
   const [devices] = await pool.execute(
-    "SELECT id, fcm_token FROM softphone_mobile_devices WHERE tenant_id = ? AND ramal = ? AND enabled = 1",
+    "SELECT id, fcm_token, brand FROM softphone_mobile_devices WHERE tenant_id = ? AND ramal = ? AND enabled = 1",
     [tenantId, String(ramal)],
   );
   return devices;
 }
 
+
 async function sendToToken(pool, tenantId, device, data, ttl) {
+  const brand = device.brand;
+
   try {
-    const messageId = await getMessaging().send({
+    // Seleciona o Firebase correspondente à marca.
+    const messaging = iniciarFirebase(brand);
+
+    console.log("[FCM] Preparando envio:", {
+      deviceId: device.id,
+      brand,
+      type: data.type,
+    });
+
+    const messageId = await messaging.send({
       token: device.fcm_token,
       data,
-      android: { priority: "high", ttl },
+      android: {
+        priority: "high",
+        ttl,
+      },
     });
-    return { deviceId: device.id, ok: true, messageId };
+
+    console.log("[FCM] Enviado:", {
+      deviceId: device.id,
+      brand,
+      type: data.type,
+      messageId,
+    });
+
+    return {
+      deviceId: device.id,
+      brand,
+      ok: true,
+      messageId,
+    };
+
   } catch (err) {
     const code = err.code || "unknown";
+
+    console.error("[FCM] Falha:", {
+      deviceId: device.id,
+      brand,
+      type: data.type,
+      code,
+      message: err.message,
+    });
+
     if (code === "messaging/registration-token-not-registered") {
-      // Evita desabilitar um token que foi atualizado durante o envio.
-      await pool
-        .execute(
-          "UPDATE softphone_mobile_devices SET enabled = 0 WHERE id = ? AND tenant_id = ? AND fcm_token = ?",
-          [device.id, tenantId, device.fcm_token],
-        )
-        .catch((e) => console.error("[FCM] Falha desabilitando token:", e.message));
+      // Só desabilita o token se ele não foi atualizado
+      // enquanto a mensagem era enviada.
+      await pool.execute(
+        `UPDATE softphone_mobile_devices
+         SET enabled = 0
+         WHERE id = ?
+           AND tenant_id = ?
+           AND fcm_token = ?`,
+        [device.id, tenantId, device.fcm_token]
+      ).catch(e => {
+        console.error("[FCM] Falha desabilitando token:", e.message);
+      });
     }
-    return { deviceId: device.id, ok: false, code };
+
+    return {
+      deviceId: device.id,
+      brand,
+      ok: false,
+      code,
+    };
   }
 }
 
@@ -138,7 +283,6 @@ async function sendIncomingCallToRamal({
   };
   activeCalls.set(key, record);
   const devices = await getDevices(pool, tenantId, ramal);
-  iniciarFirebase();
   const results = [];
   for (const device of devices) {
     if (record.ended || endedCalls.has(key)) break;
@@ -185,7 +329,6 @@ async function cancelIncomingCall({ pool, ramal, callId }) {
   if (!record || record.ended) return { matched: false };
   record.ended = true;
   activeCalls.delete(key);
-  iniciarFirebase();
   const devices = await getDevices(pool, record.tenantId, record.ramal);
   const results = await Promise.all(
     devices.map((device) =>

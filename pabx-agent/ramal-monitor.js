@@ -31,6 +31,18 @@ const clientes = {};
 //-- Ramais em memória para conexão e desconexão --------
 const offlineTimers = new Map();
 
+const presencaVersoes = new Map();
+
+function novaVersaoPresenca(chave) {
+  const versao = (presencaVersoes.get(chave) ?? 0) + 1;
+  presencaVersoes.set(chave, versao);
+  return versao;
+}
+
+function versaoAtual(chave, versao) {
+  return presencaVersoes.get(chave) === versao;
+}
+
 // -- Binas entrada e saída -------
 const extensDiscadas = new Map();
 const binasAtivos = new Map();
@@ -41,9 +53,32 @@ const binasAtivos = new Map();
  * Extrai o endpoint do nome do canal.
  * "PJSIP/19999-000002c1" → "19999"
  */
+function normalizarEndpoint(nome = "") {
+  return String(nome).replace(/-(web|mobile)$/, "");
+}
+
+function tipoDispositivo(nome = "") {
+  if (nome.endsWith("-mobile")) return "mobile";
+  if (nome.endsWith("-web")) return "web";
+  return "base";
+}
+
+function estaOnline(presenca) {
+  return Boolean(
+    presenca?.base ||
+    presenca?.web ||
+    presenca?.mobile
+  );
+}
+
 function extrairEndpoint(nomeCanal = "") {
-  const match = nomeCanal.match(/PJSIP\/([^-]+)/);
-  return match ? match[1] : null;
+  const match = String(nomeCanal).match(
+    /^PJSIP\/(.+)-[0-9a-f]+$/i
+  );
+
+  if (!match) return null;
+
+  return normalizarEndpoint(match[1]);
 }
 
 function garantirPresenca(tenantId, endpointBase) {
@@ -55,6 +90,7 @@ function garantirPresenca(tenantId, endpointBase) {
     presencaRamais[tenantId][endpointBase] = {
       base: false,
       web: false,
+      mobile: false,
     };
   }
 
@@ -83,16 +119,17 @@ async function atualizarDisponibilidadeAgente(tenantId, endpoint) {
 
   const presenca = garantirPresenca(tenantId, endpoint);
 
-  const estado = presenca.base || presenca.web ? "NOT_INUSE" : "UNAVAILABLE";
+  const estado = estaOnline(presenca) ? "NOT_INUSE" : "UNAVAILABLE";
 
   try {
     await setCustomDeviceState(endpoint, estado);
 
-    console.log(
-      `[MONITOR] Custom:${endpoint} -> ${estado} ` +
-        `(base=${presenca.base ? "online" : "offline"}, ` +
-        `web=${presenca.web ? "online" : "offline"})`,
-    );
+  console.log(
+    `[MONITOR] Custom:${endpoint} -> ${estado} ` +
+    `(base=${presenca.base ? "online" : "offline"}, ` +
+    `web=${presenca.web ? "online" : "offline"}, ` +
+    `mobile=${presenca.mobile ? "online" : "offline"})`
+  );
   } catch (err) {
     console.error(`[MONITOR] erro atualizando Custom:${endpoint}:`, err.message || err);
   }
@@ -115,6 +152,15 @@ function publicar(tenantId, tipo, payload) {
 
 function atualizarEstado(tenantId, endpoint, dados) {
   if (!tenantId || !endpoint) return;
+
+  const presenca = presencaRamais[tenantId]?.[endpoint];
+
+  if (!estaOnline(presenca)) {
+    console.log(
+      `[MONITOR] ignorando atualização de ${endpoint}: sem presença online`
+    );
+    return;
+  }
 
   if (!estadoRamais[tenantId]) estadoRamais[tenantId] = {};
 
@@ -182,18 +228,14 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
       if (endpoint.technology !== "PJSIP") continue;
       if (endpoint.state !== "online") continue;
 
-      const endpointBase = nome.replace(/-web$/, "");
+      const endpointBase = normalizarEndpoint(nome);
       const tenantId = ramaisPorEndpoint.get(endpointBase);
 
       if (!tenantId) continue;
 
       const presenca = garantirPresenca(tenantId, endpointBase);
 
-      if (nome.endsWith("-web")) {
-        presenca.web = true;
-      } else {
-        presenca.base = true;
-      }
+      presenca[tipoDispositivo(nome)] = true;
     }
 
     let online = 0;
@@ -205,9 +247,8 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
       const tenantId = row.tenant_id;
 
       const presenca = garantirPresenca(tenantId, endpoint);
-      const estaOnline = presenca.base || presenca.web;
 
-      if (!estaOnline) {
+      if (!estaOnline(presenca)) {
         offline++;
         continue;
       }
@@ -268,140 +309,172 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
 // ─── Registrar eventos ARI + Função ultima conexão no banco ───────────────────────────────────
 function registrarEventos(ariClient, queryFn) {
   // Registro/desregistro do ramal
-  ariClient.on("ContactStatusChange", async (event) => {
-    const endpoint = event.endpoint;
-    if (!endpoint) return;
+ariClient.on("ContactStatusChange", async (event) => {
+  const endpoint = event.endpoint;
 
-    console.log(
-      "[MONITOR] EVENTO ENDPOINT:",
-      endpoint?.resource,
-      endpoint?.technology,
-      endpoint?.state,
-    );
+  if (!endpoint?.resource) return;
+  if (endpoint.technology !== "PJSIP") return;
 
-    const nome = endpoint.resource;
-    if (!nome) return;
+  const nome = endpoint.resource;
+  const endpointBase = normalizarEndpoint(nome);
 
-    if (endpoint.technology !== "PJSIP") return;
-    const endpointBase = nome.replace(/-web$/, "");
+  const tenantId = await resolverTenant(endpointBase, queryFn);
+  if (!tenantId) return;
 
-    const tenantId = await resolverTenant(endpointBase, queryFn);
-    if (!tenantId) return;
+  console.log(
+    `[MONITOR] EVENTO ENDPOINT: ${nome} PJSIP ${endpoint.state}`
+  );
 
-    if (endpoint.state === "online") {
-      const chave = `${tenantId}:${endpointBase}`;
-      const timer = offlineTimers.get(chave);
+  const chave = `${tenantId}:${endpointBase}`;
 
-      if (timer) {
-        clearTimeout(timer);
-        offlineTimers.delete(chave);
+  const versao = novaVersaoPresenca(chave);
+
+  // Cancela a verificação anterior deste ramal lógico.
+  const anterior = offlineTimers.get(chave);
+
+  if (anterior) {
+    clearTimeout(anterior);
+    offlineTimers.delete(chave);
+  }
+
+  // Reconcilia os três dispositivos após estabilizar os eventos.
+  const timer = setTimeout(async () => {
+    offlineTimers.delete(chave);
+
+    try {
+      const endpoints = await ariClient.endpoints.list();
+
+      if (!versaoAtual(chave, versao)) return;
+
+      const dispositivos = {
+        base: false,
+        web: false,
+        mobile: false,
+      };
+
+      for (const item of endpoints) {
+        if (item.technology !== "PJSIP") continue;
+        if (item.state !== "online") continue;
+
+        const nomeAtual = item.resource;
+        if (!nomeAtual) continue;
+
+        if (normalizarEndpoint(nomeAtual) !== endpointBase) {
+          continue;
+        }
+
+        dispositivos[tipoDispositivo(nomeAtual)] = true;
       }
-
-      const [[ramal]] = await queryFn(
-        `SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`,
-        [endpointBase],
-      );
-
-      let registradoDesde = ramal?.registrado_desde;
-
-      if (!registradoDesde) {
-        await queryFn(`UPDATE ramais SET registrado_desde = NOW() WHERE endpoint_id = ?`, [
-          endpointBase,
-        ]);
-        console.log(`[MONITOR] LOGIN ${nome} | registrado_desde preenchido`);
-
-        const [[ramalAtualizado]] = await queryFn(
-          `SELECT registrado_desde FROM ramais WHERE endpoint_id = ? LIMIT 1`,
-          [endpointBase],
-        );
-        registradoDesde = ramalAtualizado?.registrado_desde;
-      }
-
-      console.log("Horario de registro: ", registradoDesde);
-
-      if (!estadoRamais[tenantId]) estadoRamais[tenantId] = {};
 
       const presenca = garantirPresenca(tenantId, endpointBase);
 
-      if (nome.endsWith("-web")) {
-        presenca.web = true;
-      } else {
-        presenca.base = true;
-      }
+      presenca.base = dispositivos.base;
+      presenca.web = dispositivos.web;
+      presenca.mobile = dispositivos.mobile;
 
-      const anterior = estadoRamais[tenantId][endpointBase] ?? {
-        endpoint: endpointBase,
-        state: "IDLE",
-        numero: null,
-        linkedid: null,
-        desde: null,
-        conectadoDesde: registradoDesde,
-      };
+      const online = estaOnline(presenca);
 
-      estadoRamais[tenantId][endpointBase] = {
-        ...anterior,
-        endpoint: endpointBase,
-        conectadoDesde: registradoDesde
-          ? new Date(registradoDesde).toISOString()
-          : anterior.conectadoDesde,
-      };
+      console.log(
+        `[MONITOR] PRESENÇA ${endpointBase}: ` +
+        `base=${presenca.base}, ` +
+        `web=${presenca.web}, ` +
+        `mobile=${presenca.mobile}`
+      );
 
-      await atualizarDisponibilidadeAgente(tenantId, endpointBase);
-
-      publicar(tenantId, "RAMAL_STATUS", {
-        endpoint: endpointBase,
-        ...estadoRamais[tenantId][endpointBase],
-      });
-
-      console.log(`[MONITOR] ramal conectado: ${nome} -> lógico ${endpointBase}`);
-      return;
-    }
-
-    if (endpoint.state === "offline") {
-      const chave = `${tenantId}:${endpointBase}`;
-      if (offlineTimers.has(chave)) return;
-
-      const timer = setTimeout(async () => {
-        offlineTimers.delete(chave);
-
-        const presenca = garantirPresenca(tenantId, endpointBase);
-
-        if (nome.endsWith("-web")) {
-          presenca.web = false;
-        } else {
-          presenca.base = false;
-        }
-
-        const aindaOnline = presenca.base || presenca.web;
-
-        await atualizarDisponibilidadeAgente(tenantId, endpointBase);
-
-        if (aindaOnline) {
-          console.log(`[MONITOR] ${nome} offline, mas ${endpointBase} ainda está online`);
-          return;
-        }
-
-        const ramais = estadoRamais[tenantId] ?? {};
-
-        await queryFn(
-          `UPDATE ramais SET registrado_desde = NULL, ultima_conexao = NOW() WHERE endpoint_id = ?`,
-          [endpointBase],
+      if (online) {
+        const [[ramal]] = await queryFn(
+          `SELECT registrado_desde
+           FROM ramais
+           WHERE tenant_id = ?
+             AND endpoint_id = ?
+           LIMIT 1`,
+          [tenantId, endpointBase]
         );
 
-        delete ramais[endpointBase];
-        delete presencaRamais[tenantId][endpointBase];
+        let registradoDesde = ramal?.registrado_desde;
 
-        await atualizarDisponibilidadeAgente(tenantId, endpointBase);
+        if (!registradoDesde) {
+          await queryFn(
+            `UPDATE ramais
+             SET registrado_desde = NOW()
+             WHERE tenant_id = ?
+               AND endpoint_id = ?`,
+            [tenantId, endpointBase]
+          );
 
-        publicar(tenantId, "RAMAL_REMOVIDO", {
+          const [[atualizado]] = await queryFn(
+            `SELECT registrado_desde
+             FROM ramais
+             WHERE tenant_id = ?
+               AND endpoint_id = ?
+             LIMIT 1`,
+            [tenantId, endpointBase]
+          );
+
+          registradoDesde = atualizado?.registrado_desde;
+        }
+
+        const estadoAnterior =
+          estadoRamais[tenantId]?.[endpointBase] ?? {};
+
+        atualizarEstado(tenantId, endpointBase, {
           endpoint: endpointBase,
+          state: estadoAnterior.state ?? "IDLE",
+          numero: estadoAnterior.numero ?? null,
+          linkedid: estadoAnterior.linkedid ?? null,
+          desde: estadoAnterior.desde ?? null,
+          conectadoDesde: registradoDesde
+            ? new Date(registradoDesde).toISOString()
+            : null,
         });
 
-        console.log(`[MONITOR] desconexão total: ${endpointBase}`);
-      }, 3000);
-      offlineTimers.set(chave, timer);
+        await atualizarDisponibilidadeAgente(
+          tenantId,
+          endpointBase
+        );
+
+        console.log(
+          `[MONITOR] ramal conectado: ${endpointBase}`
+        );
+
+        return;
+      }
+
+      // Nenhum dos três dispositivos está online.
+      await queryFn(
+        `UPDATE ramais
+         SET registrado_desde = NULL,
+             ultima_conexao = NOW()
+         WHERE tenant_id = ?
+           AND endpoint_id = ?
+           AND registrado_desde IS NOT NULL`,
+        [tenantId, endpointBase]
+      );
+
+      delete estadoRamais[tenantId]?.[endpointBase];
+
+      await atualizarDisponibilidadeAgente(
+        tenantId,
+        endpointBase
+      );
+
+      publicar(tenantId, "RAMAL_REMOVIDO", {
+        endpoint: endpointBase,
+      });
+
+      console.log(
+        `[MONITOR] desconexão total: ${endpointBase}`
+      );
+    } catch (err) {
+      console.error(
+        `[MONITOR] erro reconciliando ${endpointBase}:`,
+        err
+      );
     }
-  });
+  }, endpoint.state === "offline" ? 3000 : 500);
+
+  offlineTimers.set(chave, timer);
+});
 
   // Canal criado — ramal iniciou discagem ou está recebendo chamada
   ariClient.on("ChannelCreated", async (event) => {
