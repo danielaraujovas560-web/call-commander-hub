@@ -190,7 +190,7 @@ function RamaisPage() {
               Apagar {selecionados.length || ""} selecionados
             </Button>
           )}
-          <NewRamaisLoteDialog tenantId={tenantId} disabled={atLimit} />
+          <NewRamaisLoteDialog tenantId={tenantId} disabled={atLimit} limite={max} cadastrados={count} />
           <NewRamalDialog tenantId={tenantId} disabled={atLimit} />
         </div>
       </div>
@@ -589,261 +589,130 @@ function NewRamalDialog({ tenantId, disabled }: { tenantId: number; disabled?: b
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button disabled={disabled}>
-          <Plus className="mr-2 h-4 w-4" />
-          Adicionar ramal
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="max-w-lg max-h-[85vh] overflow-y-auto"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            if (!form.ramal) {
-              toast.error("Atenção: insira o número do ramal antes de salvar.");
-              return;
-            }
-            if (!form.ddd) {
-              toast.error("Atenção: insira o DDD do ramal antes de salvar.");
-              return;
-            }
-            if (!form.tronco) {
-              toast.error("Atenção: insira um tronco antes de salvar.");
-              return;
-            }
-            if (form.pesquisa && !form.pesquisa_id) {
-              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-              return;
-            }
-            mut.mutate();
-          }
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>Novo ramal</DialogTitle>
-          <DialogDescription>Criação de um novo ramal.</DialogDescription>
+      <DialogTrigger asChild><Button disabled={disabled}><Plus className="mr-2 h-4 w-4" />Adicionar ramal</Button></DialogTrigger>
+      <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        <DialogHeader className="shrink-0 border-b bg-muted/20 px-6 py-5 pr-12">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
+              <PhoneCall className="h-5 w-5 text-primary" />
+            </div>
+            <div className="space-y-1 text-left">
+              <DialogTitle className="text-lg">Adicionar ramal</DialogTitle>
+              <DialogDescription>Configure um novo ramal e suas permissões de chamada.</DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!form.ramal) {
-              toast.error("Atenção: insira o número do ramal antes de salvar.");
-              return;
-            }
-            if (!form.ddd) {
-              toast.error("Atenção: insira o DDD do ramal antes de salvar.");
-              return;
-            }
-            if (!form.tronco) {
-              toast.error("Atenção: insira um tronco antes de salvar.");
-              return;
-            }
-            if (form.pesquisa && !form.pesquisa_id) {
-              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-              return;
-            }
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (!/^\d{3,6}$/.test(form.ramal)) { toast.error("O ramal deve ter de 3 a 6 dígitos."); return; }
+            if (!form.ddd) { toast.error("Selecione o DDD."); return; }
+            if (!form.tronco) { toast.error("Selecione um tronco."); return; }
+            if (form.pesquisa && !form.pesquisa_id) { toast.error("Selecione uma pesquisa."); return; }
             mut.mutate();
-          }}
-          className="grid grid-cols-2 gap-3"
-        >
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Ramal *</Label>{" "}
-              <FieldHelp text="Selecione ou informe o número do ramal interno do PABX." />
-            </div>
-            <Input
-              value={form.ramal}
-              onChange={(e) => setForm({ ...form, ramal: e.target.value.replace(/\D/g, "") })}
-              required
-              maxLength={6}
-              placeholder="1234"
-            />
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>DDD *</Label>{" "}
-              <FieldHelp text="Código de área (DDD) utilizado nas chamadas deste registro." />
-            </div>
-            <Select value={form.ddd} onValueChange={(value) => setForm({ ...form, ddd: value })}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione o DDD" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
-                  <SelectItem key={ddd} value={ddd}>
-                    {ddd}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="col-span-2 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Nome (opcional — usa nº do ramal se vazio)</Label>{" "}
-              <FieldHelp text="Selecione ou informe o número do ramal interno do PABX." />
-            </div>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-          </div>
-
-          <div className="col-span-2 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Tronco *</Label>{" "}
-              <FieldHelp text="Tronco SIP/PJSIP responsável pelo encaminhamento das chamadas." />
-            </div>
-            <Select
-              value={form.tronco}
-              onValueChange={(v) =>
-                setForm({
-                  ...form,
-                  tronco: v,
-                  transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um tronco" />
-              </SelectTrigger>
-              <SelectContent>
-                {troncos.map((t) => (
-                  <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
-                    {t.nome} {t.tipo ? `(${t.tipo})` : ""}
-                  </SelectItem>
-                ))}
-                {troncos.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    Nenhum tronco encontrado
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="col-span-2 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>CallerID (opcional — qualquer texto)</Label>{" "}
-              <FieldHelp text="Identificação de chamada que será apresentada quando esse recurso originar ligações." />
-            </div>
-            <Input
-              value={form.callerid}
-              onChange={(e) => setForm({ ...form, callerid: e.target.value })}
-              maxLength={32}
-            />
-          </div>
-
-          <div className="col-span-2 w-full flex items-center gap-2 rounded-md border p-3">
-            <Switch
-              checked={form.gravacao}
-              onCheckedChange={(v) => setForm({ ...form, gravacao: v })}
-            />
-            <div>
-              <p className="font-medium">Gravação de chamadas</p>
-              <p className="text-xs text-muted-foreground">
-                Grava automaticamente as chamadas deste ramal.
-              </p>
-            </div>
-          </div>
-
-          <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={form.transbordo}
-                onCheckedChange={(v) =>
-                  setForm({
-                    ...form,
-                    transbordo: v,
-                    transbordo_troncos: v ? form.transbordo_troncos : [],
-                  })
-                }
-              />
-              <div>
-                <p className="font-medium text-sm">Transbordo</p>
-                <p className="text-xs text-muted-foreground">
-                  Encaminha chamadas para troncos de transbordo caso o primeiro falhe
-                </p>
+        }} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Identificação</h3><p className="text-xs text-muted-foreground">Dados básicos e credenciais do ramal.</p></div>
+                <Badge variant="secondary">01</Badge>
               </div>
-            </div>
-            {form.transbordo && (
-              <TransbordoTroncosSelector
-                available={troncosDisponiveisTransbordo}
-                selected={form.transbordo_troncos}
-                onChange={(v) => setForm({ ...form, transbordo_troncos: v })}
-              />
-            )}
-          </div>
-
-          {pesquisaEnabled && (
-            <div className="col-span-2 rounded-md border p-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={form.pesquisa}
-                  onCheckedChange={(v) =>
-                    setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
-                  }
-                />
-                <div>
-                  <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-                  <p className="text-xs text-muted-foreground">
-                    {" "}
-                    Executa uma pesquisa ao finalizar a chamada.
-                  </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5"><Label>Ramal *</Label><Input value={form.ramal} onChange={(e) => setForm({ ...form, ramal: e.target.value.replace(/\D/g, "") })} maxLength={6} inputMode="numeric" placeholder="Ex.: 1000" className="h-10 font-mono" /></div>
+                <div className="space-y-1.5"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Opcional" className="h-10" /></div>
+                
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5"><Label>DDD *</Label><FieldHelp text="Código de área utilizado nas chamadas." /></div>
+                  <Select value={form.ddd} onValueChange={(ddd) => setForm({ ...form, ddd })}>
+                    <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Selecione o DDD" /></SelectTrigger>
+                    <SelectContent>{listaDDDs.map((ddd) => <SelectItem key={ddd} value={ddd}>{ddd}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5"><Label>CallerID</Label><FieldHelp text="Identificação apresentada ao originar chamadas." /></div>
+                  <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} placeholder="Opcional" className="h-10" />
                 </div>
               </div>
-              {form.pesquisa && (
-                <Select
-                  value={form.pesquisa_id?.toString() ?? ""}
-                  onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma pesquisa" />
-                  </SelectTrigger>
+            </section>
 
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Roteamento</h3><p className="text-xs text-muted-foreground">Tronco principal e alternativas de saída.</p></div>
+                <Badge variant="secondary">02</Badge>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5"><Label>Tronco principal *</Label><FieldHelp text="Tronco SIP/PJSIP usado para encaminhar chamadas." /></div>
+                <Select value={form.tronco} onValueChange={(tronco) => setForm({ ...form, tronco, transbordo_troncos: form.transbordo_troncos.filter((t) => t !== tronco) })}>
+                  <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Selecione um tronco" /></SelectTrigger>
                   <SelectContent>
-                    {pesquisas.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {" "}
-                        {p.nome_pesquisa}
-                      </SelectItem>
-                    ))}
-                    {pesquisas.length === 0 && (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        Nenhuma pesquisa encontrada
-                      </div>
-                    )}
+                    {troncos.map((t) => <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>{t.nome} {t.tipo ? `(${t.tipo})` : ""}</SelectItem>)}
+                    {troncos.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco disponível</div>}
                   </SelectContent>
                 </Select>
-              )}
-            </div>
-          )}
+              </div>
+            </section>
 
-          <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
-            <div className="col-span-2 text-xs text-muted-foreground">
-              Ativo = <strong>bloqueia</strong> este tipo de ligação
-            </div>
-            {[
-              ["fixo", "Bloquear fixo"],
-              ["movel", "Bloquear móvel"],
-              ["ddi", "Bloquear DDI"],
-              ["especial", "Bloquear especial"],
-              ["cng", "Bloquear CNG"],
-            ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={form[key as keyof typeof form] as boolean}
-                  onCheckedChange={(v) => setForm({ ...form, [key]: v })}
-                />
-                {label}
-              </label>
-            ))}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Recursos adicionais</h3><p className="text-xs text-muted-foreground">Serviços opcionais deste ramal.</p></div>
+                <Badge variant="secondary">03</Badge>
+              </div>
+              <div className="rounded-lg border p-3.5">
+                <div className="flex items-center justify-between gap-4">
+                  <div><p className="text-sm font-medium">Transbordo</p><p className="text-xs text-muted-foreground">Usar troncos alternativos quando o principal falhar.</p></div>
+                  <Switch checked={form.transbordo} onCheckedChange={(transbordo) => setForm({ ...form, transbordo, transbordo_troncos: transbordo ? form.transbordo_troncos : [] })} />
+                </div>
+                {form.transbordo && <div className="mt-3 border-t pt-3"><TransbordoTroncosSelector available={troncosDisponiveisTransbordo} selected={form.transbordo_troncos} 
+                 onChange={(transbordo_troncos) => setForm({ ...form, transbordo_troncos })} /></div>}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-3.5">
+                  <div><p className="text-sm font-medium">Gravação de chamadas</p><p className="text-xs text-muted-foreground">Gravar automaticamente as ligações.</p></div>
+                  <Switch checked={form.gravacao} onCheckedChange={(gravacao) => setForm({ ...form, gravacao })} />
+                </div>
+                {pesquisaEnabled && <div className="rounded-lg border p-3.5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div><p className="text-sm font-medium">Pesquisa de satisfação</p><p className="text-xs text-muted-foreground">Executar pesquisa após a chamada.</p></div>
+                    <Switch checked={form.pesquisa} onCheckedChange={(pesquisa) => setForm({ ...form, pesquisa, pesquisa_id: pesquisa ? form.pesquisa_id : null })} />
+                  </div>
+                  {form.pesquisa && <div className="mt-3 border-t pt-3">
+                    <Select value={form.pesquisa_id?.toString() ?? ""} onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}>
+                      <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Selecione uma pesquisa" /></SelectTrigger>
+                      <SelectContent>
+                        {pesquisas.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nome_pesquisa}</SelectItem>)}
+                        {pesquisas.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>}
+                      </SelectContent>
+                    </Select>
+                  </div>}
+                </div>}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Restrições de chamadas</h3><p className="text-xs text-muted-foreground">Ative os tipos de ligação que deseja bloquear.</p></div>
+                <Badge variant="secondary">04</Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  ["fixo", "Chamadas para fixo"],
+                  ["movel", "Chamadas para móvel"],
+                  ["ddi", "Chamadas internacionais (DDI)"],
+                  ["especial", "Números especiais"],
+                  ["cng", "Chamadas CNG"],
+                ] as const).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                    <span className="text-sm">{label}</span>
+                    <Switch checked={form[key]} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, [key]: checked }))} />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Chave ativada = tipo de chamada bloqueado.</p>
+            </section>
           </div>
-
-          <DialogFooter className="col-span-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
+          <DialogFooter className="shrink-0 flex-row items-center justify-end gap-2 border-t bg-background px-6 py-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={mut.isPending}>
+              <Plus className="mr-2 h-4 w-4" />
               {mut.isPending ? "Criando..." : "Criar ramal"}
             </Button>
           </DialogFooter>
@@ -956,7 +825,6 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
 
   const initial = () => ({
     nome: ramal.ramal_nome ?? "",
-    senha: ramal.senha ?? "",
     tronco: ramal.tronco != null ? String(ramal.tronco) : "",
     ddd: ramal.ddd ?? "",
     callerid: ramal.callerid ?? "",
@@ -994,7 +862,6 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
           endpoint_id: ramal.endpoint_id,
           tenant_id: tenantId,
           nome: form.nome,
-          senha: form.senha,
           tronco: form.tronco,
           ddd: form.ddd,
           callerid: form.callerid,
@@ -1020,229 +887,127 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Pencil className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="max-w-lg max-h-[85vh] overflow-y-auto"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            if (!form.tronco) {
-              toast.error("Atenção: insira um tronco antes de salvar.");
-              return;
-            }
-            if (form.pesquisa && !form.pesquisa_id) {
-              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-              return;
-            }
-            mut.mutate();
-          }
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>Editar ramal {ramal.ramal}</DialogTitle>
-          <DialogDescription>Edição de um Ramal já existente.</DialogDescription>
+      <DialogTrigger asChild><Button variant="ghost" size="icon" title="Editar ramal"><Pencil className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        <DialogHeader className="shrink-0 border-b bg-muted/20 px-6 py-5 pr-12">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
+              <PhoneCall className="h-5 w-5 text-primary" />
+            </div>
+            <div className="space-y-1 text-left">
+              <DialogTitle className="text-lg">Editar ramal {ramal.ramal}</DialogTitle>
+              <DialogDescription>Atualize as configurações e permissões deste ramal.</DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!form.tronco) {
-              toast.error("Atenção: insira um tronco antes de salvar.");
-              return;
-            }
-            if (form.pesquisa && !form.pesquisa_id) {
-              toast.error("Atenção: selecione uma pesquisa de satisfação antes de salvar.");
-              return;
-            }
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (!form.tronco) { toast.error("Selecione um tronco."); return; }
+            if (form.pesquisa && !form.pesquisa_id) { toast.error("Selecione uma pesquisa."); return; }
             mut.mutate();
-          }}
-          className="grid grid-cols-2 gap-3"
-        >
-          <div className="col-span-2 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Nome</Label>{" "}
-              <FieldHelp text="Nome usado para identificar este registro na página de ramais." />
-            </div>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>DDD</Label>{" "}
-              <FieldHelp text="Código de área (DDD) utilizado nas chamadas deste registro." />
-            </div>
-            <Select value={form.ddd} onValueChange={(value) => setForm({ ...form, ddd: value })}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione o DDD" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
-                  <SelectItem key={ddd} value={ddd}>
-                    {ddd}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>CallerID</Label>{" "}
-              <FieldHelp text="Identificação de chamada que será apresentada quando esse recurso originar ligações." />
-            </div>
-            <Input
-              value={form.callerid}
-              onChange={(e) => setForm({ ...form, callerid: e.target.value })}
-              maxLength={32}
-            />
-          </div>
-          <div className="col-span-2 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Tronco</Label>{" "}
-              <FieldHelp text="Tronco SIP/PJSIP responsável pelo encaminhamento das chamadas." />
-            </div>
-            <Select
-              value={form.tronco}
-              onValueChange={(v) =>
-                setForm({
-                  ...form,
-                  tronco: v,
-                  transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um tronco" />
-              </SelectTrigger>
-              <SelectContent>
-                {troncos.map((t) => (
-                  <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
-                    {t.nome} {t.tipo ? `(${t.tipo})` : ""}
-                  </SelectItem>
-                ))}
-                {troncos.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    Nenhum tronco disponível
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="col-span-2 w-full flex items-center gap-2 rounded-md border p-3">
-            <Switch
-              checked={form.gravacao}
-              onCheckedChange={(v) => setForm({ ...form, gravacao: v })}
-            />
-            <div>
-              <p className="font-medium">Gravação de chamadas</p>
-              <p className="text-xs text-muted-foreground">
-                Grava automaticamente as chamadas deste ramal.
-              </p>
-            </div>
-          </div>
-
-          <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={form.transbordo}
-                onCheckedChange={(v) =>
-                  setForm({
-                    ...form,
-                    transbordo: v,
-                    transbordo_troncos: v ? form.transbordo_troncos : [],
-                  })
-                }
-              />
-              <div>
-                <p className="font-medium text-sm">Transbordo</p>
-                <p className="text-xs text-muted-foreground">
-                  Encaminha chamadas para troncos de transbordo caso o primeiro falhe
-                </p>
+        }} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Identificação</h3><p className="text-xs text-muted-foreground">Dados básicos e credenciais do ramal.</p></div>
+                <Badge variant="secondary">01</Badge>
               </div>
-            </div>
-            {form.transbordo && (
-              <TransbordoTroncosSelector
-                available={troncosDisponiveisTransbordo}
-                selected={form.transbordo_troncos}
-                onChange={(v) => setForm({ ...form, transbordo_troncos: v })}
-              />
-            )}
-          </div>
-
-          {pesquisaEnabled && (
-            <div className="col-span-2 rounded-md border p-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={form.pesquisa}
-                  onCheckedChange={(v) =>
-                    setForm({ ...form, pesquisa: v, pesquisa_id: v ? form.pesquisa_id : null })
-                  }
-                />
-                <div>
-                  <p className="font-medium text-sm"> Pesquisa de satisfação </p>
-                  <p className="text-xs text-muted-foreground">
-                    {" "}
-                    Executa uma pesquisa ao finalizar a chamada.
-                  </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5"><Label>Número do ramal</Label><Input value={ramal.ramal} disabled className="h-10 font-mono" /></div>
+                <div className="space-y-1.5"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Opcional" className="h-10" /></div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5"><Label>DDD </Label><FieldHelp text="Código de área utilizado nas chamadas." /></div>
+                  <Select value={form.ddd} onValueChange={(ddd) => setForm({ ...form, ddd })}>
+                    <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Selecione o DDD" /></SelectTrigger>
+                    <SelectContent>{listaDDDs.map((ddd) => <SelectItem key={ddd} value={ddd}>{ddd}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5"><Label>CallerID</Label><FieldHelp text="Identificação apresentada ao originar chamadas." /></div>
+                  <Input value={form.callerid} onChange={(e) => setForm({ ...form, callerid: e.target.value })} maxLength={32} placeholder="Opcional" className="h-10" />
                 </div>
               </div>
-              {form.pesquisa && (
-                <Select
-                  value={form.pesquisa_id?.toString() ?? ""}
-                  onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma pesquisa" />
-                  </SelectTrigger>
+            </section>
 
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Roteamento</h3><p className="text-xs text-muted-foreground">Tronco principal e alternativas de saída.</p></div>
+                <Badge variant="secondary">02</Badge>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5"><Label>Tronco principal *</Label><FieldHelp text="Tronco SIP/PJSIP usado para encaminhar chamadas." /></div>
+                <Select value={form.tronco} onValueChange={(tronco) => setForm({ ...form, tronco, transbordo_troncos: form.transbordo_troncos.filter((t) => t !== tronco) })}>
+                  <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Selecione um tronco" /></SelectTrigger>
                   <SelectContent>
-                    {pesquisas.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {" "}
-                        {p.nome_pesquisa}
-                      </SelectItem>
-                    ))}
-                    {pesquisas.length === 0 && (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        Nenhuma pesquisa encontrada
-                      </div>
-                    )}
+                    {troncos.map((t) => <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>{t.nome} {t.tipo ? `(${t.tipo})` : ""}</SelectItem>)}
+                    {troncos.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum tronco disponível</div>}
                   </SelectContent>
                 </Select>
-              )}
-            </div>
-          )}
+              </div>
+            </section>
 
-          <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
-            <div className="col-span-2 text-xs text-muted-foreground">
-              Ativo = bloqueia esse tipo de chamada
-            </div>
-            {[
-              ["fixo", "Bloquear fixo"],
-              ["movel", "Bloquear móvel"],
-              ["ddi", "Bloquear DDI"],
-              ["especial", "Bloquear especial"],
-              ["cng", "Bloquear CNG"],
-            ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={form[key as keyof typeof form] as boolean}
-                  onCheckedChange={(v) => setForm({ ...form, [key]: v })}
-                />
-                {label}
-              </label>
-            ))}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Recursos adicionais</h3><p className="text-xs text-muted-foreground">Serviços opcionais deste ramal.</p></div>
+                <Badge variant="secondary">03</Badge>
+              </div>
+              <div className="rounded-lg border p-3.5">
+                <div className="flex items-center justify-between gap-4">
+                  <div><p className="text-sm font-medium">Transbordo</p><p className="text-xs text-muted-foreground">Usar troncos alternativos quando o principal falhar.</p></div>
+                  <Switch checked={form.transbordo} onCheckedChange={(transbordo) => setForm({ ...form, transbordo, transbordo_troncos: transbordo ? form.transbordo_troncos : [] })} />
+                </div>
+                {form.transbordo && <div className="mt-3 border-t pt-3"><TransbordoTroncosSelector available={troncosDisponiveisTransbordo} selected={form.transbordo_troncos} onChange={(transbordo_troncos) => setForm({ ...form, transbordo_troncos })} /></div>}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-3.5">
+                  <div><p className="text-sm font-medium">Gravação de chamadas</p><p className="text-xs text-muted-foreground">Gravar automaticamente as ligações.</p></div>
+                  <Switch checked={form.gravacao} onCheckedChange={(gravacao) => setForm({ ...form, gravacao })} />
+                </div>
+                {pesquisaEnabled && <div className="rounded-lg border p-3.5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div><p className="text-sm font-medium">Pesquisa de satisfação</p><p className="text-xs text-muted-foreground">Executar pesquisa após a chamada.</p></div>
+                    <Switch checked={form.pesquisa} onCheckedChange={(pesquisa) => setForm({ ...form, pesquisa, pesquisa_id: pesquisa ? form.pesquisa_id : null })} />
+                  </div>
+                  {form.pesquisa && <div className="mt-3 border-t pt-3">
+                    <Select value={form.pesquisa_id?.toString() ?? ""} onValueChange={(v) => setForm({ ...form, pesquisa_id: Number(v) })}>
+                      <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Selecione uma pesquisa" /></SelectTrigger>
+                      <SelectContent>
+                        {pesquisas.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nome_pesquisa}</SelectItem>)}
+                        {pesquisas.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma pesquisa encontrada</div>}
+                      </SelectContent>
+                    </Select>
+                  </div>}
+                </div>}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div><h3 className="text-sm font-semibold">Restrições de chamadas</h3><p className="text-xs text-muted-foreground">Ative os tipos de ligação que deseja bloquear.</p></div>
+                <Badge variant="secondary">04</Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  ["fixo", "Chamadas para fixo"],
+                  ["movel", "Chamadas para móvel"],
+                  ["ddi", "Chamadas internacionais (DDI)"],
+                  ["especial", "Números especiais"],
+                  ["cng", "Chamadas CNG"],
+                ] as const).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                    <span className="text-sm">{label}</span>
+                    <Switch checked={form[key]} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, [key]: checked }))} />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Chave ativada = tipo de chamada bloqueado.</p>
+            </section>
           </div>
-
-          <DialogFooter className="col-span-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
+          <DialogFooter className="shrink-0 flex-row items-center justify-end gap-2 border-t bg-background px-6 py-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={mut.isPending}>
-              {mut.isPending ? "Salvando..." : "Salvar"}
+              <Pencil className="mr-2 h-4 w-4" />
+              {mut.isPending ? "Salvando..." : "Salvar alterações"}
             </Button>
           </DialogFooter>
         </form>
@@ -1251,7 +1016,7 @@ function EditRamalDialog({ tenantId, ramal }: { tenantId: number; ramal: Ramal }
   );
 }
 
-function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disabled?: boolean }) {
+function NewRamaisLoteDialog({ tenantId, disabled, limite, cadastrados }: { tenantId: number; disabled?: boolean, limite: number; cadastrados: number; }) {
   const [open, setOpen] = useState(false);
 
   const troncosFn = useServerFn(listTroncos);
@@ -1317,6 +1082,15 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
 
   const ramalInicial = Number(form.ramal_inicial);
   const quantidade = Number(form.quantidade);
+
+  const limiteAtivo = limite > 0;
+  const disponiveis = limiteAtivo
+    ? Math.max(0, limite - cadastrados)
+    : 1000;
+
+  const excedeLimite =
+    limiteAtivo &&
+    quantidade > disponiveis;
 
   const faixaValida =
     Number.isInteger(ramalInicial) &&
@@ -1396,6 +1170,19 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
       return false;
     }
 
+    if (!Number.isInteger(quantidade) || quantidade > 1000) {
+      toast.error("A quantidade deve estar entre 1 e 1000 ramais.");
+      return false;
+    }
+
+    if (excedeLimite) {
+      toast.error(
+        `Limite excedido! Este cliente possui apenas ${disponiveis} ` +
+        `${disponiveis === 1 ? "ramal disponível" : "ramais disponíveis"}.`
+      );
+      return false;
+    }
+
     if (!form.ddd) {
       toast.error("Atenção: insira o DDD dos ramais.");
       return false;
@@ -1453,293 +1240,360 @@ function NewRamaisLoteDialog({ tenantId, disabled }: { tenantId: number; disable
         </Button>
       </DialogTrigger>
 
-      <DialogContent
-        className="max-w-lg max-h-[85vh] overflow-y-auto"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            handleSubmit();
-          }
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>Adicionar ramais em lote</DialogTitle>
-          <DialogDescription>
-            Crie vários ramais de uma vez usando a mesma configuração.
-          </DialogDescription>
+      <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        <DialogHeader className="shrink-0 border-b bg-muted/20 px-6 py-5 pr-12">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
+              <UsersRound className="h-5 w-5 text-primary" />
+            </div>
+            <div className="space-y-1 text-left">
+              <DialogTitle className="text-lg">Adicionar ramais em lote</DialogTitle>
+              <DialogDescription>
+                Configure a faixa e as opções que serão aplicadas a todos os ramais.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Número inicial *</Label>{" "}
-              <FieldHelp text="Número utilizado nesta configuração. Confira o formato antes de salvar." />
-            </div>
-            <Input
-              value={form.ramal_inicial}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  ramal_inicial: e.target.value.replace(/\D/g, ""),
-                })
-              }
-              maxLength={6}
-              placeholder="1000"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Quantidade *</Label>{" "}
-              <FieldHelp text="Defina o valor de Quantidade para este registro." />
-            </div>
-            <Input
-              type="number"
-              min={1}
-              value={form.quantidade}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  quantidade: e.target.value.replace(/\D/g, ""),
-                })
-              }
-              placeholder="10"
-            />
-          </div>
-
-          {faixaValida && ultimoRamal !== null && (
-            <div className="col-span-2 rounded-md border bg-muted/40 p-3">
-              <p className="text-sm font-medium">
-                Serão criados {quantidade} {quantidade === 1 ? "ramal" : "ramais"}
-              </p>
-
-              <p className="text-xs text-muted-foreground mt-1">
-                Faixa:{" "}
-                <span className="font-mono">
-                  {ramalInicial} até {ultimoRamal}
-                </span>
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>DDD *</Label>{" "}
-              <FieldHelp text="Código de área (DDD) utilizado nas chamadas deste registro." />
-            </div>
-            <Select
-              value={form.ddd}
-              onValueChange={(value) =>
-                setForm({
-                  ...form,
-                  ddd: value,
-                })
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione o DDD" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {Array.from({ length: 89 }, (_, i) => String(i + 11)).map((ddd) => (
-                  <SelectItem key={ddd} value={ddd}>
-                    {ddd}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="col-span-2 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>Tronco *</Label>{" "}
-              <FieldHelp text="Tronco SIP/PJSIP responsável pelo encaminhamento das chamadas." />
-            </div>
-
-            <Select
-              value={form.tronco}
-              onValueChange={(v) =>
-                setForm({
-                  ...form,
-                  tronco: v,
-                  transbordo_troncos: form.transbordo_troncos.filter((tronco) => tronco !== v),
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um tronco" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {troncos.map((t) => (
-                  <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
-                    {t.nome} {t.tipo ? `(${t.tipo})` : ""}
-                  </SelectItem>
-                ))}
-
-                {troncos.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    Nenhum tronco encontrado
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="col-span-2 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <Label>CallerID</Label>{" "}
-              <FieldHelp text="Identificação de chamada que será apresentada quando esse recurso originar ligações." />
-            </div>
-
-            <Input
-              value={form.callerid}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  callerid: e.target.value,
-                })
-              }
-              maxLength={32}
-              placeholder="Opcional"
-            />
-          </div>
-
-          <div className="col-span-2 flex items-center gap-2 rounded-md border p-3">
-            <Switch
-              checked={form.gravacao}
-              onCheckedChange={(v) =>
-                setForm({
-                  ...form,
-                  gravacao: v,
-                })
-              }
-            />
-
-            <div>
-              <p className="font-medium">Gravação de chamadas</p>
-              <p className="text-xs text-muted-foreground">
-                Aplica esta configuração a todos os ramais criados.
-              </p>
-            </div>
-          </div>
-
-          <div className="col-span-2 rounded-md border p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch
-                checked={form.transbordo}
-                onCheckedChange={(v) =>
-                  setForm({
-                    ...form,
-                    transbordo: v,
-                    transbordo_troncos: v ? form.transbordo_troncos : [],
-                  })
-                }
-              />
-
-              <div>
-                <p className="font-medium">Transbordo</p>
-                <p className="text-xs text-muted-foreground">
-                  Configuração aplicada a todos os ramais.
+            {/* Resumo da capacidade */}
+            <div className="grid grid-cols-3 gap-2 rounded-xl border bg-muted/20 p-3 sm:gap-3">
+              <div className="rounded-lg bg-background p-3 text-center shadow-sm">
+                <p className="text-[11px] text-muted-foreground">Cadastrados</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{cadastrados}</p>
+              </div>
+              <div className="rounded-lg bg-background p-3 text-center shadow-sm">
+                <p className="text-[11px] text-muted-foreground">Limite</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">
+                  {limiteAtivo ? limite : "—"}
                 </p>
               </div>
-            </div>
-
-            {form.transbordo && (
-              <TransbordoTroncosSelector
-                available={troncosDisponiveisTransbordo}
-                selected={form.transbordo_troncos}
-                onChange={(v) =>
-                  setForm({
-                    ...form,
-                    transbordo_troncos: v,
-                  })
-                }
-              />
-            )}
-          </div>
-
-          {pesquisaEnabled && (
-            <div className="col-span-2 rounded-md border p-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={form.pesquisa}
-                  onCheckedChange={(v) =>
-                    setForm({
-                      ...form,
-                      pesquisa: v,
-                      pesquisa_id: v ? form.pesquisa_id : null,
-                    })
-                  }
-                />
-
-                <div>
-                  <p className="font-medium">Pesquisa de satisfação</p>
-                  <p className="text-xs text-muted-foreground">
-                    Configuração aplicada a todos os ramais.
-                  </p>
-                </div>
+              <div className="rounded-lg bg-background p-3 text-center shadow-sm">
+                <p className="text-[11px] text-muted-foreground">Disponíveis</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">
+                  {limiteAtivo ? disponiveis : "Sem limite"}
+                </p>
               </div>
-
-              {form.pesquisa && (
-                <Select
-                  value={form.pesquisa_id?.toString() ?? ""}
-                  onValueChange={(v) =>
-                    setForm({
-                      ...form,
-                      pesquisa_id: Number(v),
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma pesquisa" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {pesquisas.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.nome_pesquisa}
-                      </SelectItem>
-                    ))}
-
-                    {pesquisas.length === 0 && (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        Nenhuma pesquisa encontrada
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
+              {limiteAtivo && (
+                <div className="col-span-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${Math.min(100, (cadastrados / limite) * 100)}%` }}
+                  />
+                </div>
               )}
             </div>
-          )}
 
-          <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border p-3">
-            <div className="col-span-2 text-xs text-muted-foreground">
-              Ativo = bloqueia esse tipo de chamada
-            </div>
-            {[
-              ["fixo", "Bloquear fixo"],
-              ["movel", "Bloquear móvel"],
-              ["ddi", "Bloquear DDI"],
-              ["especial", "Bloquear especial"],
-              ["cng", "Bloquear CNG"],
-            ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={form[key as keyof typeof form] as boolean}
-                  onCheckedChange={(v) => setForm({ ...form, [key]: v })}
-                />
-                {label}
-              </label>
-            ))}
+            {/* Seção 1 */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Faixa de ramais</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Defina o primeiro número e a quantidade de ramais.
+                  </p>
+                </div>
+                <Badge variant="secondary">01</Badge>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label>Número inicial *</Label>
+                    <FieldHelp text="Número do primeiro ramal a ser criado (3 a 6 dígitos)." />
+                  </div>
+                  <Input
+                    value={form.ramal_inicial}
+                    onChange={(e) =>
+                      setForm({ ...form, ramal_inicial: e.target.value.replace(/\D/g, "") })
+                    }
+                    maxLength={6}
+                    inputMode="numeric"
+                    placeholder="Ex.: 1000"
+                    className="h-10 font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label>Quantidade *</Label>
+                    <FieldHelp text="Quantidade de ramais a criar. Máximo de 1000 por operação e limitado à cota disponível." />
+                  </div>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={Math.min(1000, disponiveis)}
+                    value={form.quantidade}
+                    onChange={(e) =>
+                      setForm({ ...form, quantidade: e.target.value.replace(/\D/g, "") })
+                    }
+                    placeholder="Ex.: 10"
+                    className="h-10"
+                  />
+                </div>
+              </div>
+              {excedeLimite && (
+                <p className="text-xs font-medium text-destructive">
+                  Quantidade acima da cota: apenas {disponiveis} ramais disponíveis.
+                </p>
+              )}
+              {faixaValida && ultimoRamal !== null && (
+                <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 ${
+                  excedeLimite || ultimoRamal > 999999 ? "border-destructive/40 bg-destructive/5" : "bg-muted/30"
+                }`}>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Prévia da numeração</p>
+                    <p className="mt-1 font-mono text-sm font-semibold">
+                      {form.ramal_inicial} <span className="px-2 text-muted-foreground">até</span> {ultimoRamal}
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {quantidade} {quantidade === 1 ? "ramal" : "ramais"}
+                  </Badge>
+                </div>
+              )}
+            </section>
+
+            {/* Seção 2 */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Configuração de telefonia</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Roteamento e identificação de chamadas.
+                  </p>
+                </div>
+                <Badge variant="secondary">02</Badge>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label>DDD *</Label>
+                    <FieldHelp text="Código de área utilizado pelos ramais." />
+                  </div>
+                  <Select value={form.ddd} onValueChange={(ddd) => setForm({ ...form, ddd })}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Selecione o DDD" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {listaDDDs.map((ddd) => (
+                        <SelectItem key={ddd} value={ddd}>{ddd}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label>CallerID</Label>
+                    <FieldHelp text="Identificação apresentada nas chamadas originadas." />
+                  </div>
+                  <Input
+                    className="h-10"
+                    value={form.callerid}
+                    onChange={(e) => setForm({ ...form, callerid: e.target.value })}
+                    maxLength={32}
+                    placeholder="Opcional"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <div className="flex items-center gap-1.5">
+                    <Label>Tronco principal *</Label>
+                    <FieldHelp text="Tronco SIP/PJSIP responsável pelo encaminhamento das chamadas." />
+                  </div>
+                  <Select
+                    value={form.tronco}
+                    onValueChange={(tronco) =>
+                      setForm({
+                        ...form,
+                        tronco,
+                        transbordo_troncos: form.transbordo_troncos.filter((item) => item !== tronco),
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Selecione um tronco" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {troncos.map((t) => (
+                        <SelectItem key={t.tronco_pjsip} value={t.tronco_pjsip}>
+                          {t.nome} {t.tipo ? `(${t.tipo})` : ""}
+                        </SelectItem>
+                      ))}
+                      {troncos.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          Nenhum tronco encontrado
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </section>
+
+            {/* Seção 3 */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Recursos adicionais</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Ative os recursos opcionais para todos os novos ramais.
+                  </p>
+                </div>
+                <Badge variant="secondary">03</Badge>
+              </div>
+              <div className="space-y-2">
+                <div className="rounded-lg border p-3.5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium">Gravação de chamadas</p>
+                      <p className="text-xs text-muted-foreground">
+                        Gravar automaticamente as chamadas dos novos ramais.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.gravacao}
+                      onCheckedChange={(gravacao) => setForm({ ...form, gravacao })}
+                    />
+                  </div>
+                </div>
+                <div className="rounded-lg border p-3.5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium">Transbordo</p>
+                      <p className="text-xs text-muted-foreground">
+                        Encaminhar chamadas por outros troncos quando necessário.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.transbordo}
+                      onCheckedChange={(transbordo) =>
+                        setForm({
+                          ...form,
+                          transbordo,
+                          transbordo_troncos: transbordo ? form.transbordo_troncos : [],
+                        })
+                      }
+                    />
+                  </div>
+                  {form.transbordo && (
+                    <div className="mt-3 border-t pt-3">
+                      <TransbordoTroncosSelector
+                        available={troncosDisponiveisTransbordo}
+                        selected={form.transbordo_troncos}
+                        onChange={(transbordo_troncos) =>
+                          setForm({ ...form, transbordo_troncos })
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+                {pesquisaEnabled && (
+                  <div className="rounded-lg border p-3.5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium">Pesquisa de satisfação</p>
+                        <p className="text-xs text-muted-foreground">
+                          Executar pesquisa ao finalizar a chamada.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={form.pesquisa}
+                        onCheckedChange={(pesquisa) =>
+                          setForm({
+                            ...form,
+                            pesquisa,
+                            pesquisa_id: pesquisa ? form.pesquisa_id : null,
+                          })
+                        }
+                      />
+                    </div>
+                    {form.pesquisa && (
+                      <div className="mt-3 border-t pt-3">
+                        <Select
+                          value={form.pesquisa_id?.toString() ?? ""}
+                          onValueChange={(value) =>
+                            setForm({ ...form, pesquisa_id: Number(value) })
+                          }
+                        >
+                          <SelectTrigger className="h-10 w-full">
+                            <SelectValue placeholder="Selecione uma pesquisa" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {pesquisas.map((p) => (
+                              <SelectItem key={p.id} value={String(p.id)}>
+                                {p.nome_pesquisa}
+                              </SelectItem>
+                            ))}
+                            {pesquisas.length === 0 && (
+                              <div className="px-3 py-2 text-sm text-muted-foreground">
+                                Nenhuma pesquisa encontrada
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Seção 4 */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Restrições de chamadas</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Ative apenas os tipos de ligação que deseja bloquear.
+                  </p>
+                </div>
+                <Badge variant="secondary">04</Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  ["fixo", "Chamadas para fixo"],
+                  ["movel", "Chamadas para móvel"],
+                  ["ddi", "Chamadas internacionais (DDI)"],
+                  ["especial", "Números especiais"],
+                  ["cng", "Chamadas CNG"],
+                ] as const).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                    <span className="text-sm">{label}</span>
+                    <Switch
+                      checked={form[key]}
+                      onCheckedChange={(checked) =>
+                        setForm((prev) => ({ ...prev, [key]: checked }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Chave ativada = tipo de chamada bloqueado.
+              </p>
+            </section>
           </div>
 
-          <DialogFooter className="col-span-2">
+          <DialogFooter className="shrink-0 flex-row items-center justify-end gap-2 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-
-            <Button type="submit" disabled={createLoteMutation.isPending}>
+            <Button
+              type="submit"
+              disabled={
+                createLoteMutation.isPending ||
+                !faixaValida ||
+                form.ramal_inicial.length < 3 ||
+                ultimoRamal === null ||
+                ultimoRamal > 999999 ||
+                !form.ddd ||
+                !form.tronco ||
+                (form.pesquisa && !form.pesquisa_id) ||
+                excedeLimite ||
+                quantidade > 1000
+              }
+            >
+              <UsersRound className="mr-2 h-4 w-4" />
               {createLoteMutation.isPending
                 ? "Criando..."
                 : `Criar ${faixaValida ? quantidade : ""} ${quantidade === 1 ? "ramal" : "ramais"}`}
