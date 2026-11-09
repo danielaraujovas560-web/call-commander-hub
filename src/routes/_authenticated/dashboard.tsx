@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listClientes } from "@/lib/clientes.functions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useIsAdmin } from "@/hooks/use-role";
-import { Mail, Phone, User, Clock, Star, GitBranch, PhoneCall, MessageCircle } from "lucide-react";
+import { Mail, Phone, User, Clock, Star, GitBranch, PhoneCall, MessageCircle, Brain } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DailyCallSummary } from "@/components/dashboard/DailyCallSummary";
 import { enterprise, formatPhone } from "@/config";
@@ -158,7 +158,7 @@ function Dashboard() {
                 <div className="rounded-md bg-primary/10 p-2 text-primary">
                   <Phone className="h-4 w-4" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">Ramais, filas e URAs</p>
                   <p className="text-xs text-muted-foreground">
                     Criação e gerenciamento dos recursos de telefonia.
@@ -170,7 +170,7 @@ function Dashboard() {
                 <div className="rounded-md bg-primary/10 p-2 text-primary">
                   <Clock className="h-4 w-4" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">Horário de atendimento</p>
                   <p className="text-xs text-muted-foreground">
                     Modelo personalizado para regras de atendimento.
@@ -182,7 +182,7 @@ function Dashboard() {
                 <div className="rounded-md bg-primary/10 p-2 text-primary">
                   <Star className="h-4 w-4" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">Pesquisa de satisfação</p>
                   <p className="text-xs text-muted-foreground">
                     Pesquisas de satisfação ativas e receptivas.
@@ -194,7 +194,7 @@ function Dashboard() {
                 <div className="rounded-md bg-primary/10 p-2 text-primary">
                   <GitBranch className="h-4 w-4" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">Roteamento inteligente</p>
                   <p className="text-xs text-muted-foreground">
                     Regras de roteamento personalizadas para cada cenário.
@@ -202,14 +202,26 @@ function Dashboard() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3 sm:col-span-2">
+              <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
                 <div className="rounded-md bg-primary/10 p-2 text-primary">
                   <PhoneCall className="h-4 w-4" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">Transferência entre ramais</p>
                   <p className="text-xs text-muted-foreground">
                     Permite transferências de chamadas entre os ramais do PABX.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+                <div className="rounded-md bg-primary/10 p-2 text-primary">
+                  <Brain className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">IA receptiva</p>
+                  <p className="text-xs text-muted-foreground">
+                    Ura receptiva com IA, deixando seu atendimento mais humanizado.
                   </p>
                 </div>
               </div>

@@ -78,9 +78,6 @@ function ClienteOverview() {
             ID: <span className="font-mono">{tenantId}</span>
           </p>
         </div>
-        <Badge variant="outline" className="font-mono whitespace-nowrap">
-          Tenant #{tenantId ?? "..."}
-        </Badge>
       </div>
 
       {error && (
@@ -92,7 +89,9 @@ function ClienteOverview() {
         <TabsList className="rounded-lg">
           <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
 
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="dashboard-geral">Dashboard Geral</TabsTrigger>
+
+          <TabsTrigger value="dashboard-conferencia">Dashboard Conferências</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao-geral" className="mt-6 space-y-6">
@@ -129,8 +128,10 @@ function ClienteOverview() {
             <UrasChart criadosUra={criadosUra} vagosUra={vagosUra} cotaUra={cotaUra} />
           </div>
         </TabsContent>
-        <TabsContent value="dashboard" className="mt-6">
+        <TabsContent value="dashboard-geral" className="mt-6">
           <MonitoramentoRamais tenantId={tenantId} />
+        </TabsContent>
+        <TabsContent value="dashboard-conferência" className="mt-6">Em breve
         </TabsContent>
       </Tabs>
     </div>

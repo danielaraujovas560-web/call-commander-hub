@@ -12,6 +12,8 @@ const { enviarTemplateMeta } = require("../providers/meta");
 
 const { sendIncomingCallToRamal } = require("./mobilePush");
 
+const conferenciaAmi = require("../services/conferenciaAmi");
+
 function internalOnly(req, res, next) {
   const recebida = Buffer.from(req.get("X-Internal-Key") || "");
   const esperada = Buffer.from(process.env.INTERNAL_KEY || "");
@@ -167,5 +169,89 @@ router.post("/api/internal/mobile-push/test-call", internalOnly, async (req, res
     });
   }
 });
+
+router.post("/api/internal/conferencias/convidar", internalOnly, async (req, res) => {
+    try {
+        const { tenantId, conferenciaId, endpoint } = req.body || {};
+
+        const tenant = Number(tenantId);
+        const id = Number(conferenciaId);
+        const destino = String(endpoint || "").trim();
+
+        if (
+            !Number.isSafeInteger(tenant) ||
+            tenant <= 0 ||
+            !Number.isSafeInteger(id) ||
+            id <= 0 ||
+            !/^\d{1,20}(?:-(?:web|mobile))?$/.test(destino)
+        ) {
+            return res.status(400).json({
+                ok: false,
+                error: "Parâmetros inválidos"
+            });
+        }
+
+        // Busca a conferência pertencente ao tenant
+        const [rows] = await db.execute(`
+            SELECT
+                id,
+                tenant_id,
+                nome,
+                ramal,
+                tipo,
+                ativo,
+                max_participantes,
+                gravar,
+                mixing_interval
+            FROM conferencias
+            WHERE id = ?
+              AND tenant_id = ?
+              AND tipo = 'INTERNA'
+              AND ativo = 1
+            LIMIT 1
+        `, [id, tenant]);
+
+        if (!rows.length) {
+            return res.status(404).json({
+                ok: false,
+                error: "Conferência não encontrada"
+            });
+        }
+
+        const conferencia = rows[0];
+
+        // Teste interno controlado:
+        // antes de produção, validar que o endpoint pertence ao tenant
+        // e que o solicitante tem permissão de convidá-lo.
+
+        const resultado = await conferenciaAmi.convidarRamal({
+            tenantId: tenant,
+            conferencia,
+            endpoint: destino
+        });
+
+        console.log("[CONFERENCIA][CONVITE]", {
+            tenantId: tenant,
+            conferenciaId: id,
+            endpoint: destino,
+            actionId: resultado.actionId
+        });
+
+        return res.status(202).json({
+            ok: true,
+            ...resultado
+        });
+
+    } catch (err) {
+        console.error("[CONFERENCIA][ERRO]", err);
+
+        return res.status(500).json({
+            ok: false,
+            error: "Falha ao solicitar convite"
+        });
+    }
+});
+
+require("./conferencia-internal.routes")(router, internalOnly);
 
 module.exports = router;

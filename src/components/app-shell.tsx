@@ -12,6 +12,7 @@ import {
   Users,
   ArrowLeft,
   Workflow,
+  MessagesSquare,
   GitBranch,
   ListOrdered,
   Music,
@@ -189,6 +190,7 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
     { to: "/cliente/ramais", label: "Ramais", icon: PhoneCall, exact: false },
     { to: "/cliente/filas", label: "Filas", icon: ListOrdered, exact: false },
     { to: "/cliente/uras", label: "URAs", icon: Workflow, exact: false },
+    { to: "/cliente/conferencias", label: "Conferências", icon: MessagesSquare, exact: false },
     { to: "/cliente/audios", label: "Áudios", icon: Music, exact: false },
     { to: "/cliente/blacklist", label: "Blacklist", icon: ShieldBan, exact: false },
     { to: "/cliente/regra-horario", label: "Horário Atendimento", icon: Clock, exact: false },
@@ -248,16 +250,10 @@ function ClienteSidebar({ pathname, onLogout }: { pathname: string; onLogout: ()
       <div className="flex flex-col gap-1 px-4 py-4 border-b">
         <Link
           to="/clientes"
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-3 w-3" /> Clientes
+          <ArrowLeft className="h-3 w-3" /> Voltar para Clientes
         </Link>
-        <div className="font-semibold text-sm truncate" title={cliente?.razao_social ?? ""}>
-          {cliente?.razao_social ?? "Carregando…"}
-        </div>
-        <Badge variant="outline" className="font-mono text-[10px] w-fit">
-          Tenant #{isLoading ? "..." : (tenantId ?? "—")}
-        </Badge>
       </div>
 
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto">

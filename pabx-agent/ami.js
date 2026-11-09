@@ -373,6 +373,36 @@ function checkReachable(endpoint) {
   }
 }
 
+
+function onConferenceEvent(callback) {
+    const eventos = new Set([
+        "OriginateResponse",
+        "ConfbridgeStart",
+        "ConfbridgeEnd",
+        "ConfbridgeJoin",
+        "ConfbridgeLeave"
+    ]);
+
+    const listener = (event) => {
+        const nome = event.event || event.Event;
+
+        if (!eventos.has(nome)) return;
+
+        try {
+            callback(event);
+        } catch (erro) {
+            console.error("[AMI CONFERENCIA] Erro:", erro);
+        }
+    };
+
+    ami.on("managerevent", listener);
+
+    return () => {
+        ami.removeListener("managerevent", listener);
+    };
+}
+
+
 function onCallEvent(callback) {
   const eventos = new Set(["DialBegin", "DialEnd", "Hangup"]);
 
@@ -396,6 +426,27 @@ function onCallEvent(callback) {
   };
 }
 
+function onAmiEvent(callback) {
+  if (typeof callback !== "function") {
+    throw new TypeError("onAmiEvent exige uma função");
+  }
+
+  const listener = (event) => {
+    try {
+      callback(event);
+    } catch (erro) {
+      console.error("[AMI EVENT] Erro no listener:", erro);
+    }
+  };
+
+  ami.on("managerevent", listener);
+
+  // Permite cancelar a inscrição e evitar vazamento de listeners.
+  return () => {
+    ami.removeListener("managerevent", listener);
+  };
+}
+
 module.exports = {
   getEndpointsDeviceState,
   amiCommand,
@@ -408,4 +459,8 @@ module.exports = {
   onAmiConnect,
   getQueueStatus,
   onCallEvent,
+  amiAction,
+  nextActionId,
+  onConferenceEvent,
+  onAmiEvent,
 };

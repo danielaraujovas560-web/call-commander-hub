@@ -28,6 +28,7 @@ const clientes = require("./routes/clientes");
 const integracoes = require("./routes/integracoes");
 const ramaisWeb = require("./routes/ramal-web");
 const ramais = require("./routes/ramal");
+const conferencias = require("./routes/conferencia")
 const troncos = require("./routes/tronco");
 const filas = require("./routes/fila");
 const filasAgentes = require("./routes/fila-agente");
@@ -166,6 +167,7 @@ app.use(dashboard);
 app.use(integracoes);
 app.use(ramaisWeb);
 app.use(ramais);
+app.use(conferencias);
 app.use(troncos);
 app.use(endpointStatus);
 app.use(filas);
