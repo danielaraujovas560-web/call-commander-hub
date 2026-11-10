@@ -380,7 +380,10 @@ function onConferenceEvent(callback) {
         "ConfbridgeStart",
         "ConfbridgeEnd",
         "ConfbridgeJoin",
-        "ConfbridgeLeave"
+        "ConfbridgeLeave",
+        "ConfbridgeMute",
+        "ConfbridgeUnmute",
+        "ConfbridgeTalking"
     ]);
 
     const listener = (event) => {

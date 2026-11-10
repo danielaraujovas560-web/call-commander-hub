@@ -13,9 +13,15 @@ function iptables(args) {
 const pool = require("./config/db");
 
 const CHAIN = "PABX-BLOCK";
-const MAX_FAILURES = 10;
-
 const failures = new Map();
+
+async function getMaxFailures() {
+  const [rows] = await pool.query(
+    `SELECT valor FROM config_geral WHERE chave = 'firewall.max_auth_failures' LIMIT 1`
+  );
+  // Converte para número, caso venha como string do banco
+  return rows.length > 0 ? Number(rows[0].valor) : 5; // Valor padrão de segurança (ex: 5)
+}
 
 function normalizeIp(remoteAddress) {
   if (!remoteAddress) return null;
@@ -142,13 +148,15 @@ async function handleAuthFailure(ip, eventName) {
   }
 
   const count = (failures.get(ip) || 0) + 1;
-
   failures.set(ip, count);
 
-  console.log(`[firewall] ${eventName}: ${ip} (${count}/${MAX_FAILURES})`);
+  // Busca o limite dinamicamente no banco de dados
+  const maxFailures = await getMaxFailures();
 
-  if (count >= MAX_FAILURES) {
-    await blockIp(ip, `10 falhas consecutivas de autenticação (${eventName})`);
+  console.log(`[firewall] ${eventName}: ${ip} (${count}/${maxFailures})`);
+
+  if (count >= maxFailures) {
+    await blockIp(ip, `${maxFailures} falhas consecutivas de autenticação (${eventName})`);
   }
 }
 

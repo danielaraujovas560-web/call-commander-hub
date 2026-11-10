@@ -29,6 +29,7 @@ import { Route as AuthenticatedClienteIntegracoesRouteImport } from './routes/_a
 import { Route as AuthenticatedClienteIaRouteImport } from './routes/_authenticated/cliente.ia'
 import { Route as AuthenticatedClienteHorarioRamaisRouteImport } from './routes/_authenticated/cliente.horario-ramais'
 import { Route as AuthenticatedClienteFilasRouteImport } from './routes/_authenticated/cliente.filas'
+import { Route as AuthenticatedClienteConferenciasRouteImport } from './routes/_authenticated/cliente.conferencias'
 import { Route as AuthenticatedClienteBlacklistRouteImport } from './routes/_authenticated/cliente.blacklist'
 import { Route as AuthenticatedClienteAudiosRouteImport } from './routes/_authenticated/cliente.audios'
 import { Route as AuthenticatedAdminWhitelistRouteImport } from './routes/_authenticated/admin.whitelist'
@@ -153,6 +154,12 @@ const AuthenticatedClienteFilasRoute =
     path: '/filas',
     getParentRoute: () => AuthenticatedClienteRoute,
   } as any)
+const AuthenticatedClienteConferenciasRoute =
+  AuthenticatedClienteConferenciasRouteImport.update({
+    id: '/conferencias',
+    path: '/conferencias',
+    getParentRoute: () => AuthenticatedClienteRoute,
+  } as any)
 const AuthenticatedClienteBlacklistRoute =
   AuthenticatedClienteBlacklistRouteImport.update({
     id: '/blacklist',
@@ -240,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/cliente/audios': typeof AuthenticatedClienteAudiosRoute
   '/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
+  '/cliente/conferencias': typeof AuthenticatedClienteConferenciasRoute
   '/cliente/filas': typeof AuthenticatedClienteFilasRoute
   '/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
   '/cliente/ia': typeof AuthenticatedClienteIaRoute
@@ -272,6 +280,7 @@ export interface FileRoutesByTo {
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/cliente/audios': typeof AuthenticatedClienteAudiosRoute
   '/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
+  '/cliente/conferencias': typeof AuthenticatedClienteConferenciasRoute
   '/cliente/filas': typeof AuthenticatedClienteFilasRoute
   '/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
   '/cliente/ia': typeof AuthenticatedClienteIaRoute
@@ -307,6 +316,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/_authenticated/cliente/audios': typeof AuthenticatedClienteAudiosRoute
   '/_authenticated/cliente/blacklist': typeof AuthenticatedClienteBlacklistRoute
+  '/_authenticated/cliente/conferencias': typeof AuthenticatedClienteConferenciasRoute
   '/_authenticated/cliente/filas': typeof AuthenticatedClienteFilasRoute
   '/_authenticated/cliente/horario-ramais': typeof AuthenticatedClienteHorarioRamaisRoute
   '/_authenticated/cliente/ia': typeof AuthenticatedClienteIaRoute
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/admin/whitelist'
     | '/cliente/audios'
     | '/cliente/blacklist'
+    | '/cliente/conferencias'
     | '/cliente/filas'
     | '/cliente/horario-ramais'
     | '/cliente/ia'
@@ -374,6 +385,7 @@ export interface FileRouteTypes {
     | '/admin/whitelist'
     | '/cliente/audios'
     | '/cliente/blacklist'
+    | '/cliente/conferencias'
     | '/cliente/filas'
     | '/cliente/horario-ramais'
     | '/cliente/ia'
@@ -408,6 +420,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/whitelist'
     | '/_authenticated/cliente/audios'
     | '/_authenticated/cliente/blacklist'
+    | '/_authenticated/cliente/conferencias'
     | '/_authenticated/cliente/filas'
     | '/_authenticated/cliente/horario-ramais'
     | '/_authenticated/cliente/ia'
@@ -578,6 +591,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClienteFilasRouteImport
       parentRoute: typeof AuthenticatedClienteRoute
     }
+    '/_authenticated/cliente/conferencias': {
+      id: '/_authenticated/cliente/conferencias'
+      path: '/conferencias'
+      fullPath: '/cliente/conferencias'
+      preLoaderRoute: typeof AuthenticatedClienteConferenciasRouteImport
+      parentRoute: typeof AuthenticatedClienteRoute
+    }
     '/_authenticated/cliente/blacklist': {
       id: '/_authenticated/cliente/blacklist'
       path: '/blacklist'
@@ -668,6 +688,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedClienteRouteChildren {
   AuthenticatedClienteAudiosRoute: typeof AuthenticatedClienteAudiosRoute
   AuthenticatedClienteBlacklistRoute: typeof AuthenticatedClienteBlacklistRoute
+  AuthenticatedClienteConferenciasRoute: typeof AuthenticatedClienteConferenciasRoute
   AuthenticatedClienteFilasRoute: typeof AuthenticatedClienteFilasRoute
   AuthenticatedClienteHorarioRamaisRoute: typeof AuthenticatedClienteHorarioRamaisRoute
   AuthenticatedClienteIaRoute: typeof AuthenticatedClienteIaRoute
@@ -690,6 +711,7 @@ interface AuthenticatedClienteRouteChildren {
 const AuthenticatedClienteRouteChildren: AuthenticatedClienteRouteChildren = {
   AuthenticatedClienteAudiosRoute: AuthenticatedClienteAudiosRoute,
   AuthenticatedClienteBlacklistRoute: AuthenticatedClienteBlacklistRoute,
+  AuthenticatedClienteConferenciasRoute: AuthenticatedClienteConferenciasRoute,
   AuthenticatedClienteFilasRoute: AuthenticatedClienteFilasRoute,
   AuthenticatedClienteHorarioRamaisRoute:
     AuthenticatedClienteHorarioRamaisRoute,

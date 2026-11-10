@@ -48,7 +48,7 @@ router.get("/conferencias-agenda", async (req, res) => {
   }
 });
 
-const TIPO_FIXO = "fixa";
+const TIPO_FIXO = "INTERNA";
 
 function validarConferencia(body) {
   const nome = typeof body?.nome === "string" ? body.nome.trim() : "";
