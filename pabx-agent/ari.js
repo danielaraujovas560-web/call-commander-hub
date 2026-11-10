@@ -11,26 +11,30 @@ async function connectARI() {
   try {
     console.log("[ARI] conectando...");
 
-    client = await ari.connect(ARI_URL, ARI_USER, ARI_PASSWORD);
+    client = await ari.connect(
+      ARI_URL,
+      ARI_USER,
+      ARI_PASSWORD
+    );
 
     console.log("[ARI] conectado ao Asterisk");
 
     registrarEventosARI(client);
 
-    await client.start(ARI_APP_NAME);
+    console.log("[ARI] iniciando WebSocket de eventos...");
 
-    await client.applications.subscribe({
-      applicationName: ARI_APP_NAME,
-      eventSource: ["channel:", "bridge:", "endpoint:", "deviceState:"],
-    });
+    client.start(ARI_APP_NAME);
 
-    console.log(`[ARI] recebendo eventos no app: ${ARI_APP_NAME}`);
+    console.log("[ARI] WebSocket solicitado");
 
     return client;
+
   } catch (err) {
     console.error("[ARI] falha ao conectar:", err);
 
     setTimeout(connectARI, 5000);
+
+    return null;
   }
 }
 

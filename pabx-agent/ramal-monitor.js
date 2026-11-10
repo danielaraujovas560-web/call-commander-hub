@@ -661,7 +661,7 @@ function iniciarWebSocket(httpServer) {
 
   wss.on("connection", (ws, req) => {
     // Front passa o tenant_id na query string: /ws/ramais?tenant_id=1
-    console.log("[WS] conexão recebida", req.url);
+    console.log("[WS] tentativa de conexão recebida");
     const auth = autenticarTicket(req);
 
     if (!auth) {
@@ -715,9 +715,11 @@ function iniciarWebSocket(httpServer) {
 async function iniciarMonitor(ariClient, httpServer, queryFn) {
   registrarEventos(ariClient, queryFn);
 
-  await inicializarRamaisOnline(ariClient, queryFn);
-
   iniciarWebSocket(httpServer);
+
+  console.log("[MONITOR] WebSocket de ramais ativo");
+
+  await inicializarRamaisOnline(ariClient, queryFn);
 
   console.log("[MONITOR] monitoramento de ramais ativo");
 }

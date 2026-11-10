@@ -48,22 +48,101 @@ router.get("/conferencias-agenda", async (req, res) => {
   }
 });
 
+const TIPO_FIXO = "fixa";
+
+function validarConferencia(body) {
+  const nome = typeof body?.nome === "string" ? body.nome.trim() : "";
+  const ramal = typeof body?.ramal === "string" ? body.ramal.trim() : "";
+  const max = Number(body?.max_participantes);
+  const mixing = Number(body?.mixing_interval);
+  const flags = ["gravar", "permitir_video", "ativo"];
+  if (!nome || nome.length > 120) return { erro: "Nome inválido" };
+  if (!/^\d{1,20}$/.test(ramal)) return { erro: "Ramal inválido" };
+  if (!Number.isInteger(max) || max < 2 || max > 1000) return { erro: "Máximo de participantes inválido" };
+  if (!Number.isInteger(mixing) || mixing < 10 || mixing > 1000) return { erro: "Mixing interval inválido" };
+  if (flags.some((k) => typeof body?.[k] !== "boolean")) return { erro: "Opções booleanas inválidas" };
+  return { nome, ramal, max, mixing,
+    gravar: Number(body.gravar), permitir_video: Number(body.permitir_video), ativo: Number(body.ativo) };
+}
+function tenantConferencia(req, res) {
+  const tenant = Number(req.tenantId);
+  if (!Number.isSafeInteger(tenant) || tenant <= 0) {
+    res.status(403).json({ error: "Tenant inválido" });
+    return null;
+  }
+  return tenant;
+}
+function idConferencia(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    res.status(400).json({ error: "ID inválido" });
+    return null;
+  }
+  return id;
+}
+function erroConferencia(res, e) {
+  if (e?.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "Ramal já cadastrado" });
+  console.error("[CONFERENCIAS]", e);
+  return res.status(500).json({ error: "Falha ao processar conferência" });
+}
+
 router.get("/conferencias", async (req, res) => {
-  const tenant = req.tenantId;
-  if (!tenant) return;
+  const tenant = tenantConferencia(req, res);
+  if (tenant === null) return;
   try {
     const [rows] = await pool.query(
-      `SELECT nome, ramal, tipo, max_participantes,
-              gravar, mixing_interval, permitir_video, ativo
-         FROM conferencias
-        WHERE tenant_id = ?
-        ORDER BY id ASC`,
-      [tenant],
-    );
-    res.json({ conferencias: rows });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
+      `SELECT id, nome, ramal, tipo, max_participantes, gravar,
+              mixing_interval, permitir_video, ativo
+         FROM conferencias WHERE tenant_id = ? AND tipo = 'INTERNA' ORDER BY id ASC`, [tenant]);
+    return res.json({ conferencias: rows });
+  } catch (e) { return erroConferencia(res, e); }
+});
+
+router.post("/conferencias", async (req, res) => {
+  const tenant = tenantConferencia(req, res);
+  if (tenant === null) return;
+  const d = validarConferencia(req.body);
+  if (d.erro) return res.status(400).json({ error: d.erro });
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO conferencias
+       (tenant_id, nome, ramal, tipo, max_participantes, gravar, mixing_interval, permitir_video, ativo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tenant, d.nome, d.ramal, TIPO_FIXO, d.max, d.gravar, d.mixing, d.permitir_video, d.ativo]);
+    return res.status(201).json({ ok: true, id: result.insertId });
+  } catch (e) { return erroConferencia(res, e); }
+});
+
+router.put("/conferencias/:id", async (req, res) => {
+  const tenant = tenantConferencia(req, res);
+  if (tenant === null) return;
+  const id = idConferencia(req, res);
+  if (id === null) return;
+  const d = validarConferencia(req.body);
+  if (d.erro) return res.status(400).json({ error: d.erro });
+  try {
+    const [result] = await pool.query(
+      `UPDATE conferencias SET nome = ?, ramal = ?, max_participantes = ?,
+       gravar = ?, mixing_interval = ?, permitir_video = ?, ativo = ?
+       WHERE id = ? AND tenant_id = ? AND tipo = ?`,
+      [d.nome, d.ramal, d.max, d.gravar, d.mixing, d.permitir_video, d.ativo, id, tenant, TIPO_FIXO]);
+    if (!result.affectedRows) return res.status(404).json({ error: "Conferência fixa não encontrada" });
+    return res.json({ ok: true });
+  } catch (e) { return erroConferencia(res, e); }
+});
+
+router.delete("/conferencias/:id", async (req, res) => {
+  const tenant = tenantConferencia(req, res);
+  if (tenant === null) return;
+  const id = idConferencia(req, res);
+  if (id === null) return;
+  try {
+    const [result] = await pool.query(
+      "DELETE FROM conferencias WHERE id = ? AND tenant_id = ? AND tipo = ?",
+      [id, tenant, TIPO_FIXO]);
+    if (!result.affectedRows) return res.status(404).json({ error: "Conferência fixa não encontrada" });
+    return res.json({ ok: true });
+  } catch (e) { return erroConferencia(res, e); }
 });
 
 module.exports = router;

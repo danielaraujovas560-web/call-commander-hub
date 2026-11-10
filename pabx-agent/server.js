@@ -116,21 +116,47 @@ async function getActiveQueueMembers() {
 iniciarMobileCallMonitor();
 
 onAmiConnect(async () => {
-  const ariClient = await connectARI();
-  if (ariClient) iniciarMonitor(ariClient, server, pool.query.bind(pool));
+  console.log("[BOOT] AMI conectado, iniciando ARI...");
+
+  try {
+    const ariClient = await connectARI();
+
+    console.log("[BOOT] connectARI() retornou:", !!ariClient);
+
+    if (ariClient) {
+      console.log("[BOOT] Iniciando monitor de ramais...");
+
+      await iniciarMonitor(
+        ariClient,
+        server,
+        pool.query.bind(pool)
+      );
+
+      console.log("[BOOT] Monitor de ramais inicializado.");
+    } else {
+      console.error("[BOOT] ARI indisponível. Monitor não iniciado.");
+    }
+  } catch (err) {
+    console.error("[BOOT] Falha na inicialização ARI/monitor:", err);
+  }
 
   console.log("[queue-restore] AMI conectado.");
 
-  // Dá tempo para o Asterisk terminar de inicializar as filas.
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  console.log("[queue-restore] recarregando parâmetros das filas...");
+    console.log("[queue-restore] recarregando parâmetros das filas...");
 
-  await amiQueueReloadAll();
+    await amiQueueReloadAll();
 
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  await restoreQueueMembers();
+    await restoreQueueMembers();
+
+    console.log("[queue-restore] Restauração concluída.");
+  } catch (err) {
+    console.error("[queue-restore] Erro:", err);
+  }
 });
 
 const app = express();
