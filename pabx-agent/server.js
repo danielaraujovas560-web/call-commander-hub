@@ -51,7 +51,7 @@ const firewall = require("./routes/firewall");
 const { amiCommand, queueAdd, queueRefresh, onAmiConnect, getQueueStatus } = require("./ami");
 const { iniciarMonitor } = require("./ramal-monitor");
 const { connectARI } = require("./ari");
-const { iniciar: iniciarConfbridgeMonitor } = require("./services/confbridgeMonitor.service");
+const { iniciar: iniciarConfbridgeMonitor } = require("./services/confbridgeMonitor");
 
 const { PABX_AGENT_SECRET, JWT_SECRET, PORT = "8787", AUDIO_UPLOAD_LIMIT = "1gb" } = process.env;
 

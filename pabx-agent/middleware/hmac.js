@@ -18,6 +18,7 @@ const ROTAS_LIVRES = [
   "/ramais-agenda",
   "/conferencias-agenda",
   "/conferencias-softphone/",
+  "/ws/ramais/token",
 ];
 
 function hmacMiddleware(req, res, next) {

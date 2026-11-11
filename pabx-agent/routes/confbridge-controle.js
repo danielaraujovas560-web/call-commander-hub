@@ -4,7 +4,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 const { amiAction, amiReady } = require("../ami");
-const { listarTenant } = require("../services/confbridgeMonitor.service");
+const { listarTenant } = require("../services/confbridgeMonitor");
 
 const inteiro = value => {
   const n = Number(value);

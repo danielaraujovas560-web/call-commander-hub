@@ -3,7 +3,10 @@
 const express = require("express");
 const db = require("../config/db");
 const { amiAction, amiReady, nextActionId, onAmiEvent } = require("../ami");
-const { listarTenant } = require("../services/confbridgeMonitor.service");
+const {
+  listarTenant,
+  sincronizar
+} = require("../services/confbridgeMonitor");
 const conferenciaAmi = require("../services/conferenciaAmi");
 const temporaria = require("../services/conferenciaTemporaria");
 const router = express.Router();
@@ -71,11 +74,38 @@ async function estadoCompleto(s, tenantId) {
     }) };
 }
 
+let ultimaRecuperacao = 0;
+let recuperacaoPendente = null;
+
+async function recuperarEstadoConferencias() {
+  // Reaproveita o snapshot em andamento, inclusive entre requisições.
+  if (recuperacaoPendente) return recuperacaoPendente;
+  if (Date.now() - ultimaRecuperacao < 3000) return;
+
+  ultimaRecuperacao = Date.now();
+  recuperacaoPendente = Promise.resolve().then(() => sincronizar()).finally(() => {
+    recuperacaoPendente = null;
+  });
+  return recuperacaoPendente;
+}
+
 router.get("/conferencias-softphone/estado", async (req, res) => {
   const p = autorizado(req, res); if (!p) return;
   try {
     const dispositivo = validarDispositivo(String(req.query.dispositivo || ""));
-    const candidatas = listarTenant(p.tenantId).filter(s => s.participantes.some(x => participanteProprio(x, p.endpoint, dispositivo)));
+const minhasSalas = () =>
+  listarTenant(p.tenantId).filter(
+    s => s.participantes.some(
+      x => participanteProprio(x, p.endpoint, dispositivo)
+    )
+  );
+
+let candidatas = minhasSalas();
+
+if (!candidatas.length && amiReady()) {
+  await recuperarEstadoConferencias();
+  candidatas = minhasSalas();
+}
     const dados = await Promise.all(candidatas.map(s => estadoCompleto(s, p.tenantId)));
     return res.json({ conferencias: dados });
   } catch (e) { console.error("[CONF SOFT][ESTADO]", e); return res.status(500).json({ error: "Falha ao consultar conferência" }); }
@@ -106,8 +136,25 @@ router.post("/conferencias-softphone/convidar", async (req, res) => {
     return res.status(400).json({ error: "Informe um ramal interno" });
   }
   if (!amiReady()) return res.status(503).json({ error: "AMI indisponível" });
-  const s = salaAutorizada(p, sala);
-  if (!s) return res.status(403).json({ error: "Entre na conferência antes de convidar" });
+  let s = salaAutorizada(p, sala);
+  if (!s) {
+    try {
+      await recuperarEstadoConferencias();
+      s = salaAutorizada(p, sala);
+    } catch (error) {
+      console.error("[CONF SOFT][CONVIDAR] Falha no resync AMI:", error);
+      return res.status(503).json({ error: "Não foi possível verificar sua participação na conferência" });
+    }
+  }
+  if (!s) {
+    console.warn("[CONF SOFT][CONVIDAR] Participante ausente após rechecagem", {
+      tenantId: p.tenantId,
+      endpoint: p.endpoint,
+      sala,
+      canais: buscarSala(p.tenantId, sala)?.participantes.map(x => x.canal) ?? []
+    });
+    return res.status(403).json({ error: "Entre na conferência antes de convidar" });
+  }
   try {
     const conf = await cadastroSala(p.tenantId, sala);
     if (!conf || Number(conf.ativo) !== 1) return res.status(404).json({ error: "Conferência não disponível" });

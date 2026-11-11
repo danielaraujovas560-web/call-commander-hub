@@ -1,7 +1,8 @@
 "use strict";
 // ConfBridge: monitoramento AMI independente do ARI.
 // iniciar({ server, jwtSecret }) deve ser executado uma vez, após app.listen().
-const { WebSocketServer, WebSocket } = require("ws");
+const WebSocket = require("ws");
+const WebSocketServer = WebSocket.Server;
 const jwt = require("jsonwebtoken");
 const { URL } = require("url");
 const { amiReady, amiAction, nextActionId, onAmiEvent } = require("../ami");
@@ -31,10 +32,37 @@ function estado(sala, destino = salas) {
   if (!destino.has(sala)) destino.set(sala, { sala, ...id, participantes: new Map() });
   return destino.get(sala);
 }
+// SOFTPHONE_WS_TENANT_ISOLATION_V1: ticket de ramal só recebe suas salas.
+function endpointLogicoDoCanal(canal) {
+  const m = /^PJSIP\/(.+)-[0-9a-f]{8,16}$/i.exec(String(canal || ""));
+  return m ? m[1].replace(/-(web|mobile)$/i, "") : null;
+}
+function podeVerConferencia(ws, conferencia) {
+  if (!ws.confEndpointLogico) return true; // Painel: tenant já validado no ticket
+  return (conferencia?.participantes || []).some(p =>
+    endpointLogicoDoCanal(p.canal) === ws.confEndpointLogico
+  );
+}
 function publicar(tenantId, payload) {
-  const msg = JSON.stringify({ ...payload, ts: Date.now(), sequencia: ++sequencia });
+  const base = { ...payload, ts: Date.now(), sequencia: ++sequencia };
   for (const ws of clientes.get(String(tenantId)) || []) {
-    if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+    if (ws.readyState !== WebSocket.OPEN) continue;
+    if (!ws.confEndpointLogico) { ws.send(JSON.stringify(base)); continue; }
+    if (payload.tipo === "CONFERENCIAS_INICIAL") {
+      const permitidas = (payload.conferencias || []).filter(c => podeVerConferencia(ws, c));
+      ws.confSalasVisiveis = new Set(permitidas.map(c => c.sala));
+      ws.send(JSON.stringify({ ...base, conferencias: permitidas }));
+    } else if (payload.tipo === "CONFERENCIA_ATUALIZADA") {
+      const sala = payload.conferencia?.sala;
+      if (podeVerConferencia(ws, payload.conferencia)) {
+        ws.confSalasVisiveis.add(sala);
+        ws.send(JSON.stringify(base));
+      } else if (ws.confSalasVisiveis.delete(sala)) {
+        ws.send(JSON.stringify({ tipo: "CONFERENCIA_REMOVIDA", sala, ts: base.ts, sequencia: base.sequencia }));
+      }
+    } else if (payload.tipo === "CONFERENCIA_REMOVIDA") {
+      if (ws.confSalasVisiveis.delete(payload.sala)) ws.send(JSON.stringify(base));
+    }
   }
 }
 function aplicar(evt, destino = salas, emitir = true) {
@@ -77,7 +105,18 @@ function listarEventos(action, nomeItem, nomeFinal, opts = {}, timeout = 7500) {
     });
     const timer = setTimeout(() => fim(new Error(`Timeout ${action}`)), timeout);
     amiAction({action, actionid, ...opts}, timeout).then(res => {
-      if(String(get(res,"Response")).toLowerCase() === "error") fim(new Error(String(get(res,"Message") || action)));
+if (String(get(res, "Response")).toLowerCase() === "error") {
+  const mensagem = String(get(res, "Message") || action);
+
+  if (
+    action === "ConfbridgeListRooms" &&
+    /no active conferences/i.test(mensagem)
+  ) {
+    return fim();
+  }
+
+  fim(new Error(mensagem));
+}
     }).catch(fim);
   });
 }
@@ -122,7 +161,15 @@ function iniciar({ server, jwtSecret }) {
     if(eventosDuranteSnapshot) eventosDuranteSnapshot.push(evt);
     else aplicar(evt);
   });
-  const wss = new WebSocketServer({server,path:"/ws/conferencias"});
+  // noServer: evita disputa de upgrade com /ws/ramais no mesmo HTTP server.
+  const wss = new WebSocketServer({ noServer: true });
+  server.on("upgrade", (req, socket, head) => {
+    let pathname;
+    try { pathname = new URL(req.url, "http://localhost").pathname; }
+    catch { return; }
+    if (pathname !== "/ws/conferencias") return;
+    wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
+  });
   wss.on("connection",(ws,req) => {
     let claims;
     try {
@@ -132,9 +179,13 @@ function iniciar({ server, jwtSecret }) {
       if(claims.type !== "ramal_ws" || !claims.sub || !claims.tenant_id) throw Error("ticket inválido");
     } catch { ws.close(1008,"não autenticado"); return; }
     const tenant=String(claims.tenant_id);
+    ws.confEndpointLogico = claims.endpoint_id ? String(claims.endpoint_id).replace(/-(web|mobile)$/i, "") : null;
+    ws.confSalasVisiveis = new Set();
     if(!clientes.has(tenant)) clientes.set(tenant,new Set());
     clientes.get(tenant).add(ws);
-    ws.send(JSON.stringify({tipo:"CONFERENCIAS_INICIAL",conferencias:listarTenant(tenant),ts:Date.now()}));
+    const visiveis = listarTenant(tenant).filter(c => podeVerConferencia(ws,c));
+    ws.confSalasVisiveis = new Set(visiveis.map(c=>c.sala));
+    ws.send(JSON.stringify({tipo:"CONFERENCIAS_INICIAL",conferencias:visiveis,ts:Date.now()}));
     ws.on("close",()=>{clientes.get(tenant)?.delete(ws);if(!clientes.get(tenant)?.size) clientes.delete(tenant);});
     ws.on("error",e=>console.error("[CONF-MONITOR] WS",e.message));
   });

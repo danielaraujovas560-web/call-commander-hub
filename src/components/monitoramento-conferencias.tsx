@@ -57,7 +57,7 @@ function identidadeParticipante(p: ParticipanteConferencia, porEndpoint: Record<
 }
 
 function Sala({
-  sala, nome, ramal, porEndpoint, tenantId, onMute, canalPendente,
+  sala, nome, ramal, porEndpoint, tenantId, onMute, canalPendente, monitorAtivo,
 }: {
   sala: ConferenciaAoVivo;
   nome?: string;
@@ -66,12 +66,14 @@ function Sala({
   tenantId?: number;
   onMute: (s: ConferenciaAoVivo, p: ParticipanteConferencia) => void;
   canalPendente?: string;
+  monitorAtivo: boolean;
 }) {
   const [expandida, setExpandida] = useState(true);
   const falando = sala.participantes.filter(p => p.falando).length;
   const mutados = sala.participantes.filter(p => p.mutado).length;
   const titulo = nome?.trim() || (sala.tipo === "CHAMADA" ? "Conferência temporária" : `Conferência ${sala.conferenciaId}`);
   const descricao = ramal ? `Ramal ${ramal}` : sala.tipo === "CHAMADA" ? "Conferência de chamada" : "Conferência interna";
+  const emAndamento = monitorAtivo && sala.participantes.length > 0;
 
   return (
     <Card className="overflow-hidden border-border/80 shadow-sm">
@@ -84,9 +86,31 @@ function Sala({
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="truncate text-base font-semibold tracking-tight">{titulo}</h3>
               <Badge variant="secondary" className="font-normal">{sala.tipo === "CHAMADA" ? "Temporária" : "Interna"}</Badge>
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Em andamento
-              </span>
+<span
+  className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+    !monitorAtivo
+      ? "text-amber-600"
+      : emAndamento
+        ? "text-emerald-600"
+        : "text-muted-foreground"
+  }`}
+>
+  <span
+    className={`h-1.5 w-1.5 rounded-full ${
+      !monitorAtivo
+        ? "bg-amber-500"
+        : emAndamento
+          ? "bg-emerald-500"
+          : "bg-slate-400"
+    }`}
+  />
+
+  {!monitorAtivo
+    ? "Sem sincronização"
+    : emAndamento
+      ? "Em andamento"
+      : "Disponível"}
+</span>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">{descricao}</p>
           </div>
@@ -112,7 +136,9 @@ function Sala({
 
           {sala.participantes.length === 0 ? (
             <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
-              Sala iniciada, aguardando participantes.
+{monitorAtivo
+  ? "Sala disponível, aguardando participantes."
+  : "Aguardando sincronização do monitoramento."}
             </div>
           ) : (
             <div className="grid gap-3 lg:grid-cols-2">
@@ -200,8 +226,58 @@ export function MonitoramentoConferencias({ tenantId }: Props) {
     onSettled: () => setCanalPendente(undefined),
   });
 
-  const internas = conferencias.filter(s => s.tipo === "INTERNA").length;
-  const temporarias = conferencias.filter(s => s.tipo === "CHAMADA").length;
+const salasExibidas = useMemo(() => {
+  const aoVivo = new Map(
+    conferencias.map(s => [s.sala, s] as const)
+  );
+
+  const resultado: ConferenciaAoVivo[] = [];
+  const adicionadas = new Set<string>();
+
+  // Salas internas cadastradas sempre aparecem.
+  for (const c of catalogo?.conferencias ?? []) {
+    if (c.tipo !== "INTERNA") continue;
+
+    const chave = `cc-t${tenantId}-i${c.id}`;
+    const sala = aoVivo.get(chave);
+
+    resultado.push(
+      sala ?? {
+        sala: chave,
+        tenantId: Number(tenantId),
+        tipo: "INTERNA",
+        conferenciaId: c.id,
+        participantes: [],
+        total: 0,
+      }
+    );
+
+    adicionadas.add(chave);
+  }
+
+  // Preserva salas ativas ainda não presentes no catálogo
+  // e inclui conferências temporárias.
+  for (const sala of conferencias) {
+    if (adicionadas.has(sala.sala)) continue;
+
+    resultado.push(sala);
+    adicionadas.add(sala.sala);
+  }
+
+  return resultado;
+}, [catalogo, conferencias, tenantId]);
+
+const monitorAtivo = conectado && sincronizado;
+
+const salasAtivas = conferencias.length;
+
+const internas = salasExibidas.filter(
+  s => s.tipo === "INTERNA"
+).length;
+
+const temporarias = conferencias.filter(
+  s => s.tipo === "CHAMADA"
+).length;
 
   return (
     <section className="space-y-5">
@@ -222,17 +298,45 @@ export function MonitoramentoConferencias({ tenantId }: Props) {
         <Card className="shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-lg bg-primary/10 p-2.5 text-primary"><Activity className="h-5 w-5" /></div><div><p className="text-xs text-muted-foreground">Internas / Temporárias</p><p className="text-2xl font-semibold tabular-nums">{internas} <span className="font-normal text-muted-foreground">/</span> {temporarias}</p></div></CardContent></Card>
       </div>
 
-      {erro && !conectado && <p className="rounded-lg border border-amber-500/30 p-3 text-sm text-muted-foreground">{erro}</p>}
-      {!sincronizado && <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><WifiOff className="h-4 w-4" /> Aguardando sincronização com o monitoramento…</div>}
-      {sincronizado && conferencias.length === 0 && <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhuma conferência em andamento.</CardContent></Card>}
-      {sincronizado && conferencias.length > 0 && (
-        <div className="space-y-4">
-          {conferencias.map(s => {
-            const cadastro = catalogoPorSala.get(`${s.tipo}:${s.conferenciaId}`);
-            return <Sala key={s.sala} sala={s} nome={cadastro?.nome} ramal={cadastro?.ramal} porEndpoint={porEndpoint} tenantId={tenantId} canalPendente={canalPendente} onMute={(sala, participante) => muteMutation.mutate({ sala, participante })} />;
-          })}
-        </div>
-      )}
+{erro && !conectado && (
+  <p className="rounded-lg border border-amber-500/30 p-3 text-sm text-muted-foreground">
+    {erro}
+  </p>
+)}
+
+{salasExibidas.length === 0 && (
+  <Card>
+    <CardContent className="py-12 text-center text-sm text-muted-foreground">
+      Nenhuma conferência cadastrada ou em andamento.
+    </CardContent>
+  </Card>
+)}
+
+{salasExibidas.length > 0 && (
+  <div className="space-y-4">
+    {salasExibidas.map(s => {
+      const cadastro = catalogoPorSala.get(
+        `${s.tipo}:${s.conferenciaId}`
+      );
+
+      return (
+        <Sala
+          key={s.sala}
+          sala={s}
+          nome={cadastro?.nome}
+          ramal={cadastro?.ramal}
+          porEndpoint={porEndpoint}
+          tenantId={tenantId}
+          monitorAtivo={monitorAtivo}
+          canalPendente={canalPendente}
+          onMute={(sala, participante) =>
+            muteMutation.mutate({ sala, participante })
+          }
+        />
+      );
+    })}
+  </div>
+)}
     </section>
   );
 }
