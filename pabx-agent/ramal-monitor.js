@@ -657,7 +657,15 @@ function autenticarTicket(req) {
 }
 
 function iniciarWebSocket(httpServer) {
-  const wss = new WebSocketServer({ server: httpServer, path: "/ws/ramais" });
+  const wss = new WebSocketServer({ noServer: true });
+  // Com dois WebSockets no mesmo servidor HTTP, cada um só recebe sua rota.
+  httpServer.on("upgrade", (req, socket, head) => {
+    let path;
+    try { path = new URL(req.url, "http://localhost").pathname; }
+    catch { return; }
+    if (path !== "/ws/ramais") return;
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+  });
 
   wss.on("connection", (ws, req) => {
     // Front passa o tenant_id na query string: /ws/ramais?tenant_id=1

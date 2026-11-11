@@ -11,6 +11,7 @@ import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRamalMonitor, estadoRamalLabel } from "@/hooks/use-ramal-monitor";
 import { MonitoramentoRamais } from "@/components/monitoramento-ramais";
+import { MonitoramentoConferencias } from "@/components/monitoramento-conferencias";
 import { useClienteContext } from "@/context/cliente-context";
 
 export const Route = createFileRoute("/_authenticated/cliente/")({
@@ -131,7 +132,7 @@ function ClienteOverview() {
         <TabsContent value="dashboard-geral" className="mt-6">
           <MonitoramentoRamais tenantId={tenantId} />
         </TabsContent>
-        <TabsContent value="dashboard-conferência" className="mt-6">Em breve
+        <TabsContent value="dashboard-conferencia" className="mt-6"><MonitoramentoConferencias tenantId={tenantId} />
         </TabsContent>
       </Tabs>
     </div>

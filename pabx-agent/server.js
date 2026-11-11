@@ -51,6 +51,7 @@ const firewall = require("./routes/firewall");
 const { amiCommand, queueAdd, queueRefresh, onAmiConnect, getQueueStatus } = require("./ami");
 const { iniciarMonitor } = require("./ramal-monitor");
 const { connectARI } = require("./ari");
+const { iniciar: iniciarConfbridgeMonitor } = require("./services/confbridgeMonitor.service");
 
 const { PABX_AGENT_SECRET, JWT_SECRET, PORT = "8787", AUDIO_UPLOAD_LIMIT = "1gb" } = process.env;
 
@@ -194,6 +195,8 @@ app.use(integracoes);
 app.use(ramaisWeb);
 app.use(ramais);
 app.use(conferencias);
+app.use(require("./routes/conferencia-softphone"));
+app.use(require("./routes/confbridge-controle"));
 app.use(troncos);
 app.use(endpointStatus);
 app.use(filas);
@@ -219,4 +222,9 @@ app.use((err, _req, res, _next) => {
 
 const server = app.listen(Number(PORT), () => {
   console.log(`[pabx-agent] ouvindo em http://127.0.0.1:${PORT}`);
+});
+
+iniciarConfbridgeMonitor({
+  server: server,
+  jwtSecret: JWT_SECRET
 });

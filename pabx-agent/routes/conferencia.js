@@ -22,6 +22,7 @@ router.get("/conferencias-agenda", async (req, res) => {
     const [rows] = await pool.query(
       `
         SELECT
+          id,
           nome,
           ramal
         FROM conferencias
@@ -35,6 +36,7 @@ router.get("/conferencias-agenda", async (req, res) => {
 
     return res.json({
       conferencia: rows.map((r) => ({
+        id: Number(r.id),
         nome: String(r.nome),
         ramal: String(r.ramal)
       })),
