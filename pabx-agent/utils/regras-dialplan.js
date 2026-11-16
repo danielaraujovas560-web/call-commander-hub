@@ -73,7 +73,7 @@ const REGRAS_PREDEFINIDAS = {
     {
       nome: "Especial",
       tipo_ligacao: "esp",
-      expressao: "^(0)(1[0-9]{2,3,4})$",
+      expressao: "^(0)(1[0-9]{2,4})$",
       expressao_transformada: "\\2",
       prioridade: 0,
     },
@@ -160,7 +160,7 @@ const REGRAS_PREDEFINIDAS = {
     {
       nome: "Especial",
       tipo_ligacao: "esp",
-      expressao: "^(0)(1[0-9]{2,3,4})$",
+      expressao: "^(0)(1[0-9]{2,4})$",
       expressao_transformada: "55\\2",
       prioridade: 0,
     },

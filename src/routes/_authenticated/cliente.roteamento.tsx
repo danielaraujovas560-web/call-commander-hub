@@ -403,9 +403,14 @@ function RoteamentoFormDialog({
         destino: buildDestinoForBackend(dest),
         descricao: descricao,
       };
-      return editing
-        ? updateFn({ data: { numero: item!.numero, ...body } })
-        : createFn({ data: body });
+return editing
+  ? updateFn({
+      data: {
+        ...body,
+        numeroAtual: item!.numero,
+      },
+    })
+  : createFn({ data: body });
     },
     onSuccess: () => {
       toast.success(editing ? "Roteamento atualizado" : "Roteamento criado");

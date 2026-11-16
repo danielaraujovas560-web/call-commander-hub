@@ -53,13 +53,13 @@ export const updateRoteamento = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .validator((d: unknown) =>
     RoteamentoInput.partial()
-      .extend({ numero: z.string().min(1) })
+      .extend({ numeroAtual: z.string().min(1), numero: z.string().min(1) })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     const tenantId = await resolveTenantId(context.token, data.tenant_id);
-    const { numero, tenant_id: _i, ...body } = data;
-    return await authenticatedAgentFetch<{ ok: true }>(context, `/roteamento/${numero}`, {
+    const { numeroAtual, tenant_id: _i, ...body } = data;
+    return await authenticatedAgentFetch<{ ok: true }>(context, `/roteamento/${encodeURIComponent(numeroAtual)}`, {
       method: "PUT",
       tenantId,
       body,

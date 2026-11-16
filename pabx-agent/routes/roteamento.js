@@ -86,23 +86,41 @@ router.put("/roteamento/:numero", async (req, res) => {
     vals.push(descricao);
   }
   if (!sets.length) return res.json({ ok: true });
-  try {
-    await pool.query(
-      `UPDATE roteamento SET ${sets.join(", ")} WHERE numero = ? AND tenant_id = ?`,
-      [...vals, numeroAtual, tenant],
-    );
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
+try {
+  const [result] = await pool.query(
+    `UPDATE roteamento
+     SET ${sets.join(", ")}
+     WHERE numero = ? AND tenant_id = ?`,
+    [...vals, numeroAtual, tenant],
+  );
+
+  if (result.affectedRows === 0) {
+    return res.status(404).json({
+      error: "Roteamento não encontrado ou nenhuma linha correspondente.",
+    });
   }
+
+  return res.json({
+    ok: true,
+    affectedRows: result.affectedRows,
+    changedRows: result.changedRows,
+  });
+
+} catch (e) {
+  console.error("[ROTEAMENTO][PUT]", e);
+
+  return res.status(500).json({
+    error: String(e.message || e),
+  });
+}
 });
 
 router.delete("/roteamento/:numero", async (req, res) => {
   const tenant = req.tenantId;
   if (!tenant) return;
   try {
-    await pool.query(`DELETE FROM roteamento WHERE id = ? AND tenant_id = ?`, [
-      Number(req.params.id),
+    await pool.query(`DELETE FROM roteamento WHERE numero = ? AND tenant_id = ?`, [
+      req.params.numero,
       tenant,
     ]);
     res.json({ ok: true });

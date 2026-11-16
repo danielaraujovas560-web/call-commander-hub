@@ -102,7 +102,10 @@ const minhasSalas = () =>
 
 let candidatas = minhasSalas();
 
-if (!candidatas.length && amiReady()) {
+// Consulta pontual de recuperação: quem participa da sala pode pedir refresh=1.
+// Protegido por JWT, tenant e deduplicação / rate-limit em recuperarEstadoConferencias().
+const refreshSolicitado = String(req.query.refresh || '') === '1';
+if (amiReady() && (!candidatas.length || (refreshSolicitado && candidatas.length))) {
   await recuperarEstadoConferencias();
   candidatas = minhasSalas();
 }
