@@ -15,6 +15,7 @@ const { URL } = require("url");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = process.env;
 const { setCustomDeviceState } = require("./ami");
+const logger = require("./utils/logger");
 
 // ─── Estado em memória ────────────────────────────────────────────────────────
 // { [tenant_id]: { [endpoint]: { state, numero, linkedid, desde } } }
@@ -124,14 +125,14 @@ async function atualizarDisponibilidadeAgente(tenantId, endpoint) {
   try {
     await setCustomDeviceState(endpoint, estado);
 
-  console.log(
+  logger.debug(
     `[MONITOR] Custom:${endpoint} -> ${estado} ` +
     `(base=${presenca.base ? "online" : "offline"}, ` +
     `web=${presenca.web ? "online" : "offline"}, ` +
     `mobile=${presenca.mobile ? "online" : "offline"})`
   );
   } catch (err) {
-    console.error(`[MONITOR] erro atualizando Custom:${endpoint}:`, err.message || err);
+    logger.error(`[MONITOR] erro atualizando Custom:${endpoint}:`, err.message || err);
   }
 }
 
@@ -156,7 +157,7 @@ function atualizarEstado(tenantId, endpoint, dados) {
   const presenca = presencaRamais[tenantId]?.[endpoint];
 
   if (!estaOnline(presenca)) {
-    console.log(
+    logger.debug(
       `[MONITOR] ignorando atualização de ${endpoint}: sem presença online`
     );
     return;
@@ -298,11 +299,11 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
       await atualizarDisponibilidadeAgente(tenantId, endpoint);
     }
 
-    console.log(
+    logger.info(
       `[MONITOR] inicialização concluída: ${online} ramais online, ${offline} ramais offline`,
     );
   } catch (err) {
-    console.error("[MONITOR] erro ao inicializar ramais:", err);
+    logger.error("[MONITOR] erro ao inicializar ramais:", err);
   }
 }
 
@@ -321,7 +322,7 @@ ariClient.on("ContactStatusChange", async (event) => {
   const tenantId = await resolverTenant(endpointBase, queryFn);
   if (!tenantId) return;
 
-  console.log(
+  logger.debug(
     `[MONITOR] EVENTO ENDPOINT: ${nome} PJSIP ${endpoint.state}`
   );
 
@@ -374,7 +375,7 @@ ariClient.on("ContactStatusChange", async (event) => {
 
       const online = estaOnline(presenca);
 
-      console.log(
+      looger.debug(
         `[MONITOR] PRESENÇA ${endpointBase}: ` +
         `base=${presenca.base}, ` +
         `web=${presenca.web}, ` +
@@ -433,7 +434,7 @@ ariClient.on("ContactStatusChange", async (event) => {
           endpointBase
         );
 
-        console.log(
+        logger.debug(
           `[MONITOR] ramal conectado: ${endpointBase}`
         );
 
@@ -462,11 +463,11 @@ ariClient.on("ContactStatusChange", async (event) => {
         endpoint: endpointBase,
       });
 
-      console.log(
+      logger.debug(
         `[MONITOR] desconexão total: ${endpointBase}`
       );
     } catch (err) {
-      console.error(
+      logger.error(
         `[MONITOR] erro reconciliando ${endpointBase}:`,
         err
       );
@@ -669,7 +670,7 @@ function iniciarWebSocket(httpServer) {
 
   wss.on("connection", (ws, req) => {
     // Front passa o tenant_id na query string: /ws/ramais?tenant_id=1
-    console.log("[WS] tentativa de conexão recebida");
+    logger.debug("[WS] tentativa de conexão recebida");
     const auth = autenticarTicket(req);
 
     if (!auth) {
@@ -683,11 +684,11 @@ function iniciarWebSocket(httpServer) {
     if (!clientes[tenantId]) clientes[tenantId] = new Set();
     clientes[tenantId].add(ws);
 
-    console.log(`[WS] cliente conectado tenant=${tenantId} total=${clientes[tenantId].size}`);
+    logger.debug(`[WS] cliente conectado tenant=${tenantId} total=${clientes[tenantId].size}`);
 
     // Manda o estado atual imediatamente ao conectar
     const estadoAtual = estadoRamais[tenantId] ?? {};
-    console.log(
+    logger.debug(
       "[WS] ESTADO_INICIAL tenant=",
       tenantId,
       JSON.stringify(estadoRamais[tenantId] ?? {}, null, 2),
@@ -696,25 +697,25 @@ function iniciarWebSocket(httpServer) {
 
     ws.on("close", (code, reason) => {
       clientes[tenantId]?.delete(ws);
-      console.log("[WS] ===== CONEXÃO FECHADA =====");
-      console.log("[WS] tenant:", tenantId);
-      console.log("[WS] code:", code);
-      console.log("[WS] reason:", reason?.toString());
-      console.log("[WS] readyState:", ws.readyState);
-      console.log("[WS] time:", new Date().toISOString());
-      console.log("[WS] ===========================");
+      logger.debug("[WS] ===== CONEXÃO FECHADA =====");
+      logger.debug("[WS] tenant:", tenantId);
+      logger.debug("[WS] code:", code);
+      logger.debug("[WS] reason:", reason?.toString());
+      logger.debug("[WS] readyState:", ws.readyState);
+      logger.debug("[WS] time:", new Date().toISOString());
+      logger.debug("[WS] ===========================");
     });
 
     ws.on("error", (err) => {
-      console.error("[WS] ===== ERRO WEBSOCKET =====");
-      console.error("[WS] tenant:", tenantId);
-      console.error("[WS] erro:", err);
-      console.error("[WS] time:", new Date().toISOString());
-      console.error("[WS] ==========================");
+      logger.error("[WS] ===== ERRO WEBSOCKET =====");
+      logger.error("[WS] tenant:", tenantId);
+      logger.error("[WS] erro:", err);
+      logger.error("[WS] time:", new Date().toISOString());
+      logger.error("[WS] ==========================");
     });
   });
 
-  console.log("[WS] WebSocket de ramais iniciado em /ws/ramais");
+  logger.info("[WS] WebSocket de ramais iniciado em /ws/ramais");
   return wss;
 }
 
@@ -725,11 +726,11 @@ async function iniciarMonitor(ariClient, httpServer, queryFn) {
 
   iniciarWebSocket(httpServer);
 
-  console.log("[MONITOR] WebSocket de ramais ativo");
+  logger.info("[MONITOR] WebSocket de ramais ativo");
 
   await inicializarRamaisOnline(ariClient, queryFn);
 
-  console.log("[MONITOR] monitoramento de ramais ativo");
+  logger.info("[MONITOR] monitoramento de ramais ativo");
 }
 
 module.exports = { iniciarMonitor, estadoRamais, publicar };

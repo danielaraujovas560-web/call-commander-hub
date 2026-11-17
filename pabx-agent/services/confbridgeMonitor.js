@@ -6,6 +6,7 @@ const WebSocketServer = WebSocket.Server;
 const jwt = require("jsonwebtoken");
 const { URL } = require("url");
 const { amiReady, amiAction, nextActionId, onAmiEvent } = require("../ami");
+const logger = require("../utils/logger");
 
 const salas = new Map();
 const clientes = new Map();
@@ -104,22 +105,41 @@ function listarEventos(action, nomeItem, nomeFinal, opts = {}, timeout = 7500) {
       if(n === nomeFinal) fim();
     });
     const timer = setTimeout(() => fim(new Error(`Timeout ${action}`)), timeout);
-    amiAction({action, actionid, ...opts}, timeout).then(res => {
-if (String(get(res, "Response")).toLowerCase() === "error") {
-  const mensagem = String(get(res, "Message") || action);
 
-  if (
-    action === "ConfbridgeListRooms" &&
-    /no active conferences/i.test(mensagem)
-  ) {
-    return fim();
-  }
+amiAction({ action, actionid, ...opts }, timeout)
+  .then(res => {
+    if (String(get(res, "Response")).toLowerCase() === "error") {
+      const mensagem = String(get(res, "Message") || action);
 
-  fim(new Error(mensagem));
-}
-    }).catch(fim);
+      if (
+        action === "ConfbridgeListRooms" &&
+        /no active conferences/i.test(mensagem)
+      ) {
+        logger.debug("[CONF-MONITOR] nenhuma conferência ativa");
+        return fim();
+      }
+
+      return fim(new Error(mensagem));
+    }
+  })
+  .catch(err => {
+    const mensagem = String(err?.message || err);
+
+    // O cliente AMI também pode rejeitar a Promise
+    // quando o Asterisk não encontra conferências.
+    if (
+      action === "ConfbridgeListRooms" &&
+      /no active conferences/i.test(mensagem)
+    ) {
+      logger.debug("[CONF-MONITOR] nenhuma conferência ativa");
+      return fim();
+    }
+
+    return fim(err);
   });
+ });
 }
+
 async function sincronizar() {
   if (sincronizando) return sincronizando;
   sincronizando = (async () => {
@@ -144,7 +164,7 @@ async function sincronizar() {
       salas.clear();
       for (const [k,v] of novo) salas.set(k,v);
       for (const tenant of clientes.keys()) publicar(tenant,{tipo:"CONFERENCIAS_INICIAL", conferencias:listarTenant(tenant)});
-      console.log(`[CONF-MONITOR] sincronizadas ${salas.size} salas`);
+      logger.debug(`[CONF-MONITOR] sincronizadas ${salas.size} salas`);
     } finally { eventosDuranteSnapshot = null; }
   })().finally(() => { sincronizando = null; });
   return sincronizando;
@@ -187,13 +207,13 @@ function iniciar({ server, jwtSecret }) {
     ws.confSalasVisiveis = new Set(visiveis.map(c=>c.sala));
     ws.send(JSON.stringify({tipo:"CONFERENCIAS_INICIAL",conferencias:visiveis,ts:Date.now()}));
     ws.on("close",()=>{clientes.get(tenant)?.delete(ws);if(!clientes.get(tenant)?.size) clientes.delete(tenant);});
-    ws.on("error",e=>console.error("[CONF-MONITOR] WS",e.message));
+    ws.on("error",e=>logger.error("[CONF-MONITOR] WS",e.message));
   });
   // Inicialização não depende do ARI. Sem listener adicional de onAmiConnect,
   // pois ami.js atualmente suporta apenas um callback e ele já é usado no server.js.
-  if(amiReady()) void sincronizar().catch(e=>console.error("[CONF-MONITOR] snapshot",e.message));
+  if(amiReady()) void sincronizar().catch(e=>logger.error("[CONF-MONITOR] snapshot",e.message));
   // Reconciliação periódica para restaurar estado após qualquer queda/reconexão AMI.
-  setInterval(()=>{if(amiReady()) void sincronizar().catch(e=>console.error("[CONF-MONITOR] resync",e.message));}, 60000).unref();
-  console.log("[CONF-MONITOR] /ws/conferencias iniciado");
+  setInterval(()=>{if(amiReady()) void sincronizar().catch(e=>logger.error("[CONF-MONITOR] resync",e.message));}, 60000).unref();
+  logger.info("[CONF-MONITOR] /ws/conferencias iniciado");
 }
 module.exports={iniciar,sincronizar,listarTenant};

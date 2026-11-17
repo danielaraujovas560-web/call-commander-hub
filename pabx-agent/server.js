@@ -12,6 +12,7 @@ const pool = require("./config/db");
 const { restoreQueueMembers } = require("./utils/queue-restore");
 const { createMobilePushRouter } = require("./routes/mobilePush");
 const { iniciarMobileCallMonitor } = require("./services/mobileCallMonitor");
+const { startLogControl } = require("./utils/log-control");
 
 // Rotas
 const interno = require("./routes/interno");
@@ -228,3 +229,5 @@ iniciarConfbridgeMonitor({
   server: server,
   jwtSecret: JWT_SECRET
 });
+
+startLogControl();

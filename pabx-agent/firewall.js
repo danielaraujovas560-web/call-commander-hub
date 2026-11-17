@@ -96,7 +96,6 @@ async function addDropRule(ip) {
   try {
     await execFileAsync("sudo", [IPTABLES, "-C", CHAIN, "-s", ip, "-j", "DROP"]);
 
-    console.log(`[firewall] ${ip} já está bloqueado no iptables`);
     return;
   } catch (e) {
     // Regra ainda não existe.
@@ -162,20 +161,74 @@ async function handleAuthFailure(ip, eventName) {
 
 async function restoreBlacklist() {
   const [rows] = await pool.query(
-    `SELECT ip
-       FROM firewall_ips
-      WHERE tipo = 'BLACKLIST'`,
+    `SELECT ip FROM firewall_ips WHERE tipo = 'BLACKLIST'`
   );
 
-  console.log(`[firewall] restaurando ${rows.length} IP(s) da BLACKLIST...`);
+  console.log(`[firewall] Verificando ${rows.length} IPs da BLACKLIST...`);
+
+  let existentes;
+
+  try {
+    // Uma consulta ao iptables, em vez de uma por IP.
+    const { stdout } = await iptables(["-S", CHAIN]);
+
+    existentes = new Set();
+
+    for (const linha of stdout.split(/\r?\n/)) {
+      if (!linha.startsWith(`-A ${CHAIN} `)) continue;
+      if (!/(?:^|\s)-j\s+DROP(?:\s|$)/.test(linha)) continue;
+
+      const match = linha.match(/(?:^|\s)-s\s+(\S+)/);
+
+      if (match) {
+        existentes.add(match[1].replace(/\/32$/, ""));
+      }
+    }
+  } catch (error) {
+    console.error(
+      "[firewall] Falha ao listar regras; usando verificação individual:",
+      error.stderr || error.message
+    );
+
+    // Preserva o comportamento original se a consulta falhar.
+    for (const row of rows) {
+      try {
+        await addDropRule(row.ip);
+      } catch (e) {
+        console.error(`[firewall] Erro ao restaurar ${row.ip}:`, e.message);
+      }
+    }
+    return;
+  }
+
+  let adicionados = 0;
+  let erros = 0;
 
   for (const row of rows) {
+    const ip = String(row.ip).trim();
+    const chave = ip.replace(/\/32$/, "");
+
+    if (existentes.has(chave)) continue;
+
     try {
-      await addDropRule(row.ip);
-    } catch (e) {
-      console.error(`[firewall] erro ao restaurar ${row.ip}:`, e.message);
+      await iptables(["-A", CHAIN, "-s", ip, "-j", "DROP"]);
+      existentes.add(chave);
+      adicionados++;
+    } catch (error) {
+      erros++;
+      console.error(
+        `[firewall] Erro ao bloquear ${ip}:`,
+        error.stderr || error.message
+      );
     }
   }
+
+  console.log(
+    `[firewall] BLACKLIST sincronizada: ` +
+    `${rows.length} cadastrados, ` +
+    `${adicionados} adicionados, ` +
+    `${erros} erros.`
+  );
 }
 
 function resetAuthFailures(ip) {

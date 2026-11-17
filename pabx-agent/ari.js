@@ -1,4 +1,5 @@
 const ari = require("ari-client");
+const logger = require("./utils/logger");
 
 const ARI_URL = process.env.ARI_URL;
 const ARI_USER = process.env.ARI_USER;
@@ -9,7 +10,7 @@ let client = null;
 
 async function connectARI() {
   try {
-    console.log("[ARI] conectando...");
+    logger.debug("[ARI] conectando...");
 
     client = await ari.connect(
       ARI_URL,
@@ -17,20 +18,18 @@ async function connectARI() {
       ARI_PASSWORD
     );
 
-    console.log("[ARI] conectado ao Asterisk");
+    logger.info("[ARI] conectado ao Asterisk");
 
     registrarEventosARI(client);
 
-    console.log("[ARI] iniciando WebSocket de eventos...");
-
     client.start(ARI_APP_NAME);
 
-    console.log("[ARI] WebSocket solicitado");
+    logger.debug("[ARI] WebSocket de eventos solicitado");
 
     return client;
 
   } catch (err) {
-    console.error("[ARI] falha ao conectar:", err);
+    logger.error("[ARI] falha ao conectar:", err);
 
     setTimeout(connectARI, 5000);
 
@@ -40,18 +39,21 @@ async function connectARI() {
 
 function registrarEventosARI(client) {
   client.on("EndpointStateChange", (event) => {
-    console.log("[ARI][EndpointStateChange]", {
+    logger.debug("[ARI][EndpointStateChange]", {
       endpoint: event.endpoint?.name,
       state: event.endpoint?.state,
     });
   });
 
   client.on("ChannelCreated", (event) => {
-    console.log("[ARI][ChannelCreated]", JSON.stringify(event, null, 2));
+    logger.debug("[ARI][ChannelCreated]", {
+      id: event.channel?.id,
+      name: event.channel?.name,
+    });
   });
 
   client.on("ChannelStateChange", (event) => {
-    console.log("[ARI][ChannelStateChange]", {
+    logger.debug("[ARI][ChannelStateChange]", {
       id: event.channel?.id,
       name: event.channel?.name,
       state: event.channel?.state,
@@ -59,7 +61,7 @@ function registrarEventosARI(client) {
   });
 
   client.on("ChannelDestroyed", (event) => {
-    console.log("[ARI][ChannelDestroyed]", {
+    logger.debug("[ARI][ChannelDestroyed]", {
       id: event.channel?.id,
       name: event.channel?.name,
       cause: event.cause,
@@ -68,7 +70,7 @@ function registrarEventosARI(client) {
   });
 
   client.on("Dial", (event) => {
-    console.log("[ARI][Dial]", {
+    logger.debug("[ARI][Dial]", {
       caller: event.caller?.name,
       peer: event.peer?.name,
       dialstatus: event.dialstatus,
@@ -77,11 +79,11 @@ function registrarEventosARI(client) {
   });
 
   client.on("BridgeCreated", (event) => {
-    console.log("[ARI][BridgeCreated]", event.bridge?.id);
+    logger.debug("[ARI][BridgeCreated]", event.bridge?.id);
   });
 
   client.on("BridgeDestroyed", (event) => {
-    console.log("[ARI][BridgeDestroyed]", event.bridge?.id);
+    logger.debug("[ARI][BridgeDestroyed]", event.bridge?.id);
   });
 }
 
