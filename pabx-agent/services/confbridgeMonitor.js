@@ -183,6 +183,17 @@ function iniciar({ server, jwtSecret }) {
   });
   // noServer: evita disputa de upgrade com /ws/ramais no mesmo HTTP server.
   const wss = new WebSocketServer({ noServer: true });
+   const heartbeat = setInterval(() => {
+     for (const ws of wss.clients) {
+       if (ws.isAlive === false) {
+         ws.terminate();
+         continue;
+       }
+       ws.isAlive = false;
+       try { ws.ping(); } catch (_) { ws.terminate(); }
+     }
+   }, 25000);
+   heartbeat.unref();
   server.on("upgrade", (req, socket, head) => {
     let pathname;
     try { pathname = new URL(req.url, "http://localhost").pathname; }
@@ -191,6 +202,8 @@ function iniciar({ server, jwtSecret }) {
     wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
   });
   wss.on("connection",(ws,req) => {
+   ws.isAlive = true;
+   ws.on("pong", () => { ws.isAlive = true; });
     let claims;
     try {
       const ticket = new URL(req.url,"http://localhost").searchParams.get("ticket");
