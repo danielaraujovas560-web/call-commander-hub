@@ -199,7 +199,7 @@ export function useRamalMonitor(tenantId?: number) {
       livres: lista.filter((ramal) => ramal.state === "IDLE").length,
       ocupados: lista.filter((ramal) => ramal.state === "IN_CALL").length,
       discando: lista.filter((ramal) => ramal.state === "DIALING").length,
-      tocando: lista.filter((ramal) => ramal.state === "RINGING").length,
+      tocando: lista.filter((ramal) => ramal.state === "RING" || ramal.state === "RINGING").length,
     };
   }, [ramais]);
 
