@@ -60,13 +60,19 @@ const binasAtivos = new Map();
  * Extrai o endpoint do nome do canal.
  * "PJSIP/19999-000002c1" → "19999"
  */
+function removerIdentificadorCanal(nome = "") {
+  return String(nome).trim().replace(/^PJSIP\//i, "").split("@")[0].replace(/-[0-9a-f]+$/i, "");
+}
+
+// Converte endpoint físico/canal em ramal lógico: 19999-web -> 19999.
 function normalizarEndpoint(nome = "") {
-  return String(nome).replace(/-(web|mobile)$/, "");
+  return removerIdentificadorCanal(nome).replace(/-(web|mobile)$/i, "");
 }
 
 function tipoDispositivo(nome = "") {
-  if (nome.endsWith("-mobile")) return "mobile";
-  if (nome.endsWith("-web")) return "web";
+  const recurso = removerIdentificadorCanal(nome);
+  if (/-mobile$/i.test(recurso)) return "mobile";
+  if (/-web$/i.test(recurso)) return "web";
   return "base";
 }
 
@@ -79,13 +85,20 @@ function estaOnline(presenca) {
 }
 
 function extrairEndpoint(nomeCanal = "") {
-  const match = String(nomeCanal).match(
-    /^PJSIP\/(.+)-[0-9a-f]+$/i
-  );
+  const nome = String(nomeCanal);
+  if (!/^PJSIP\//i.test(nome)) return null;
+  return normalizarEndpoint(nome) || null;
+}
 
-  if (!match) return null;
-
-  return normalizarEndpoint(match[1]);
+// Um canal ativo prova que o dispositivo físico está presente.
+// O estado continua indexado pelo ramal lógico no frontend.
+function marcarPresencaDoCanal(tenantId, nomeCanal) {
+  if (!tenantId || !nomeCanal) return null;
+  const endpoint = normalizarEndpoint(nomeCanal);
+  if (!endpoint) return null;
+  const presenca = garantirPresenca(tenantId, endpoint);
+  presenca[tipoDispositivo(nomeCanal)] = true;
+  return endpoint;
 }
 
 function garantirPresenca(tenantId, endpointBase) {
@@ -203,9 +216,7 @@ function atualizarEstado(tenantId, endpoint, dados) {
   const presenca = presencaRamais[tenantId]?.[endpoint];
 
   if (!estaOnline(presenca)) {
-    logger.debug(
-      `[MONITOR] ignorando atualização de ${endpoint}: sem presença online`
-    );
+    logger.warn(`[MONITOR] atualização bloqueada: lógico=${endpoint}, tenant=${tenantId}, sem presença online`);
     return;
   }
 
@@ -213,6 +224,8 @@ function atualizarEstado(tenantId, endpoint, dados) {
 
   const anterior = estadoRamais[tenantId][endpoint] ?? {};
   estadoRamais[tenantId][endpoint] = { ...anterior, ...dados };
+
+  logger.debug(`[MONITOR] estado atualizado: tenant=${tenantId}, lógico=${endpoint}, state=${estadoRamais[tenantId][endpoint].state}`);
 
   publicar(tenantId, "RAMAL_STATUS", {
     endpoint,
@@ -671,6 +684,8 @@ ariClient.on("ContactStatusChange", async (event) => {
     const callerEndpoint = extrairEndpoint(callerStr);
     const peerEndpoint = extrairEndpoint(peerStr);
 
+    logger.debug(`[MONITOR][Dial] caller=${callerStr || "-"} => lógico=${callerEndpoint || "-"}; peer=${peerStr || "-"} => lógico=${peerEndpoint || "-"}; status=${event.dialstatus || "INICIANDO"}`);
+
     const isTroncoCaller = callerStr.includes("t1-") || callerStr.includes("Tronco");
     const isTroncoPeer = peerStr.includes("t1-") || peerStr.includes("Tronco");
 
@@ -690,6 +705,7 @@ ariClient.on("ContactStatusChange", async (event) => {
     if (callerEndpoint && !isTroncoCaller) {
       const tenantId = await resolverTenant(callerEndpoint, queryFn);
       if (tenantId) {
+        marcarPresencaDoCanal(tenantId, callerStr);
         const callerId = typeof event.caller === "object" ? event.caller?.id : null;
         const numeroDiscado =
           (callerId && extensDiscadas.get(callerId)) ||
@@ -714,6 +730,7 @@ ariClient.on("ContactStatusChange", async (event) => {
     if (peerEndpoint && !isTroncoPeer) {
       const tenantId = await resolverTenant(peerEndpoint, queryFn);
       if (tenantId) {
+        marcarPresencaDoCanal(tenantId, peerStr);
         let numeroChamador = null;
 
         if (isTroncoCaller) {
@@ -748,7 +765,12 @@ ariClient.on("ContactStatusChange", async (event) => {
     if (canal.name.includes("t1-") || canal.name.includes("Tronco")) return;
 
     const tenantId = await resolverTenant(endpoint, queryFn);
-    if (!tenantId) return;
+    if (!tenantId) {
+      logger.warn(`[MONITOR][ChannelStateChange] lógico=${endpoint} não encontrado no banco; canal=${canal?.name}`);
+      return;
+    }
+
+    marcarPresencaDoCanal(tenantId, canal.name);
 
     const stateMap = {
       Ring: "RING",
