@@ -73,7 +73,9 @@ async function connectARI() {
           }, 5000);
         });
 
-        await Promise.resolve(novoClient.start(ARI_APP_NAME));
+        // Este monitor observa o Asterisk inteiro, não apenas canais que entram no Stasis.
+        // Sem subscribeAll=true, os eventos de chamadas/ramais de outros contextos não chegam.
+        await Promise.resolve(novoClient.start(ARI_APP_NAME, true));
 
         client = novoClient;
         logger.info("[ARI] conectado ao Asterisk");
