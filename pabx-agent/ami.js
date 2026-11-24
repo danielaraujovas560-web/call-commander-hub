@@ -12,6 +12,23 @@ const {
 
 const { AMI_HOST = "127.0.0.1", AMI_PORT = "5038", AMI_USER, AMI_PASSWORD } = process.env;
 
+let firewallInitialization = null;
+
+function inicializarFirewallAmi() {
+  if (firewallInitialization) return firewallInitialization;
+
+  firewallInitialization = (async () => {
+    await ensureChain();
+    await restoreBlacklist();
+    console.log("[firewall] cadeia e blacklist restauradas.");
+  })().catch((err) => {
+    firewallInitialization = null;
+    throw err;
+  });
+
+  return firewallInitialization;
+}
+
 if (!AMI_USER || !AMI_PASSWORD) {
   console.error("AMI_USER/AMI_PASSWORD ausentes no .env — status via AMI não vai funcionar.");
 }
@@ -24,12 +41,6 @@ let _onConnect = null;
 ami.on("connect", async () => {
   _amiConnected = true;
   console.log("[ami] conectado");
-  try {
-    await ensureChain();
-    await restoreBlacklist();
-  } catch (err) {
-    console.error("[firewall] erro inicializando firewall:", err.message || err);
-  }
   if (_onConnect) {
     Promise.resolve()
       .then(() => _onConnect())
@@ -460,6 +471,7 @@ module.exports = {
   queuePenalty,
   queueRefresh,
   onAmiConnect,
+  inicializarFirewallAmi,
   getQueueStatus,
   onCallEvent,
   amiAction,
