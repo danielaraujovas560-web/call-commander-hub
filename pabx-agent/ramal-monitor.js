@@ -29,6 +29,12 @@ const presencaRamais = {};
 // { [tenant_id]: Set<WebSocket> }
 const clientes = {};
 
+// Evita criar vários WebSocketServers no mesmo servidor HTTP.
+const webSocketsPorServidor = new WeakMap();
+
+// Evita registrar os mesmos eventos ARI mais de uma vez.
+const inicializacoesPorAri = new WeakMap();
+
 //-- Ramais em memória para conexão e desconexão --------
 const offlineTimers = new Map();
 
@@ -138,14 +144,54 @@ async function atualizarDisponibilidadeAgente(tenantId, endpoint) {
 
 // ─── Publicar evento pro front ────────────────────────────────────────────────
 
+function enviarWebSocket(ws, mensagem, tenantId) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    return false;
+  }
+
+  try {
+    ws.send(mensagem, (err) => {
+      if (!err) return;
+
+      logger.warn(
+        `[WS] falha ao enviar mensagem para tenant=${tenantId}:`,
+        err.message || err
+      );
+
+      // Não mantém uma conexão com falha na lista de clientes.
+      clientes[tenantId]?.delete(ws);
+    });
+
+    return true;
+  } catch (err) {
+    logger.warn(
+      `[WS] erro síncrono ao enviar para tenant=${tenantId}:`,
+      err.message || err
+    );
+
+    clientes[tenantId]?.delete(ws);
+    return false;
+  }
+}
+
 function publicar(tenantId, tipo, payload) {
-  const mensagem = JSON.stringify({ tipo, ...payload, ts: Date.now() });
+  const mensagem = JSON.stringify({
+    tipo,
+    ...payload,
+    ts: Date.now(),
+  });
+
   const alvos = clientes[tenantId];
+
   if (!alvos) return;
+
   for (const ws of alvos) {
-    if (ws.readyState === 1 /* OPEN */) {
-      ws.send(mensagem);
+    if (ws.readyState !== WebSocket.OPEN) {
+      alvos.delete(ws);
+      continue;
     }
+
+    enviarWebSocket(ws, mensagem, tenantId);
   }
 }
 
@@ -375,7 +421,7 @@ ariClient.on("ContactStatusChange", async (event) => {
 
       const online = estaOnline(presenca);
 
-      looger.debug(
+      logger.debug(
         `[MONITOR] PRESENÇA ${endpointBase}: ` +
         `base=${presenca.base}, ` +
         `web=${presenca.web}, ` +
@@ -658,19 +704,44 @@ function autenticarTicket(req) {
 }
 
 function iniciarWebSocket(httpServer) {
+  const existente = webSocketsPorServidor.get(httpServer);
+
+  if (existente) {
+    return existente;
+  }
+
   const wss = new WebSocketServer({ noServer: true });
-  // Com dois WebSockets no mesmo servidor HTTP, cada um só recebe sua rota.
+
+  // Registra imediatamente para impedir inicializações concorrentes.
+  webSocketsPorServidor.set(httpServer, wss);
+
   httpServer.on("upgrade", (req, socket, head) => {
     let path;
-    try { path = new URL(req.url, "http://localhost").pathname; }
-    catch { return; }
+
+    try {
+      path = new URL(req.url, "http://localhost").pathname;
+    } catch {
+      return;
+    }
+
     if (path !== "/ws/ramais") return;
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+
+    try {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req);
+      });
+    } catch (err) {
+      logger.error("[WS] erro durante handshake:", err.message || err);
+
+      if (!socket.destroyed) {
+        socket.destroy();
+      }
+    }
   });
 
   wss.on("connection", (ws, req) => {
-    // Front passa o tenant_id na query string: /ws/ramais?tenant_id=1
     logger.debug("[WS] tentativa de conexão recebida");
+
     const auth = autenticarTicket(req);
 
     if (!auth) {
@@ -680,57 +751,85 @@ function iniciarWebSocket(httpServer) {
 
     const tenantId = String(auth.tenantId);
 
-    // Registra o cliente
-    if (!clientes[tenantId]) clientes[tenantId] = new Set();
+    if (!clientes[tenantId]) {
+      clientes[tenantId] = new Set();
+    }
+
     clientes[tenantId].add(ws);
 
-    logger.debug(`[WS] cliente conectado tenant=${tenantId} total=${clientes[tenantId].size}`);
-
-    // Manda o estado atual imediatamente ao conectar
-    const estadoAtual = estadoRamais[tenantId] ?? {};
     logger.debug(
-      "[WS] ESTADO_INICIAL tenant=",
-      tenantId,
-      JSON.stringify(estadoRamais[tenantId] ?? {}, null, 2),
+      `[WS] cliente conectado tenant=${tenantId} total=${clientes[tenantId].size}`
     );
-    ws.send(JSON.stringify({ tipo: "ESTADO_INICIAL", ramais: estadoAtual, ts: Date.now() }));
+
+    const estadoAtual = estadoRamais[tenantId] ?? {};
+
+    enviarWebSocket(
+      ws,
+      JSON.stringify({
+        tipo: "ESTADO_INICIAL",
+        ramais: estadoAtual,
+        ts: Date.now(),
+      }),
+      tenantId
+    );
 
     ws.on("close", (code, reason) => {
       clientes[tenantId]?.delete(ws);
+
       logger.debug("[WS] ===== CONEXÃO FECHADA =====");
       logger.debug("[WS] tenant:", tenantId);
       logger.debug("[WS] code:", code);
       logger.debug("[WS] reason:", reason?.toString());
-      logger.debug("[WS] readyState:", ws.readyState);
-      logger.debug("[WS] time:", new Date().toISOString());
       logger.debug("[WS] ===========================");
     });
 
     ws.on("error", (err) => {
+      clientes[tenantId]?.delete(ws);
+
       logger.error("[WS] ===== ERRO WEBSOCKET =====");
       logger.error("[WS] tenant:", tenantId);
-      logger.error("[WS] erro:", err);
+      logger.error("[WS] erro:", err.message || err);
       logger.error("[WS] time:", new Date().toISOString());
       logger.error("[WS] ==========================");
     });
   });
 
+  wss.on("error", (err) => {
+    logger.error("[WS] erro no servidor WebSocket:", err.message || err);
+  });
+
   logger.info("[WS] WebSocket de ramais iniciado em /ws/ramais");
+
   return wss;
 }
 
 // ─── Inicialização ────────────────────────────────────────────────────────────
 
 async function iniciarMonitor(ariClient, httpServer, queryFn) {
-  registrarEventos(ariClient, queryFn);
-
+  // O WebSocket HTTP é inicializado uma única vez por servidor.
   iniciarWebSocket(httpServer);
 
-  logger.info("[MONITOR] WebSocket de ramais ativo");
+  // Se esse cliente ARI já foi inicializado, reutiliza a inicialização.
+  const inicializacaoExistente = inicializacoesPorAri.get(ariClient);
 
-  await inicializarRamaisOnline(ariClient, queryFn);
+  if (inicializacaoExistente) {
+    logger.debug("[MONITOR] cliente ARI já inicializado; evitando duplicidade.");
+    return inicializacaoExistente;
+  }
 
-  logger.info("[MONITOR] monitoramento de ramais ativo");
+  const inicializacao = (async () => {
+    registrarEventos(ariClient, queryFn);
+
+    logger.info("[MONITOR] WebSocket de ramais ativo");
+
+    await inicializarRamaisOnline(ariClient, queryFn);
+
+    logger.info("[MONITOR] monitoramento de ramais ativo");
+  })();
+
+  inicializacoesPorAri.set(ariClient, inicializacao);
+
+  return inicializacao;
 }
 
 module.exports = { iniciarMonitor, estadoRamais, publicar };
