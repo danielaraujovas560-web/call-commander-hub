@@ -264,8 +264,13 @@ export function renderDestinoLabel(destinosData: any, tipo?: string, destino?: s
       return destino;
     }
 
-    case "EXTERNO":
-      return `Número Externo: ${destino}`;
+    case "EXTERNO": {
+      const [numero, troncoPjsip] = destino.split("/");
+      const tronco = destinosData?.troncos?.find((tr: any) => String(tr.value) === String(troncoPjsip));
+      const troncoNome = tronco?.label || troncoPjsip;
+
+      return `Número Externo: ${numero} / ${troncoNome}`;
+    }
 
     default:
       return destino;
