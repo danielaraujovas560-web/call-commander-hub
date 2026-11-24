@@ -50,8 +50,8 @@ const audios = require("./routes/audios");
 const firewall = require("./routes/firewall");
 
 const { amiCommand, queueAdd, queueRefresh, onAmiConnect, getQueueStatus, inicializarFirewallAmi } = require("./ami");
-const { iniciarMonitor } = require("./ramal-monitor");
-const { connectARI } = require("./ari");
+const { iniciarMonitor, reconciliarEstadoRamais } = require("./ramal-monitor");
+const { connectARI, setAriClientHandler } = require("./ari");
 const { iniciar: iniciarConfbridgeMonitor } = require("./services/confbridgeMonitor");
 
 const { PABX_AGENT_SECRET, JWT_SECRET, PORT = "8787", AUDIO_UPLOAD_LIMIT = "1gb" } = process.env;
@@ -221,15 +221,27 @@ inicializarFirewallAmi().catch((err) => {
   console.error("[firewall] falha na inicialização:", err.message || err);
 });
 
+const clientesARIInicializados = new WeakSet();
+
+setAriClientHandler(async (ariClient, { reconectado } = {}) => {
+  if (clientesARIInicializados.has(ariClient)) {
+    if (reconectado) {
+      console.log("[BOOT] ARI recuperado; reconstruindo presença e chamadas ativas...");
+      await reconciliarEstadoRamais(ariClient, pool.query.bind(pool));
+      console.log("[BOOT] Estado dos ramais e chamadas reconciliado.");
+    }
+    return;
+  }
+
+  await iniciarMonitor(ariClient, server, pool.query.bind(pool));
+  clientesARIInicializados.add(ariClient);
+  console.log("[BOOT] Monitor de ramais inicializado.");
+});
+
 (async () => {
   try {
     console.log("[BOOT] iniciando conexão ARI independente do AMI...");
-    const ariClient = await connectARI();
-
-    if (ariClient) {
-      await iniciarMonitor(ariClient, server, pool.query.bind(pool));
-      console.log("[BOOT] Monitor de ramais inicializado.");
-    }
+    await connectARI();
   } catch (err) {
     console.error("[BOOT] Falha na inicialização ARI/monitor:", err);
   }
