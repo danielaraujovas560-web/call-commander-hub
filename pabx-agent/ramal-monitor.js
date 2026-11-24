@@ -353,6 +353,94 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
   }
 }
 
+// Reconstrói as chamadas que continuam ativas no Asterisk.
+// Isso cobre eventos perdidos enquanto o WebSocket ARI esteve desconectado.
+async function reconciliarChamadasAtivas(ariClient, queryFn) {
+  const [rows] = await queryFn(
+    `SELECT endpoint_id, tenant_id
+     FROM ramais
+     WHERE endpoint_id IS NOT NULL`
+  );
+
+  const tenantPorEndpoint = new Map(
+    rows.map((row) => [String(row.endpoint_id), row.tenant_id])
+  );
+
+  const canais = await ariClient.channels.list();
+  const ramaisComChamada = new Set();
+
+  // A fotografia de canais é a fonte de verdade após uma reconexão.
+  for (const canal of canais) {
+    const endpoint = extrairEndpoint(canal?.name);
+    if (!endpoint) continue;
+
+    const tenantId = tenantPorEndpoint.get(endpoint);
+    if (!tenantId) continue;
+
+    const estadoMap = {
+      Ring: "RING",
+      Ringing: "RINGING",
+      Up: "IN_CALL",
+    };
+    const state = estadoMap[canal.state];
+    if (!state) continue;
+
+    const exten = canal.dialplan?.exten;
+    const caller = canal.caller?.number;
+    const connected = canal.connected?.number;
+
+    // Em chamadas de saída, o exten costuma ser o destino.
+    // Em chamadas recebidas, o exten costuma ser o próprio ramal;
+    // nesse caso usamos o número de quem originou/está conectado.
+    let numero = null;
+    if (exten && exten !== "s" && String(exten) !== endpoint) {
+      numero = String(exten);
+    } else if (connected && String(connected) !== endpoint) {
+      numero = String(connected);
+    } else if (caller && String(caller) !== "s" && String(caller) !== endpoint) {
+      numero = String(caller);
+    }
+
+    ramaisComChamada.add(`${tenantId}:${endpoint}`);
+
+    const dados = {
+      endpoint,
+      state,
+      numero: numero || null,
+      linkedid: canal.id || null,
+    };
+
+    if (state === "IN_CALL") {
+      dados.desde = estadoRamais[tenantId]?.[endpoint]?.desde || new Date().toISOString();
+    }
+
+    atualizarEstado(tenantId, endpoint, dados);
+  }
+
+  // Limpa estados de chamada que ficaram em memória, mas já não existem no Asterisk.
+  for (const row of rows) {
+    const endpoint = String(row.endpoint_id);
+    const tenantId = row.tenant_id;
+    const chave = `${tenantId}:${endpoint}`;
+    const estadoAtual = estadoRamais[tenantId]?.[endpoint];
+
+    if (!estadoAtual || ramaisComChamada.has(chave)) continue;
+
+    if (estadoAtual.state && estadoAtual.state !== "IDLE") {
+      limparEstado(tenantId, endpoint);
+    }
+  }
+
+  logger.info(
+    `[MONITOR] reconciliação de chamadas concluída: ${ramaisComChamada.size} canais de ramais ativos encontrados.`
+  );
+}
+
+async function reconciliarEstadoRamais(ariClient, queryFn) {
+  await inicializarRamaisOnline(ariClient, queryFn);
+  await reconciliarChamadasAtivas(ariClient, queryFn);
+}
+
 // ─── Registrar eventos ARI + Função ultima conexão no banco ───────────────────────────────────
 function registrarEventos(ariClient, queryFn) {
   // Registro/desregistro do ramal
@@ -822,7 +910,7 @@ async function iniciarMonitor(ariClient, httpServer, queryFn) {
 
     logger.info("[MONITOR] WebSocket de ramais ativo");
 
-    await inicializarRamaisOnline(ariClient, queryFn);
+    await reconciliarEstadoRamais(ariClient, queryFn);
 
     logger.info("[MONITOR] monitoramento de ramais ativo");
   })();
@@ -832,4 +920,4 @@ async function iniciarMonitor(ariClient, httpServer, queryFn) {
   return inicializacao;
 }
 
-module.exports = { iniciarMonitor, estadoRamais, publicar };
+module.exports = { iniciarMonitor, reconciliarEstadoRamais, estadoRamais, publicar };
