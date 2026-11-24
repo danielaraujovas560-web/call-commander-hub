@@ -49,7 +49,7 @@ const gravacoes = require("./routes/gravacao");
 const audios = require("./routes/audios");
 const firewall = require("./routes/firewall");
 
-const { amiCommand, queueAdd, queueRefresh, onAmiConnect, getQueueStatus } = require("./ami");
+const { amiCommand, queueAdd, queueRefresh, onAmiConnect, getQueueStatus, inicializarFirewallAmi } = require("./ami");
 const { iniciarMonitor } = require("./ramal-monitor");
 const { connectARI } = require("./ari");
 const { iniciar: iniciarConfbridgeMonitor } = require("./services/confbridgeMonitor");
@@ -117,48 +117,34 @@ async function getActiveQueueMembers() {
 
 iniciarMobileCallMonitor();
 
+let restauracaoFilasEmAndamento = null;
+
 onAmiConnect(async () => {
-  console.log("[BOOT] AMI conectado, iniciando ARI...");
+  if (restauracaoFilasEmAndamento) {
+    console.log("[queue-restore] restauração já em andamento; ignorando callback duplicado.");
+    return restauracaoFilasEmAndamento;
+  }
 
-  try {
-    const ariClient = await connectARI();
+  restauracaoFilasEmAndamento = (async () => {
+    console.log("[queue-restore] AMI conectado.");
 
-    console.log("[BOOT] connectARI() retornou:", !!ariClient);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("[queue-restore] recarregando parâmetros das filas...");
+      await amiQueueReloadAll();
 
-    if (ariClient) {
-      console.log("[BOOT] Iniciando monitor de ramais...");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await restoreQueueMembers();
 
-      await iniciarMonitor(
-        ariClient,
-        server,
-        pool.query.bind(pool)
-      );
-
-      console.log("[BOOT] Monitor de ramais inicializado.");
-    } else {
-      console.error("[BOOT] ARI indisponível. Monitor não iniciado.");
+      console.log("[queue-restore] Restauração concluída.");
+    } catch (err) {
+      console.error("[queue-restore] Erro:", err);
+    } finally {
+      restauracaoFilasEmAndamento = null;
     }
-  } catch (err) {
-    console.error("[BOOT] Falha na inicialização ARI/monitor:", err);
-  }
+  })();
 
-  console.log("[queue-restore] AMI conectado.");
-
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    console.log("[queue-restore] recarregando parâmetros das filas...");
-
-    await amiQueueReloadAll();
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    await restoreQueueMembers();
-
-    console.log("[queue-restore] Restauração concluída.");
-  } catch (err) {
-    console.error("[queue-restore] Erro:", err);
-  }
+  return restauracaoFilasEmAndamento;
 });
 
 const app = express();
@@ -229,5 +215,24 @@ iniciarConfbridgeMonitor({
   server: server,
   jwtSecret: JWT_SECRET
 });
+
+// Infraestrutura independente: firewall e ARI não dependem do ciclo de reconexão do AMI.
+inicializarFirewallAmi().catch((err) => {
+  console.error("[firewall] falha na inicialização:", err.message || err);
+});
+
+(async () => {
+  try {
+    console.log("[BOOT] iniciando conexão ARI independente do AMI...");
+    const ariClient = await connectARI();
+
+    if (ariClient) {
+      await iniciarMonitor(ariClient, server, pool.query.bind(pool));
+      console.log("[BOOT] Monitor de ramais inicializado.");
+    }
+  } catch (err) {
+    console.error("[BOOT] Falha na inicialização ARI/monitor:", err);
+  }
+})();
 
 startLogControl();
