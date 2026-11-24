@@ -297,6 +297,11 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
 
       if (!estaOnline(presenca)) {
         offline++;
+
+        // A reconciliação pode acontecer com dashboards já conectados.
+        // Como o estado em memória foi reconstruído, avisamos que este ramal
+        // não está presente para remover qualquer estado antigo no frontend.
+        publicar(tenantId, "RAMAL_REMOVIDO", { endpoint });
         continue;
       }
 
@@ -333,6 +338,13 @@ async function inicializarRamaisOnline(ariClient, queryFn) {
         desde: null,
         conectadoDesde: registradoDesde ? new Date(registradoDesde).toISOString() : null,
       };
+
+      // Atualiza também os dashboards que já estavam conectados antes
+      // da inicialização/reconexão terminar.
+      publicar(tenantId, "RAMAL_STATUS", {
+        endpoint,
+        ...estadoRamais[tenantId][endpoint],
+      });
 
       online++;
     }
