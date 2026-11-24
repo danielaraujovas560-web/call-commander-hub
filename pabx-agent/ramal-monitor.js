@@ -188,24 +188,44 @@ function enviarWebSocket(ws, mensagem, tenantId) {
 }
 
 function publicar(tenantId, tipo, payload) {
+  const tenantKey = String(tenantId);
   const mensagem = JSON.stringify({
     tipo,
     ...payload,
     ts: Date.now(),
   });
 
-  const alvos = clientes[tenantId];
+  const alvos = clientes[tenantKey];
 
-  if (!alvos) return;
+  if (!alvos || alvos.size === 0) {
+    logger.debug(
+      `[WS][publicar] sem clientes: tenant=${tenantKey}, tipo=${tipo}, endpoint=${payload?.endpoint ?? "-"}, state=${payload?.state ?? "-"}`
+    );
+    return;
+  }
+
+  let abertos = 0;
+  let enviados = 0;
+  let removidos = 0;
 
   for (const ws of alvos) {
     if (ws.readyState !== WebSocket.OPEN) {
       alvos.delete(ws);
+      removidos++;
       continue;
     }
 
-    enviarWebSocket(ws, mensagem, tenantId);
+    abertos++;
+    if (enviarWebSocket(ws, mensagem, tenantKey)) {
+      enviados++;
+    } else {
+      removidos++;
+    }
   }
+
+  logger.debug(
+    `[WS][publicar] tenant=${tenantKey}, tipo=${tipo}, endpoint=${payload?.endpoint ?? "-"}, state=${payload?.state ?? "-"}, clientes=${alvos.size + removidos}, abertos=${abertos}, enviados=${enviados}, removidos=${removidos}`
+  );
 }
 
 // ─── Atualizar estado e notificar ─────────────────────────────────────────────
