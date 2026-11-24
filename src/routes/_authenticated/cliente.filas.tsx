@@ -448,10 +448,11 @@ function FilaFormDialog({
 
   const mohAudiosFn = useServerFn(listAudios);
 
-  const { data: responseAudios, isLoading } = useQuery({
-    queryKey: ["audios", "musica_espera"],
-    queryFn: () => mohAudiosFn({ data: { tipo: "musica_espera" } }),
-    enabled: open,
+  const { data: responseAudios, isLoading, error: audiosError } = useQuery({
+    queryKey: ["audios", tenantId, "musica_espera"],
+    queryFn: () =>
+      mohAudiosFn({ data: { tenant_id: tenantId, tipo: "musica_espera" } }),
+    enabled: open && !!tenantId,
   });
 
   const mohAudios = responseAudios?.audios || responseAudios || [];
