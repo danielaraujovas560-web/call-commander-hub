@@ -8,6 +8,21 @@ const ARI_APP_NAME = process.env.ARI_APP_NAME;
 
 let client = null;
 let connecting = null;
+let onClientReady = null;
+let replacementScheduled = false;
+
+function setAriClientHandler(handler) {
+  onClientReady = handler;
+}
+
+async function notificarClientePronto(ariClient, reconectado) {
+  if (typeof onClientReady !== "function") return;
+  try {
+    await onClientReady(ariClient, { reconectado });
+  } catch (err) {
+    logger.error("[ARI] erro no callback de inicialização/reconciliação:", err);
+  }
+}
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -27,11 +42,43 @@ async function connectARI() {
         );
 
         registrarEventosARI(novoClient);
+
+        // O evento WebSocketConnected também é emitido quando o socket
+        // recupera a conexão sem trocar o objeto Client.
+        novoClient.on("WebSocketConnected", () => {
+          if (client !== novoClient) return;
+          logger.info("[ARI] WebSocket reconectado; reconciliando estado dos ramais...");
+          notificarClientePronto(novoClient, true);
+        });
+
+        novoClient.on("WebSocketReconnecting", (err) => {
+          logger.warn("[ARI] WebSocket desconectado; tentando reconectar:", err?.message || err || "sem detalhes");
+        });
+
+        novoClient.on("WebSocketMaxRetries", (err) => {
+          if (client !== novoClient || replacementScheduled) return;
+
+          replacementScheduled = true;
+          logger.error("[ARI] limite de reconexões do WebSocket atingido; será criado um novo cliente:", err?.message || err || "sem detalhes");
+          client = null;
+
+          setTimeout(async () => {
+            replacementScheduled = false;
+            try {
+              const novo = await connectARI();
+              if (novo) await notificarClientePronto(novo, false);
+            } catch (reconnectError) {
+              logger.error("[ARI] falha ao substituir cliente após esgotar reconexões:", reconnectError);
+            }
+          }, 5000);
+        });
+
         await Promise.resolve(novoClient.start(ARI_APP_NAME));
 
         client = novoClient;
         logger.info("[ARI] conectado ao Asterisk");
         logger.debug("[ARI] WebSocket de eventos solicitado");
+        await notificarClientePronto(client, false);
 
         return client;
       } catch (err) {
@@ -102,4 +149,5 @@ function registrarEventosARI(client) {
 
 module.exports = {
   connectARI,
+  setAriClientHandler,
 };
