@@ -7,33 +7,46 @@ const ARI_PASSWORD = process.env.ARI_PASSWORD;
 const ARI_APP_NAME = process.env.ARI_APP_NAME;
 
 let client = null;
+let connecting = null;
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function connectARI() {
-  try {
-    logger.debug("[ARI] conectando...");
+  if (client) return client;
+  if (connecting) return connecting;
 
-    client = await ari.connect(
-      ARI_URL,
-      ARI_USER,
-      ARI_PASSWORD
-    );
+  connecting = (async () => {
+    while (!client) {
+      try {
+        logger.debug("[ARI] conectando...");
 
-    logger.info("[ARI] conectado ao Asterisk");
+        const novoClient = await ari.connect(
+          ARI_URL,
+          ARI_USER,
+          ARI_PASSWORD
+        );
 
-    registrarEventosARI(client);
+        registrarEventosARI(novoClient);
+        await Promise.resolve(novoClient.start(ARI_APP_NAME));
 
-    client.start(ARI_APP_NAME);
+        client = novoClient;
+        logger.info("[ARI] conectado ao Asterisk");
+        logger.debug("[ARI] WebSocket de eventos solicitado");
 
-    logger.debug("[ARI] WebSocket de eventos solicitado");
+        return client;
+      } catch (err) {
+        logger.error("[ARI] falha ao conectar; nova tentativa em 5 segundos:", err);
+        await delay(5000);
+      }
+    }
 
     return client;
+  })();
 
-  } catch (err) {
-    logger.error("[ARI] falha ao conectar:", err);
-
-    setTimeout(connectARI, 5000);
-
-    return null;
+  try {
+    return await connecting;
+  } finally {
+    connecting = null;
   }
 }
 
