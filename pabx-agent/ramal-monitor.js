@@ -395,10 +395,10 @@ async function reconciliarChamadasAtivas(ariClient, queryFn) {
     let numero = null;
     if (exten && exten !== "s" && String(exten) !== endpoint) {
       numero = String(exten);
-    } else if (connected && String(connected) !== endpoint) {
-      numero = String(connected);
     } else if (caller && String(caller) !== "s" && String(caller) !== endpoint) {
       numero = String(caller);
+    } else if (connected && String(connected) !== endpoint) {
+      numero = String(connected);
     }
 
     ramaisComChamada.add(`${tenantId}:${endpoint}`);
