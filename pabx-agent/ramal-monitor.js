@@ -738,11 +738,24 @@ ariClient.on("ContactStatusChange", async (event) => {
             ...(numeroDiscado ? { numero: numeroDiscado } : {}),
           });
         } else {
-          const state = stateMap[dialstatus] ?? "IDLE";
-          atualizarEstado(tenantId, callerEndpoint, {
-            state,
-            ...(state === "IN_CALL" ? { desde: new Date().toISOString() } : {}),
-          });
+          // Uma chamada pode tocar em várias pernas em paralelo (ex.: Web + mobile).
+          // O encerramento de uma perna Local não encerra a chamada lógica do ramal.
+          // Mantém o estado atual até outra perna atender ou o canal do ramal terminar.
+          const falhaDePernaLocal =
+            /^Local\//i.test(peerStr) &&
+            ["CANCEL", "BUSY", "NOANSWER", "CONGESTION", "CHANUNAVAIL"].includes(dialstatus);
+
+          if (!falhaDePernaLocal) {
+            const state = stateMap[dialstatus] ?? "IDLE";
+            atualizarEstado(tenantId, callerEndpoint, {
+              state,
+              ...(state === "IN_CALL" ? { desde: new Date().toISOString() } : {}),
+            });
+          } else {
+            logger.debug(
+              `[MONITOR][Dial] ignorando ${dialstatus} da perna Local para caller lógico=${callerEndpoint}; aguardando demais pernas`
+            );
+          }
         }
       }
     }
