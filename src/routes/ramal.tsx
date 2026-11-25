@@ -116,6 +116,8 @@ function Softphone({
 
   const [numero, setNumero] = useState("");
   const [ramalConvidado, setRamalConvidado] = useState("");
+  const [dispositivoConvidado, setDispositivoConvidado] = useState<"base" | "web" | "mobile">("web");
+  const [acompanharConferencias, setAcompanharConferencias] = useState(false);
   const [iniciandoConferencia, setIniciandoConferencia] = useState(false);
   const [convidandoRamal, setConvidandoRamal] = useState(false);
   const [erroConferencia, setErroConferencia] = useState("");
@@ -197,7 +199,7 @@ function Softphone({
       getRamalConferenciasAtivasFn({
         data: { ramalToken: creds.token },
       }),
-    refetchInterval: 4000,
+    refetchInterval: callState === "active" || acompanharConferencias ? 4000 : false,
   });
 
   const { data: conferencias = [], isLoading: carregandoConferencias } = useQuery({
@@ -273,14 +275,15 @@ function Softphone({
 
   async function handleIniciarConferenciaTemporaria() {
     const ramal = ramalConvidado.trim();
-    if (!/^\\d{3,6}$/.test(ramal) || callState !== "active" || isOnHold) return;
+    if (!/^\d{3,6}$/.test(ramal) || callState !== "active" || isOnHold) return;
 
     setIniciandoConferencia(true);
     setErroConferencia("");
     setAvisoConferencia("");
     try {
+      setAcompanharConferencias(true);
       const resultado = await iniciarConferenciaTemporariaFn({
-        data: { ramalToken: creds.token, ramal },
+        data: { ramalToken: creds.token, ramal, dispositivoConvidado },
       });
       setAvisoConferencia(
         `Convite enviado para o ramal ${ramal}. A chamada será convertida em conferência quando ele atender.`,
@@ -297,7 +300,7 @@ function Softphone({
 
   async function handleConvidarParaSala(sala: string) {
     const ramal = ramalConvidado.trim();
-    if (!/^\\d{3,6}$/.test(ramal)) return;
+    if (!/^\d{3,6}$/.test(ramal)) return;
 
     setConvidandoRamal(true);
     setErroConferencia("");
@@ -691,17 +694,28 @@ function Softphone({
                       <div className="flex gap-2">
                         <Input
                           value={ramalConvidado}
-                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\\D/g, "").slice(0, 6))}
+                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\D/g, "").slice(0, 6))}
                           placeholder="Número do ramal"
                           inputMode="numeric"
                           className="min-w-0"
                           disabled={iniciandoConferencia || isOnHold}
                         />
+                        <select
+                          aria-label="Dispositivo do ramal convidado"
+                          value={dispositivoConvidado}
+                          onChange={(e) => setDispositivoConvidado(e.target.value as "base" | "web" | "mobile")}
+                          className="h-10 rounded-md border bg-background px-2 text-sm"
+                          disabled={iniciandoConferencia || isOnHold}
+                        >
+                          <option value="web">Web</option>
+                          <option value="mobile">Celular</option>
+                          <option value="base">Base</option>
+                        </select>
                         <Button
                           type="button"
                           size="sm"
                           onClick={handleIniciarConferenciaTemporaria}
-                          disabled={!/^\\d{3,6}$/.test(ramalConvidado) || iniciandoConferencia || isOnHold}
+                          disabled={!/^\d{3,6}$/.test(ramalConvidado) || iniciandoConferencia || isOnHold}
                         >
                           {iniciandoConferencia ? "Chamando…" : "Convidar"}
                         </Button>
@@ -786,7 +800,7 @@ function Softphone({
                           type="button"
                           size="sm"
                           onClick={() => handleConvidarParaSala(sala.sala)}
-                          disabled={!/^\\d{3,6}$/.test(ramalConvidado) || convidandoRamal}
+                          disabled={!/^\d{3,6}$/.test(ramalConvidado) || convidandoRamal}
                         >
                           {convidandoRamal ? "Enviando…" : "Convidar"}
                         </Button>
