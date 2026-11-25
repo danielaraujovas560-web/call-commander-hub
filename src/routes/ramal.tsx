@@ -844,7 +844,7 @@ function Softphone({
                             }}
                             disabled={!/^\d{3,20}$/.test(ramalConvidado) || iniciandoConferencia || convidandoRamal}
                           >
-                            {iniciandoConferencia || convidandoRamal ? "Chamando…" : "Convidar"}
+                            {iniciandoConferencia || convidandoRamal ? "Chamando…" : conferenciasAtivas.length > 0 ? "Convidar" : "Iniciar"}
                           </Button>
                         </div>
                         {isOnHold && (
@@ -983,8 +983,6 @@ function Softphone({
 
                     </div>
                   ))}
-                  {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
-                  {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
                 </CardContent>
               </Card>
             )}
