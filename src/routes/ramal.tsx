@@ -116,6 +116,7 @@ function Softphone({
 
   const [numero, setNumero] = useState("");
   const [ramalConvidado, setRamalConvidado] = useState("");
+  const [ramalTransferencia, setRamalTransferencia] = useState("");
   const [dispositivoConvidado, setDispositivoConvidado] = useState<"base" | "web" | "mobile">("web");
   const [acompanharConferencias, setAcompanharConferencias] = useState(false);
   const [iniciandoConferencia, setIniciandoConferencia] = useState(false);
@@ -790,7 +791,7 @@ function Softphone({
                       <div className="flex gap-2">
                         <Input
                           value={ramalConvidado}
-                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\\D/g, "").slice(0, 6))}
+                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\D/g, "").slice(0, 6))}
                           placeholder="Ramal para convidar"
                           inputMode="numeric"
                           className="min-w-0"
