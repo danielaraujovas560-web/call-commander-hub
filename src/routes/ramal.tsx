@@ -16,6 +16,7 @@ import {
 } from "@/lib/ramal-softphone.functions";
 
 import { useJsSipPhone } from "@/hooks/use-jssip-phone";
+import { useRamalConfbridgeMonitor } from "@/hooks/use-ramal-confbridge-monitor";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,8 @@ import {
   Pause,
   Play,
   Users,
+  Video,
+  VideoOff,
 } from "lucide-react";
 
 export const Route = createFileRoute("/ramal")({
@@ -107,6 +110,10 @@ function Softphone({
     remoteNumber,
     callDuration,
     remoteAudioRef,
+    remoteVideoRef,
+    localVideoRef,
+    isVideoEnabled,
+    toggleVideo,
     call,
     answer,
     hangup,
@@ -134,6 +141,11 @@ function Softphone({
   const [convidandoRamal, setConvidandoRamal] = useState(false);
   const [erroConferencia, setErroConferencia] = useState("");
   const [avisoConferencia, setAvisoConferencia] = useState("");
+  useEffect(() => {
+    if (!avisoConferencia) return;
+    const timer = window.setTimeout(() => setAvisoConferencia(""), 3500);
+    return () => window.clearTimeout(timer);
+  }, [avisoConferencia]);
 
   const getRamalInfoFn = useServerFn(getRamalInfo);
   const getRamalWebTicketFn = useServerFn(getRamalWebTicket);
@@ -143,7 +155,9 @@ function Softphone({
   const iniciarConferenciaTemporariaFn = useServerFn(iniciarConferenciaTemporariaRamal);
   const convidarRamalParaConferenciaFn = useServerFn(convidarRamalParaConferencia);
 
-  const endpointId = creds.sip_username.replace(/-web$/, "");
+  const endpointId = creds.sip_username.replace(/-(web|mobile)$/i, "");
+  const { minhaConferencia, emConferencia } =
+    useRamalConfbridgeMonitor(creds.token, endpointId);
 
   const queryClient = useQueryClient();
 
@@ -325,7 +339,7 @@ function Softphone({
     try {
       const enviado = await blindTransfer(destino);
       if (!enviado) throw new Error("Não foi possível enviar o comando de transferência.");
-      setAvisoConferencia("Comando de transferência cega enviado para o ramal " + destino + ".");
+      setAvisoConferencia("Comando de transferência enviado.");
       setRamalTransferencia("");
       setPainelAcao(null);
     } catch (error) {
@@ -361,7 +375,7 @@ function Softphone({
     try {
       const enviado = await completeAttendedTransfer();
       if (!enviado) throw new Error("Não foi possível concluir a transferência.");
-      setAvisoConferencia("Comando para concluir a transferência enviado ao PABX.");
+      setAvisoConferencia("Transferência concluída.");
       setTransferenciaAssistidaAtiva(false);
       setPainelAcao(null);
     } catch (error) {
@@ -377,7 +391,7 @@ function Softphone({
     try {
       const enviado = await abortAttendedTransfer();
       if (!enviado) throw new Error("Não foi possível cancelar a consulta.");
-      setAvisoConferencia("Comando para cancelar a consulta enviado ao PABX.");
+      setAvisoConferencia("Consulta cancelada.");
       setTransferenciaAssistidaAtiva(false);
     } catch (error) {
       setErroConferencia(error instanceof Error ? error.message : "Falha ao cancelar a consulta.");
@@ -434,6 +448,15 @@ function Softphone({
   }
 
   useEffect(() => {
+    if (emConferencia) {
+      setPainelAcao(null);
+      setTransferenciaAssistidaAtiva(false);
+      setErroConferencia("");
+      setAvisoConferencia("");
+    }
+  }, [emConferencia]);
+
+  useEffect(() => {
     if (callState !== "active") {
       setPainelAcao(null);
       setTransferenciaAssistidaAtiva(false);
@@ -448,6 +471,10 @@ function Softphone({
       {/* Áudio remoto da chamada */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
+      <div className="fixed bottom-4 right-4 z-40 grid max-w-sm gap-2" aria-label="Vídeo da chamada">
+        <video ref={remoteVideoRef} autoPlay playsInline className="max-h-56 w-full rounded-lg bg-black object-contain" />
+        <video ref={localVideoRef} autoPlay playsInline muted className="max-h-32 w-32 justify-self-end rounded-lg bg-black object-cover" />
+      </div>
 
       {/* Header */}
       <header className="border-b bg-card">
@@ -761,7 +788,11 @@ function Softphone({
 
                     <CardTitle className="mt-3">Em chamada</CardTitle>
 
-                    <CardDescription>Chamada ativa</CardDescription>
+                    <CardDescription>
+                      {emConferencia
+                        ? `Conferência · ${minhaConferencia?.sala ?? ""}`
+                        : "Chamada ativa"}
+                    </CardDescription>
                   </CardHeader>
 
                   <CardContent className="space-y-6 p-6 text-center">
@@ -796,7 +827,45 @@ function Softphone({
                       </Button>
                     </div>
 
-                    {/* Ações da chamada */}
+                    <Button
+                      type="button"
+                      variant={isVideoEnabled ? "default" : "outline"}
+                      className="h-12 w-full"
+                      onClick={() => void toggleVideo().catch((error) => {
+                        setErroConferencia(error instanceof Error ? error.message : "Não foi possível ativar o vídeo.");
+                      })}
+                      disabled={isOnHold}
+                    >
+                      {isVideoEnabled ? <VideoOff className="mr-2 h-4 w-4" /> : <Video className="mr-2 h-4 w-4" />}
+                      {isVideoEnabled ? "Desligar câmera" : "Ativar câmera"}
+                    </Button>
+
+                    {emConferencia && minhaConferencia ? (
+                      <div className="space-y-3 rounded-lg border bg-muted/30 p-4 text-left">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">Você está em uma conferência</p>
+                          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs text-emerald-700">Conectado</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Sala {minhaConferencia.sala} · {minhaConferencia.participantes.length} participante(s)
+                        </p>
+                        <div className="max-h-36 space-y-1 overflow-y-auto">
+                          {minhaConferencia.participantes.map((participante) => (
+                            <div key={participante.canal} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate">{participante.nome || participante.numero || participante.canal}</span>
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                {participante.mutado ? "Mutado" : participante.falando ? "Falando" : "Conectado"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Para sair da conferência, use Desligar. A sala permanece ativa para os demais participantes.
+                        </p>
+                      </div>
+                    ) : (
+                    <>
+                    {/* Ações da chamada comum */}
                     <div className="grid grid-cols-2 gap-3">
                       <Button
                         type="button"
@@ -845,7 +914,7 @@ function Softphone({
                       ))}
                     </div>
 
-                    {painelAcao === "conferencia" && (
+                    {painelAcao === "conferencia" && !emConferencia && (
                       <div className="space-y-3 rounded-lg border p-4 text-left">
                         <div>
                           <p className="text-sm font-medium">
@@ -927,7 +996,7 @@ function Softphone({
                       </div>
                     )}
 
-                    {painelAcao === "transferencia" && (
+                    {painelAcao === "transferencia" && !emConferencia && (
                       <div className="space-y-3 rounded-lg border p-4 text-left">
                         <div>
                           <p className="text-sm font-medium">Transferir chamada</p>
@@ -1036,6 +1105,9 @@ function Softphone({
                     )}
 
                     {erroConferencia && <p role="alert" className="text-xs text-destructive text-left">{erroConferencia}</p>}
+                    </>
+                    )}
+
                     {avisoConferencia && <p role="status" className="text-xs text-emerald-600 text-left">{avisoConferencia}</p>}
 
                     {/* Desligar */}
