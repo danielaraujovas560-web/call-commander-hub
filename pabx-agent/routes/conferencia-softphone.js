@@ -244,22 +244,34 @@ function listarCanais(timeout = 6000) {
 }
 router.post("/conferencias-softphone/temporaria", async (req, res) => {
   const p = autorizado(req, res); if (!p) return;
-  const dispositivoOrigem = validarDispositivo(req.body?.dispositivoOrigem);
-  const dispositivoConvidado = validarDispositivo(req.body?.dispositivoConvidado);
   const ramal = String(req.body?.ramal || "");
-  if (!dispositivoOrigem || !dispositivoConvidado || !/^\d{1,20}$/.test(ramal)) return res.status(400).json({ error: "Parâmetros inválidos" });
+  if (!/^\d{1,20}$/.test(ramal)) return res.status(400).json({ error: "Informe um ramal interno válido" });
+  // O dispositivo de origem vem do token autenticado; o cliente não escolhe Web/Android/Base.
+  const endpointOrigem = String(req.ramalEndpointId || p.endpoint);
+  if (endpointOrigem !== p.endpoint && !endpointOrigem.startsWith(\`\${p.endpoint}-\`)) {
+    return res.status(403).json({ error: "Dispositivo de origem inválido" });
+  }
+  if (!new RegExp(\`^\${p.endpoint}(?:-(?:web|mobile))?$\`).test(endpointOrigem)) {
+    return res.status(403).json({ error: "Dispositivo de origem inválido" });
+  }
   if (!amiReady()) return res.status(503).json({ error: "AMI indisponível" });
   try {
     const [rows] = await db.execute("SELECT endpoint_id FROM ramais WHERE tenant_id=? AND ramal=? LIMIT 1", [p.tenantId,ramal]);
     if (!rows.length) return res.status(404).json({ error: "Ramal convidado não pertence ao tenant" });
     const alvoBase = String(rows[0].endpoint_id);
     if (alvoBase === p.endpoint) return res.status(409).json({ error: "Selecione outro ramal" });
-    const alvo = dispositivoConvidado === "base" ? alvoBase : `${alvoBase}-${dispositivoConvidado}`;
-    const origemEndpoint = dispositivoOrigem === "base" ? p.endpoint : `${p.endpoint}-${dispositivoOrigem}`;
     const canais = await listarCanais();
-    const origem = canais.filter(c => canalEndpoint(campo(c,"Channel")) === origemEndpoint && String(campo(c,"ChannelStateDesc")).toLowerCase() === "up" && !/confbridge/i.test(String(campo(c,"Application"))));
-    if (origem.length !== 1) return res.status(409).json({ error: "Não foi possível identificar de forma única a chamada ativa neste dispositivo" });
-    const retorno = await temporaria.iniciar({ tenantId: p.tenantId, canalOrigem: String(campo(origem[0],"Channel")), endpointConvidado: alvo });
+    const origem = canais.filter(c =>
+      canalEndpoint(campo(c,"Channel")) === endpointOrigem &&
+      String(campo(c,"ChannelStateDesc")).toLowerCase() === "up" &&
+      !/confbridge/i.test(String(campo(c,"Application")))
+    );
+    if (origem.length !== 1) return res.status(409).json({ error: "Não foi possível identificar de forma única a chamada ativa deste ramal" });
+    const retorno = await temporaria.iniciar({
+      tenantId: p.tenantId,
+      canalOrigem: String(campo(origem[0],"Channel")),
+      endpointConvidado: alvoBase,
+    });
     return res.status(202).json({ ok: true, ...retorno });
   } catch (e) { console.error("[CONF SOFT][TEMP]", e); return res.status(409).json({ error: e.message || "Falha ao criar conferência" }); }
 });
