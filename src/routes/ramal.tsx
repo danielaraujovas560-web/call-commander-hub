@@ -7,7 +7,12 @@ import { type RamalCreds } from "@/lib/auth/ramal-creds";
 import { useRamalAuth } from "@/hooks/use-ramal-auth";
 
 import { getRamalInfo, getRamalWebTicket } from "@/lib/ramais.functions";
-import { getRamalConferenciasAgenda } from "@/lib/ramal-softphone.functions";
+import {
+  getRamalConferenciasAgenda,
+  getRamalConferenciasAtivas,
+  iniciarConferenciaTemporariaRamal,
+  convidarRamalParaConferencia,
+} from "@/lib/ramal-softphone.functions";
 
 import { useJsSipPhone } from "@/hooks/use-jssip-phone";
 
@@ -110,10 +115,18 @@ function Softphone({
   } = useJsSipPhone(sipCreds);
 
   const [numero, setNumero] = useState("");
+  const [ramalConvidado, setRamalConvidado] = useState("");
+  const [iniciandoConferencia, setIniciandoConferencia] = useState(false);
+  const [convidandoRamal, setConvidandoRamal] = useState(false);
+  const [erroConferencia, setErroConferencia] = useState("");
+  const [avisoConferencia, setAvisoConferencia] = useState("");
 
   const getRamalInfoFn = useServerFn(getRamalInfo);
   const getRamalWebTicketFn = useServerFn(getRamalWebTicket);
   const getRamalConferenciasAgendaFn = useServerFn(getRamalConferenciasAgenda);
+  const getRamalConferenciasAtivasFn = useServerFn(getRamalConferenciasAtivas);
+  const iniciarConferenciaTemporariaFn = useServerFn(iniciarConferenciaTemporariaRamal);
+  const convidarRamalParaConferenciaFn = useServerFn(convidarRamalParaConferencia);
 
   const endpointId = creds.sip_username.replace(/-web$/, "");
 
@@ -177,6 +190,15 @@ function Softphone({
       }
     };
   }, [creds.token, endpointId, queryClient]);
+
+  const { data: conferenciasAtivas = [], refetch: atualizarConferenciasAtivas } = useQuery({
+    queryKey: ["ramal-conferencias-ativas", endpointId],
+    queryFn: () =>
+      getRamalConferenciasAtivasFn({
+        data: { ramalToken: creds.token },
+      }),
+    refetchInterval: 4000,
+  });
 
   const { data: conferencias = [], isLoading: carregandoConferencias } = useQuery({
     queryKey: ["ramal-conferencias-agenda", endpointId],
@@ -247,6 +269,51 @@ function Softphone({
     }
 
     call(numero);
+  }
+
+  async function handleIniciarConferenciaTemporaria() {
+    const ramal = ramalConvidado.trim();
+    if (!/^\\d{3,6}$/.test(ramal) || callState !== "active" || isOnHold) return;
+
+    setIniciandoConferencia(true);
+    setErroConferencia("");
+    setAvisoConferencia("");
+    try {
+      const resultado = await iniciarConferenciaTemporariaFn({
+        data: { ramalToken: creds.token, ramal },
+      });
+      setAvisoConferencia(
+        `Convite enviado para o ramal ${ramal}. A chamada será convertida em conferência quando ele atender.`,
+      );
+      setRamalConvidado("");
+      void atualizarConferenciasAtivas();
+      console.info("[RAMAL] Conferência temporária solicitada:", resultado.sala);
+    } catch (error) {
+      setErroConferencia(error instanceof Error ? error.message : "Não foi possível iniciar a conferência.");
+    } finally {
+      setIniciandoConferencia(false);
+    }
+  }
+
+  async function handleConvidarParaSala(sala: string) {
+    const ramal = ramalConvidado.trim();
+    if (!/^\\d{3,6}$/.test(ramal)) return;
+
+    setConvidandoRamal(true);
+    setErroConferencia("");
+    setAvisoConferencia("");
+    try {
+      await convidarRamalParaConferenciaFn({
+        data: { ramalToken: creds.token, sala, ramal },
+      });
+      setAvisoConferencia(`Convite enviado para o ramal ${ramal}.`);
+      setRamalConvidado("");
+      void atualizarConferenciasAtivas();
+    } catch (error) {
+      setErroConferencia(error instanceof Error ? error.message : "Não foi possível convidar o ramal.");
+    } finally {
+      setConvidandoRamal(false);
+    }
   }
 
   const isRegistered = phoneState === "registered";
@@ -613,6 +680,39 @@ function Softphone({
                       ))}
                     </div>
 
+                    {/* Conferência temporária */}
+                    <div className="space-y-3 rounded-lg border p-4 text-left">
+                      <div>
+                        <p className="text-sm font-medium">Adicionar participante</p>
+                        <p className="text-xs text-muted-foreground">
+                          Cria uma conferência temporária e convida outro ramal.
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          value={ramalConvidado}
+                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\\D/g, "").slice(0, 6))}
+                          placeholder="Número do ramal"
+                          inputMode="numeric"
+                          className="min-w-0"
+                          disabled={iniciandoConferencia || isOnHold}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleIniciarConferenciaTemporaria}
+                          disabled={!/^\\d{3,6}$/.test(ramalConvidado) || iniciandoConferencia || isOnHold}
+                        >
+                          {iniciandoConferencia ? "Chamando…" : "Convidar"}
+                        </Button>
+                      </div>
+                      {isOnHold && (
+                        <p className="text-xs text-muted-foreground">Retome a chamada antes de iniciar a conferência.</p>
+                      )}
+                      {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
+                      {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
+                    </div>
+
                     {/* Desligar */}
                     <Button
                       type="button"
@@ -649,6 +749,55 @@ function Softphone({
                 </CardContent>
               )}
             </Card>
+
+            {conferenciasAtivas.length > 0 && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <div>
+                      <CardTitle className="text-base">Salas em andamento</CardTitle>
+                      <CardDescription>Conferências das quais seu ramal participa</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {conferenciasAtivas.map((sala) => (
+                    <div key={sala.sala} className="space-y-3 rounded-lg border p-3">
+                      <div>
+                        <p className="text-sm font-medium">{sala.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {sala.participantes.length} participante(s)
+                          {sala.participantes.length
+                            ? ` · ${sala.participantes.map((p) => p.nome).join(", ")}`
+                            : ""}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          value={ramalConvidado}
+                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\\D/g, "").slice(0, 6))}
+                          placeholder="Ramal para convidar"
+                          inputMode="numeric"
+                          className="min-w-0"
+                          disabled={convidandoRamal}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleConvidarParaSala(sala.sala)}
+                          disabled={!/^\\d{3,6}$/.test(ramalConvidado) || convidandoRamal}
+                        >
+                          {convidandoRamal ? "Enviando…" : "Convidar"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
+                  {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
+                </CardContent>
+              </Card>
+            )}
 
             {callState === "idle" && (
               <Card className="mt-4">
