@@ -43,7 +43,6 @@ export const getRamalConferenciasAtivas = createServerFn({ method: "GET" })
 const RamalConferenciaInput = z.object({
   ramalToken: z.string().min(1),
   ramal: z.string().trim().regex(/^\d{1,20}$/),
-  dispositivoConvidado: z.enum(["base", "web", "mobile"]).default("web"),
 });
 
 export const iniciarConferenciaTemporariaRamal = createServerFn({ method: "POST" })
@@ -57,8 +56,6 @@ export const iniciarConferenciaTemporariaRamal = createServerFn({ method: "POST"
         bearerToken: data.ramalToken,
         body: {
           ramal: data.ramal,
-          dispositivoOrigem: "web",
-          dispositivoConvidado: data.dispositivoConvidado,
         },
       },
     );
