@@ -113,6 +113,7 @@ function Softphone({
     remoteVideoRef,
     localVideoRef,
     isVideoEnabled,
+    hasRemoteVideo,
     toggleVideo,
     call,
     answer,
@@ -471,10 +472,12 @@ function Softphone({
       {/* Áudio remoto da chamada */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
-      <div className="fixed bottom-4 right-4 z-40 grid max-w-sm gap-2" aria-label="Vídeo da chamada">
-        <video ref={remoteVideoRef} autoPlay playsInline className="max-h-56 w-full rounded-lg bg-black object-contain" />
-        <video ref={localVideoRef} autoPlay playsInline muted className="max-h-32 w-32 justify-self-end rounded-lg bg-black object-cover" />
-      </div>
+      {callState === "active" && (hasRemoteVideo || isVideoEnabled) && (
+        <div className="fixed bottom-4 right-4 z-40 grid max-w-sm gap-2" aria-label="Vídeo da chamada">
+          <video ref={remoteVideoRef} autoPlay playsInline className="max-h-56 w-full rounded-lg bg-black object-contain" />
+          <video ref={localVideoRef} autoPlay playsInline muted className="max-h-32 w-32 justify-self-end rounded-lg bg-black object-cover" />
+        </div>
+      )}
 
       {/* Header */}
       <header className="border-b bg-card">
@@ -1104,10 +1107,10 @@ function Softphone({
                       </div>
                     )}
 
-                    {erroConferencia && <p role="alert" className="text-xs text-destructive text-left">{erroConferencia}</p>}
                     </>
                     )}
 
+                    {erroConferencia && <p role="alert" className="text-xs text-destructive text-left">{erroConferencia}</p>}
                     {avisoConferencia && <p role="status" className="text-xs text-emerald-600 text-left">{avisoConferencia}</p>}
 
                     {/* Desligar */}
