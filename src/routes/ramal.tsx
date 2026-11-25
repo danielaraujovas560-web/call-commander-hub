@@ -213,6 +213,7 @@ function Softphone({
   } = useQuery({
     queryKey: ["ramal-agenda", endpointId],
     queryFn: () => getRamalAgendaFn({ data: { ramalToken: creds.token } }),
+    enabled: painelAcao !== null,
     staleTime: 60_000,
   });
 
