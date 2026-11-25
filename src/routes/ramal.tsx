@@ -477,7 +477,7 @@ function Softphone({
         className="fixed bottom-4 right-4 z-40 grid max-w-sm gap-2"
         aria-label="Vídeo da chamada"
       >
-        <video ref={remoteVideoRef} autoPlay playsInline className="max-h-56 w-full rounded-lg bg-black object-contain" />
+        <video ref={remoteVideoRef} autoPlay playsInline muted className="max-h-56 w-full rounded-lg bg-black object-contain" />
         <video ref={localVideoRef} autoPlay playsInline muted className="max-h-32 w-32 justify-self-end rounded-lg bg-black object-cover" />
       </div>
 
