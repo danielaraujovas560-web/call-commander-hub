@@ -705,6 +705,8 @@ function Softphone({
                       ))}
                     </div>
 
+                    {conferenciasAtivas.length === 0 && (
+                      <>
                     {/* Conferência temporária */}
                     <div className="space-y-3 rounded-lg border p-4 text-left">
                       <div>
@@ -748,6 +750,8 @@ function Softphone({
                       {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
                       {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
                     </div>
+                      </>
+                    )}
 
                     {/* Transferência cega */}
                     <div className="space-y-3 rounded-lg border p-4 text-left">
