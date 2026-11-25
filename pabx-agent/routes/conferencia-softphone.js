@@ -246,14 +246,6 @@ router.post("/conferencias-softphone/temporaria", async (req, res) => {
   const p = autorizado(req, res); if (!p) return;
   const ramal = String(req.body?.ramal || "");
   if (!/^\d{1,20}$/.test(ramal)) return res.status(400).json({ error: "Informe um ramal interno válido" });
-  // O dispositivo de origem vem do token autenticado; o cliente não escolhe Web/Android/Base.
-  const endpointOrigem = String(req.ramalEndpointId || p.endpoint);
-  if (endpointOrigem !== p.endpoint && !endpointOrigem.startsWith(p.endpoint + "-")) {
-    return res.status(403).json({ error: "Dispositivo de origem inválido" });
-  }
-  if (!new RegExp("^" + p.endpoint + "(?:-(?:web|mobile))?$").test(endpointOrigem)) {
-    return res.status(403).json({ error: "Dispositivo de origem inválido" });
-  }
   if (!amiReady()) return res.status(503).json({ error: "AMI indisponível" });
   try {
     const [rows] = await db.execute("SELECT endpoint_id FROM ramais WHERE tenant_id=? AND ramal=? LIMIT 1", [p.tenantId,ramal]);
@@ -262,7 +254,7 @@ router.post("/conferencias-softphone/temporaria", async (req, res) => {
     if (alvoBase === p.endpoint) return res.status(409).json({ error: "Selecione outro ramal" });
     const canais = await listarCanais();
     const origem = canais.filter(c =>
-      canalEndpoint(campo(c,"Channel")) === endpointOrigem &&
+      logico(canalEndpoint(campo(c,"Channel"))) === p.endpoint &&
       String(campo(c,"ChannelStateDesc")).toLowerCase() === "up" &&
       !/confbridge/i.test(String(campo(c,"Application")))
     );
