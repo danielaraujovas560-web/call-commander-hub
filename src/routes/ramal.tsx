@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 import {
   ArrowDownLeft,
+  ArrowLeftRight,
   ArrowUpRight,
   Building2,
   Clock3,
@@ -112,13 +113,18 @@ function Softphone({
     toggleMute,
     toggleHold,
     blindTransfer,
+    startAttendedTransfer,
+    completeAttendedTransfer,
+    abortAttendedTransfer,
     unregister,
   } = useJsSipPhone(sipCreds);
 
   const [numero, setNumero] = useState("");
   const [ramalConvidado, setRamalConvidado] = useState("");
   const [ramalTransferencia, setRamalTransferencia] = useState("");
-  const [dispositivoConvidado, setDispositivoConvidado] = useState<"base" | "web" | "mobile">("web");
+  const [painelAcao, setPainelAcao] = useState<"conferencia" | "transferencia" | null>(null);
+  const [transferenciaAssistidaAtiva, setTransferenciaAssistidaAtiva] = useState(false);
+  const [processandoTransferencia, setProcessandoTransferencia] = useState(false);
   const [acompanharConferencias, setAcompanharConferencias] = useState(false);
   const [iniciandoConferencia, setIniciandoConferencia] = useState(false);
   const [convidandoRamal, setConvidandoRamal] = useState(false);
@@ -281,20 +287,76 @@ function Softphone({
     call(numero);
   }
 
-  function handleTransferenciaCega() {
+  async function handleTransferenciaCega() {
     const destino = ramalTransferencia.trim();
-    if (!/^\d{3,6}$/.test(destino) || callState !== "active" || isOnHold) return;
+    if (!/^\d{3,6}$/.test(destino) || callState !== "active" || isOnHold || processandoTransferencia) return;
 
-    const enviado = blindTransfer(destino);
-    if (enviado) {
-      setAvisoConferencia(`Comando de transferência enviado para o ramal ${destino}. Aguarde a conclusão da chamada.`);
-      setErroConferencia("");
+    setProcessandoTransferencia(true);
+    setErroConferencia("");
+    setAvisoConferencia("");
+    try {
+      const enviado = await blindTransfer(destino);
+      if (!enviado) throw new Error("Não foi possível enviar o comando de transferência.");
+      setAvisoConferencia(\`Comando de transferência cega enviado para o ramal \${destino}.\`);
       setRamalTransferencia("");
-    } else {
-      setErroConferencia("Não foi possível enviar o comando de transferência.");
+      setPainelAcao(null);
+    } catch (error) {
+      setErroConferencia(error instanceof Error ? error.message : "Falha na transferência cega.");
+    } finally {
+      setProcessandoTransferencia(false);
     }
   }
 
+  async function handleIniciarTransferenciaAssistida() {
+    const destino = ramalTransferencia.trim();
+    if (!/^\d{3,6}$/.test(destino) || callState !== "active" || isOnHold || processandoTransferencia) return;
+
+    setProcessandoTransferencia(true);
+    setErroConferencia("");
+    setAvisoConferencia("");
+    try {
+      const enviado = await startAttendedTransfer(destino);
+      if (!enviado) throw new Error("Não foi possível iniciar a consulta com o ramal.");
+      setTransferenciaAssistidaAtiva(true);
+      setAvisoConferencia(\`Consulta iniciada para o ramal \${destino}. Converse com ele antes de concluir.\`);
+      setRamalTransferencia("");
+    } catch (error) {
+      setErroConferencia(error instanceof Error ? error.message : "Falha na transferência assistida.");
+    } finally {
+      setProcessandoTransferencia(false);
+    }
+  }
+
+  async function handleConcluirTransferenciaAssistida() {
+    if (!transferenciaAssistidaAtiva || processandoTransferencia) return;
+    setProcessandoTransferencia(true);
+    try {
+      const enviado = await completeAttendedTransfer();
+      if (!enviado) throw new Error("Não foi possível concluir a transferência.");
+      setAvisoConferencia("Comando para concluir a transferência enviado ao PABX.");
+      setTransferenciaAssistidaAtiva(false);
+      setPainelAcao(null);
+    } catch (error) {
+      setErroConferencia(error instanceof Error ? error.message : "Falha ao concluir a transferência.");
+    } finally {
+      setProcessandoTransferencia(false);
+    }
+  }
+
+  async function handleCancelarTransferenciaAssistida() {
+    if (!transferenciaAssistidaAtiva || processandoTransferencia) return;
+    setProcessandoTransferencia(true);
+    try {
+      const enviado = await abortAttendedTransfer();
+      if (!enviado) throw new Error("Não foi possível cancelar a consulta.");
+      setAvisoConferencia("Comando para cancelar a consulta enviado ao PABX.");
+      setTransferenciaAssistidaAtiva(false);
+    } catch (error) {
+      setErroConferencia(error instanceof Error ? error.message : "Falha ao cancelar a consulta.");
+    } finally {
+      setProcessandoTransferencia(false);
+    }
+  }
   async function handleIniciarConferenciaTemporaria() {
     const ramal = ramalConvidado.trim();
     if (!/^\d{3,6}$/.test(ramal) || callState !== "active" || isOnHold) return;
@@ -304,13 +366,14 @@ function Softphone({
     setAvisoConferencia("");
     try {
       const resultado = await iniciarConferenciaTemporariaFn({
-        data: { ramalToken: creds.token, ramal, dispositivoConvidado },
+        data: { ramalToken: creds.token, ramal },
       });
       setAcompanharConferencias(true);
       setAvisoConferencia(
         `Convite enviado para o ramal ${ramal}. A chamada será convertida em conferência quando ele atender.`,
       );
       setRamalConvidado("");
+      setPainelAcao(null);
       void atualizarConferenciasAtivas();
       console.info("[RAMAL] Conferência temporária solicitada:", resultado.sala);
     } catch (error) {
@@ -333,6 +396,7 @@ function Softphone({
       });
       setAvisoConferencia(`Convite enviado para o ramal ${ramal}.`);
       setRamalConvidado("");
+      setPainelAcao(null);
       void atualizarConferenciasAtivas();
     } catch (error) {
       setErroConferencia(error instanceof Error ? error.message : "Não foi possível convidar o ramal.");
@@ -340,6 +404,14 @@ function Softphone({
       setConvidandoRamal(false);
     }
   }
+
+  useEffect(() => {
+    if (callState !== "active") {
+      setPainelAcao(null);
+      setTransferenciaAssistidaAtiva(false);
+      setProcessandoTransferencia(false);
+    }
+  }, [callState]);
 
   const isRegistered = phoneState === "registered";
 
@@ -711,81 +783,135 @@ function Softphone({
                       ))}
                     </div>
 
-                    {conferenciasAtivas.length === 0 && (
-                      <>
-                    {/* Conferência temporária */}
-                    <div className="space-y-3 rounded-lg border p-4 text-left">
-                      <div>
-                        <p className="text-sm font-medium">Adicionar participante</p>
-                        <p className="text-xs text-muted-foreground">
-                          Cria uma conferência temporária e convida outro ramal.
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          value={ramalConvidado}
-                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                          placeholder="Número do ramal"
-                          inputMode="numeric"
-                          className="min-w-0"
-                          disabled={iniciandoConferencia || isOnHold}
-                        />
-                        <select
-                          aria-label="Dispositivo do ramal convidado"
-                          value={dispositivoConvidado}
-                          onChange={(e) => setDispositivoConvidado(e.target.value as "base" | "web" | "mobile")}
-                          className="h-10 rounded-md border bg-background px-2 text-sm"
-                          disabled={iniciandoConferencia || isOnHold}
-                        >
-                          <option value="web">Web</option>
-                          <option value="mobile">Celular</option>
-                          <option value="base">Base</option>
-                        </select>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleIniciarConferenciaTemporaria}
-                          disabled={!/^\d{3,6}$/.test(ramalConvidado) || iniciandoConferencia || isOnHold}
-                        >
-                          {iniciandoConferencia ? "Chamando…" : "Convidar"}
-                        </Button>
-                      </div>
-                      {isOnHold && (
-                        <p className="text-xs text-muted-foreground">Retome a chamada antes de iniciar a conferência.</p>
-                      )}
-                      {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
-                      {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
+                    {/* Ações da chamada */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        variant={painelAcao === "conferencia" ? "default" : "outline"}
+                        className="h-12"
+                        onClick={() => setPainelAcao((atual) => atual === "conferencia" ? null : "conferencia")}
+                        disabled={isOnHold}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Conferência
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={painelAcao === "transferencia" ? "default" : "outline"}
+                        className="h-12"
+                        onClick={() => setPainelAcao((atual) => atual === "transferencia" ? null : "transferencia")}
+                        disabled={isOnHold}
+                      >
+                        <ArrowLeftRight className="mr-2 h-4 w-4" />
+                        Transferir
+                      </Button>
                     </div>
-                      </>
+
+                    {painelAcao === "conferencia" && (
+                      <div className="space-y-3 rounded-lg border p-4 text-left">
+                        <div>
+                          <p className="text-sm font-medium">
+                            {conferenciasAtivas.length > 0 ? "Adicionar participante" : "Iniciar conferência"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Informe somente o ramal. O PABX localiza automaticamente os dispositivos disponíveis.
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            value={ramalConvidado}
+                            onChange={(e) => setRamalConvidado(e.target.value.replace(/\D/g, "").slice(0, 20))}
+                            placeholder="Número do ramal"
+                            inputMode="numeric"
+                            className="min-w-0"
+                            disabled={iniciandoConferencia || convidandoRamal}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              const sala = conferenciasAtivas[0];
+                              if (sala) void handleConvidarParaSala(sala.sala);
+                              else void handleIniciarConferenciaTemporaria();
+                            }}
+                            disabled={!/^\d{3,20}$/.test(ramalConvidado) || iniciandoConferencia || convidandoRamal}
+                          >
+                            {iniciandoConferencia || convidandoRamal ? "Chamando…" : "Convidar"}
+                          </Button>
+                        </div>
+                        {isOnHold && (
+                          <p className="text-xs text-muted-foreground">Retome a chamada antes de iniciar a conferência.</p>
+                        )}
+                        {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
+                        {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
+                      </div>
                     )}
 
-                    {/* Transferência cega */}
-                    <div className="space-y-3 rounded-lg border p-4 text-left">
-                      <div>
-                        <p className="text-sm font-medium">Transferir chamada</p>
-                        <p className="text-xs text-muted-foreground">
-                          Transfere diretamente para outro ramal usando o código # + ramal.
-                        </p>
+                    {painelAcao === "transferencia" && (
+                      <div className="space-y-3 rounded-lg border p-4 text-left">
+                        <div>
+                          <p className="text-sm font-medium">Transferir chamada</p>
+                          <p className="text-xs text-muted-foreground">
+                            Digite o ramal de destino e escolha o tipo de transferência.
+                          </p>
+                        </div>
+                        {!transferenciaAssistidaAtiva && (
+                          <>
+                            <Input
+                              value={ramalTransferencia}
+                              onChange={(e) => setRamalTransferencia(e.target.value.replace(/\D/g, "").slice(0, 20))}
+                              placeholder="Número ou ramal"
+                              inputMode="numeric"
+                              className="min-w-0"
+                              disabled={processandoTransferencia}
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleTransferenciaCega}
+                                disabled={!/^\d{3,20}$/.test(ramalTransferencia) || processandoTransferencia}
+                              >
+                                {processandoTransferencia ? "Enviando…" : "Cega"}
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={handleIniciarTransferenciaAssistida}
+                                disabled={!/^\d{3,20}$/.test(ramalTransferencia) || processandoTransferencia}
+                              >
+                                {processandoTransferencia ? "Chamando…" : "Assistida"}
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                        {transferenciaAssistidaAtiva && (
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">
+                              Consulta em andamento. Converse com o destino e depois conclua ou cancele.
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                type="button"
+                                onClick={handleConcluirTransferenciaAssistida}
+                                disabled={processandoTransferencia}
+                              >
+                                Concluir
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleCancelarTransferenciaAssistida}
+                                disabled={processandoTransferencia}
+                              >
+                                Cancelar consulta
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
+                        {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
                       </div>
-                      <div className="flex gap-2">
-                        <Input
-                          value={ramalTransferencia}
-                          onChange={(e) => setRamalTransferencia(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                          placeholder="Ramal de destino"
-                          inputMode="numeric"
-                          className="min-w-0"
-                          disabled={isOnHold}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleTransferenciaCega}
-                          disabled={!/^\d{3,6}$/.test(ramalTransferencia) || isOnHold}
-                        >
-                          Transferir
-                        </Button>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Desligar */}
                     <Button
@@ -847,24 +973,7 @@ function Softphone({
                             : ""}
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <Input
-                          value={ramalConvidado}
-                          onChange={(e) => setRamalConvidado(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                          placeholder="Ramal para convidar"
-                          inputMode="numeric"
-                          className="min-w-0"
-                          disabled={convidandoRamal}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleConvidarParaSala(sala.sala)}
-                          disabled={!/^\d{3,6}$/.test(ramalConvidado) || convidandoRamal}
-                        >
-                          {convidandoRamal ? "Enviando…" : "Convidar"}
-                        </Button>
-                      </div>
+
                     </div>
                   ))}
                   {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
