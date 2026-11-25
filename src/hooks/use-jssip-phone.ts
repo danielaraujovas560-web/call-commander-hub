@@ -30,6 +30,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
   const [isMuted, setIsMuted] = useState(false);
   const [isOnHold, setIsOnHold] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
 
   useEffect(() => {
     if (!creds) {
@@ -122,6 +123,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
         if (localVideoRef.current) localVideoRef.current.srcObject = null;
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
         setIsVideoEnabled(false);
+        setHasRemoteVideo(false);
 
         setTimeout(() => {
           setCallState("idle");
@@ -140,6 +142,13 @@ export function useJsSipPhone(creds: SipCreds | null) {
           } else if (ev.track.kind === "video" && remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remoteStream;
             remoteVideoRef.current.play().catch(() => {});
+            setHasRemoteVideo(true);
+            ev.track.addEventListener("ended", () => {
+              if (remoteVideoRef.current?.srcObject === remoteStream) {
+                remoteVideoRef.current.srcObject = null;
+                setHasRemoteVideo(false);
+              }
+            }, { once: true });
           }
         });
       };
@@ -502,6 +511,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
     remoteVideoRef,
     localVideoRef,
     isVideoEnabled,
+    hasRemoteVideo,
     toggleVideo,
     call,
     answer,
