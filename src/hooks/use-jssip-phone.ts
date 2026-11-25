@@ -272,7 +272,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
     const destino = String(extension || "").trim();
     if (!/^\d{3,6}$/.test(destino)) return false;
     // Mesmo fluxo do Invertus Softphone: # + ramal.
-    return sendDTMFSequence(\`#\${destino}\`);
+    return sendDTMFSequence("#" + destino);
   }, [sendDTMFSequence]);
 
   const startAttendedTransfer = useCallback(async (extension: string) => {
