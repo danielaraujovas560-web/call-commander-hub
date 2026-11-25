@@ -229,14 +229,24 @@ async function realizarConversao(sessao) {
     const resposta = await amiAction({
       action: "Originate",
       actionid: actionId,
-      channel: `PJSIP/${endpointConvidado}`,
-      context: "CC-CONFERENCIA-TEMP",
+      // O contexto resolve automaticamente os dispositivos disponíveis do ramal lógico.
+      channel: \`Local/\${endpointConvidado}@CC-CONFERENCIA-CONVITE/n\`,
+      context: "CC-CONFERENCIA-ENTRADA",
       exten: "s",
       priority: 1,
-      timeout: 30000, // AMI: milissegundos
+      timeout: 65000,
       async: "true",
-      callerid: `Conferencia <${identificacao || "9001"}>`,
-      variable: { ...variaveis, CC_PARTICIPANTE: endpointConvidado },
+      callerid: \`Conferencia <\${identificacao || "9001"}>\`,
+      variable: {
+        ...variaveis,
+        __CC_SALA: sala,
+        __CC_CONF_AUTH: "1",
+        __CC_MAX: String(limite),
+        __CC_GRAVAR: gravar ? "yes" : "no",
+        __CC_INTERVALO: String(intervalo),
+        __CC_PARTICIPANTE: endpointConvidado,
+        __TENANT_ID: String(tenantId),
+      },
     });
     assertAmiOk(resposta, "Originate");
     canalConvidado = await espera.promise;
