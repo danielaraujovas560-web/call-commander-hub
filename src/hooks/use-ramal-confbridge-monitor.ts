@@ -114,7 +114,7 @@ export function useRamalConfbridgeMonitor(ramalToken: string, ramal: string) {
     const ramalLogico = String(ramal).replace(/-(web|mobile)$/i, "");
     return conferencias.find((sala) => sala.participantes.some((p) => {
       const canal = String(p.canal || "");
-      const match = /^PJSIP\\/(.+?)-[0-9a-f]{8,16}$/i.exec(canal);
+      const match = /^PJSIP\/(.+?)-[0-9a-f]{8,16}$/i.exec(canal);
       return match?.[1]?.replace(/-(web|mobile)$/i, "") === ramalLogico;
     })) ?? null;
   }, [conferencias, ramal]);
