@@ -244,22 +244,58 @@ export function useJsSipPhone(creds: SipCreds | null) {
     sessionRef.current?.sendDTMF(digit);
   }, []);
 
-  const blindTransfer = useCallback((extension: string) => {
+  const sendDTMFSequence = useCallback(async (digits: string) => {
     const session = sessionRef.current;
-    const destino = String(extension || "").trim();
-    if (!session || !session.isEstablished() || !/^\d{3,6}$/.test(destino)) {
-      return false;
-    }
+    const sequence = String(digits || "");
+    if (!session || !session.isEstablished() || !/^[0-9*#]+$/.test(sequence)) return false;
 
     try {
-      // Mesmo código de transferência cega usado pelo softphone: # + ramal.
-      session.sendDTMF(`#${destino}`);
+      for (let index = 0; index < sequence.length; index += 1) {
+        if (sessionRef.current !== session || !session.isEstablished()) return false;
+        session.sendDTMF(sequence[index], {
+          transportType: "RFC2833",
+          duration: 160,
+          interToneGap: 500,
+        });
+        if (index < sequence.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+        }
+      }
       return true;
     } catch (error) {
-      console.error("[JsSIP] Falha ao enviar transferência cega:", error);
+      console.error("[JsSIP] Falha ao enviar sequência DTMF:", error);
       return false;
     }
   }, []);
+
+  const blindTransfer = useCallback(async (extension: string) => {
+    const destino = String(extension || "").trim();
+    if (!/^\d{3,6}$/.test(destino)) return false;
+    // Mesmo fluxo do Invertus Softphone: # + ramal.
+    return sendDTMFSequence(\`#\${destino}\`);
+  }, [sendDTMFSequence]);
+
+  const startAttendedTransfer = useCallback(async (extension: string) => {
+    const destino = String(extension || "").trim();
+    const session = sessionRef.current;
+    if (!session || !session.isEstablished() || !/^\d{3,6}$/.test(destino)) return false;
+
+    // O Asterisk assume a consulta; não abrimos uma segunda sessão JsSIP.
+    if (!await sendDTMFSequence("*1")) return false;
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    if (sessionRef.current !== session || !session.isEstablished()) return false;
+    return sendDTMFSequence(destino);
+  }, [sendDTMFSequence]);
+
+  const completeAttendedTransfer = useCallback(
+    () => sendDTMFSequence("*2"),
+    [sendDTMFSequence],
+  );
+
+  const abortAttendedTransfer = useCallback(
+    () => sendDTMFSequence("*1"),
+    [sendDTMFSequence],
+  );
 
   const toggleMute = useCallback(() => {
     const session = sessionRef.current;
@@ -384,6 +420,10 @@ export function useJsSipPhone(creds: SipCreds | null) {
     toggleMute,
     toggleHold,
     blindTransfer,
+    sendDTMFSequence,
+    startAttendedTransfer,
+    completeAttendedTransfer,
+    abortAttendedTransfer,
     unregister,
   };
 }
