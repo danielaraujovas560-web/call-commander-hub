@@ -201,8 +201,14 @@ function Softphone({
       getRamalConferenciasAtivasFn({
         data: { ramalToken: creds.token },
       }),
-    refetchInterval: callState === "active" || acompanharConferencias ? 4000 : false,
+    refetchInterval: acompanharConferencias ? 4000 : false,
   });
+
+  useEffect(() => {
+    if (acompanharConferencias && conferenciasAtivas.length > 0) {
+      setAcompanharConferencias(false);
+    }
+  }, [acompanharConferencias, conferenciasAtivas.length]);
 
   const { data: conferencias = [], isLoading: carregandoConferencias } = useQuery({
     queryKey: ["ramal-conferencias-agenda", endpointId],
@@ -297,10 +303,10 @@ function Softphone({
     setErroConferencia("");
     setAvisoConferencia("");
     try {
-      setAcompanharConferencias(true);
       const resultado = await iniciarConferenciaTemporariaFn({
         data: { ramalToken: creds.token, ramal, dispositivoConvidado },
       });
+      setAcompanharConferencias(true);
       setAvisoConferencia(
         `Convite enviado para o ramal ${ramal}. A chamada será convertida em conferência quando ele atender.`,
       );
@@ -882,7 +888,10 @@ function Softphone({
                           type="button"
                           size="sm"
                           disabled={!isRegistered}
-                          onClick={() => call(sala.ramal)}
+                          onClick={() => {
+                            setAcompanharConferencias(true);
+                            call(sala.ramal);
+                          }}
                         >
                           <Phone className="mr-2 h-4 w-4" />
                           Entrar
