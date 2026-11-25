@@ -8,6 +8,7 @@ import { useRamalAuth } from "@/hooks/use-ramal-auth";
 
 import { getRamalInfo, getRamalWebTicket } from "@/lib/ramais.functions";
 import {
+  getRamalAgenda,
   getRamalConferenciasAgenda,
   getRamalConferenciasAtivas,
   iniciarConferenciaTemporariaRamal,
@@ -25,6 +26,8 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   Building2,
+  Check,
+  RefreshCw,
   Clock3,
   Delete,
   Phone,
@@ -122,6 +125,7 @@ function Softphone({
   const [numero, setNumero] = useState("");
   const [ramalConvidado, setRamalConvidado] = useState("");
   const [ramalTransferencia, setRamalTransferencia] = useState("");
+  const [buscaAgenda, setBuscaAgenda] = useState("");
   const [painelAcao, setPainelAcao] = useState<"conferencia" | "transferencia" | null>(null);
   const [transferenciaAssistidaAtiva, setTransferenciaAssistidaAtiva] = useState(false);
   const [processandoTransferencia, setProcessandoTransferencia] = useState(false);
@@ -133,6 +137,7 @@ function Softphone({
 
   const getRamalInfoFn = useServerFn(getRamalInfo);
   const getRamalWebTicketFn = useServerFn(getRamalWebTicket);
+  const getRamalAgendaFn = useServerFn(getRamalAgenda);
   const getRamalConferenciasAgendaFn = useServerFn(getRamalConferenciasAgenda);
   const getRamalConferenciasAtivasFn = useServerFn(getRamalConferenciasAtivas);
   const iniciarConferenciaTemporariaFn = useServerFn(iniciarConferenciaTemporariaRamal);
@@ -200,6 +205,28 @@ function Softphone({
       }
     };
   }, [creds.token, endpointId, queryClient]);
+
+  const {
+    data: ramaisAgenda = [],
+    isLoading: carregandoAgenda,
+    refetch: atualizarAgenda,
+  } = useQuery({
+    queryKey: ["ramal-agenda", endpointId],
+    queryFn: () => getRamalAgendaFn({ data: { ramalToken: creds.token } }),
+    staleTime: 60_000,
+  });
+
+  const ramaisAgendaFiltrados = useMemo(() => {
+    const termo = buscaAgenda.trim().toLocaleLowerCase("pt-BR");
+    return ramaisAgenda.filter((item) =>
+      item.nome.toLocaleLowerCase("pt-BR").includes(termo) || item.ramal.includes(termo),
+    );
+  }, [ramaisAgenda, buscaAgenda]);
+
+  function selecionarRamalDaAgenda(ramal: string) {
+    if (painelAcao === "conferencia") setRamalConvidado(ramal);
+    if (painelAcao === "transferencia") setRamalTransferencia(ramal);
+  }
 
   const { data: conferenciasAtivas = [], refetch: atualizarConferenciasAtivas } = useQuery({
     queryKey: ["ramal-conferencias-ativas", endpointId],
@@ -768,6 +795,40 @@ function Softphone({
                       </Button>
                     </div>
 
+                    {/* Ações da chamada */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        variant={painelAcao === "conferencia" ? "default" : "outline"}
+                        className="h-12"
+                        onClick={() => {
+                          setErroConferencia("");
+                          setAvisoConferencia("");
+                          setBuscaAgenda("");
+                          setPainelAcao((atual) => atual === "conferencia" ? null : "conferencia");
+                        }}
+                        disabled={isOnHold}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Conferência
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={painelAcao === "transferencia" ? "default" : "outline"}
+                        className="h-12"
+                        onClick={() => {
+                          setErroConferencia("");
+                          setAvisoConferencia("");
+                          setBuscaAgenda("");
+                          setPainelAcao((atual) => atual === "transferencia" ? null : "transferencia");
+                        }}
+                        disabled={isOnHold}
+                      >
+                        <ArrowLeftRight className="mr-2 h-4 w-4" />
+                        Transferir
+                      </Button>
+                    </div>
+
                     {/* DTMF */}
                     <div className="grid grid-cols-3 gap-2">
                       {KEYS.map((key) => (
@@ -783,38 +844,6 @@ function Softphone({
                       ))}
                     </div>
 
-                    {/* Ações da chamada */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        type="button"
-                        variant={painelAcao === "conferencia" ? "default" : "outline"}
-                        className="h-12"
-                        onClick={() => {
-                          setErroConferencia("");
-                          setAvisoConferencia("");
-                          setPainelAcao((atual) => atual === "conferencia" ? null : "conferencia");
-                        }}
-                        disabled={isOnHold}
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        Conferência
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={painelAcao === "transferencia" ? "default" : "outline"}
-                        className="h-12"
-                        onClick={() => {
-                          setErroConferencia("");
-                          setAvisoConferencia("");
-                          setPainelAcao((atual) => atual === "transferencia" ? null : "transferencia");
-                        }}
-                        disabled={isOnHold}
-                      >
-                        <ArrowLeftRight className="mr-2 h-4 w-4" />
-                        Transferir
-                      </Button>
-                    </div>
-
                     {painelAcao === "conferencia" && (
                       <div className="space-y-3 rounded-lg border p-4 text-left">
                         <div>
@@ -824,6 +853,50 @@ function Softphone({
                           <p className="text-xs text-muted-foreground">
                             Informe somente o ramal. O PABX localiza automaticamente os dispositivos disponíveis.
                           </p>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              value={buscaAgenda}
+                              onChange={(e) => setBuscaAgenda(e.target.value)}
+                              placeholder="Buscar nome ou ramal"
+                              aria-label="Buscar ramal para conferência"
+                              className="min-w-0"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              aria-label="Atualizar agenda"
+                              onClick={() => void atualizarAgenda()}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-1">
+                            {carregandoAgenda ? (
+                              <p className="p-3 text-center text-xs text-muted-foreground">Carregando agenda…</p>
+                            ) : ramaisAgendaFiltrados.length ? (
+                              ramaisAgendaFiltrados.map((item) => (
+                                <button
+                                  key={item.ramal}
+                                  type="button"
+                                  onClick={() => selecionarRamalDaAgenda(item.ramal)}
+                                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition hover:bg-muted ${ramalConvidado === item.ramal ? "bg-primary/10 text-primary" : ""}`}
+                                >
+                                  <span className="min-w-0">
+                                    <span className="block truncate font-medium">{item.nome}</span>
+                                    <span className="block text-xs text-muted-foreground">Ramal {item.ramal}</span>
+                                  </span>
+                                  {ramalConvidado === item.ramal && <Check className="h-4 w-4 shrink-0" />}
+                                </button>
+                              ))
+                            ) : (
+                              <p className="p-3 text-center text-xs text-muted-foreground">
+                                {ramaisAgenda.length ? "Nenhum ramal encontrado." : "Nenhum ramal disponível na agenda."}
+                              </p>
+                            )}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <Input
@@ -863,6 +936,50 @@ function Softphone({
                         </div>
                         {!transferenciaAssistidaAtiva && (
                           <>
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <Input
+                                  value={buscaAgenda}
+                                  onChange={(e) => setBuscaAgenda(e.target.value)}
+                                  placeholder="Buscar nome ou ramal"
+                                  aria-label="Buscar ramal para transferência"
+                                  className="min-w-0"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  aria-label="Atualizar agenda"
+                                  onClick={() => void atualizarAgenda()}
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-1">
+                                {carregandoAgenda ? (
+                                  <p className="p-3 text-center text-xs text-muted-foreground">Carregando agenda…</p>
+                                ) : ramaisAgendaFiltrados.length ? (
+                                  ramaisAgendaFiltrados.map((item) => (
+                                    <button
+                                      key={item.ramal}
+                                      type="button"
+                                      onClick={() => selecionarRamalDaAgenda(item.ramal)}
+                                      className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition hover:bg-muted ${ramalTransferencia === item.ramal ? "bg-primary/10 text-primary" : ""}`}
+                                    >
+                                      <span className="min-w-0">
+                                        <span className="block truncate font-medium">{item.nome}</span>
+                                        <span className="block text-xs text-muted-foreground">Ramal {item.ramal}</span>
+                                      </span>
+                                      {ramalTransferencia === item.ramal && <Check className="h-4 w-4 shrink-0" />}
+                                    </button>
+                                  ))
+                                ) : (
+                                  <p className="p-3 text-center text-xs text-muted-foreground">
+                                    {ramaisAgenda.length ? "Nenhum ramal encontrado." : "Nenhum ramal disponível na agenda."}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                             <Input
                               value={ramalTransferencia}
                               onChange={(e) => setRamalTransferencia(e.target.value.replace(/\D/g, "").slice(0, 20))}
