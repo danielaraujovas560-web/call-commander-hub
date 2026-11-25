@@ -7,6 +7,7 @@ import { type RamalCreds } from "@/lib/auth/ramal-creds";
 import { useRamalAuth } from "@/hooks/use-ramal-auth";
 
 import { getRamalInfo, getRamalWebTicket } from "@/lib/ramais.functions";
+import { getRamalConferenciasAgenda } from "@/lib/ramal-softphone.functions";
 
 import { useJsSipPhone } from "@/hooks/use-jssip-phone";
 
@@ -25,7 +26,11 @@ import {
   PhoneOff,
   Signal,
   UserRound,
-  Volume2,
+  Mic,
+  MicOff,
+  Pause,
+  Play,
+  Users,
 } from "lucide-react";
 
 export const Route = createFileRoute("/ramal")({
@@ -97,6 +102,10 @@ function Softphone({
     answer,
     hangup,
     sendDTMF,
+    isMuted,
+    isOnHold,
+    toggleMute,
+    toggleHold,
     unregister,
   } = useJsSipPhone(sipCreds);
 
@@ -104,6 +113,7 @@ function Softphone({
 
   const getRamalInfoFn = useServerFn(getRamalInfo);
   const getRamalWebTicketFn = useServerFn(getRamalWebTicket);
+  const getRamalConferenciasAgendaFn = useServerFn(getRamalConferenciasAgenda);
 
   const endpointId = creds.sip_username.replace(/-web$/, "");
 
@@ -167,6 +177,14 @@ function Softphone({
       }
     };
   }, [creds.token, endpointId, queryClient]);
+
+  const { data: conferencias = [], isLoading: carregandoConferencias } = useQuery({
+    queryKey: ["ramal-conferencias-agenda", endpointId],
+    queryFn: () =>
+      getRamalConferenciasAgendaFn({
+        data: { ramalToken: creds.token },
+      }),
+  });
 
   const { data: ramalInfo } = useQuery({
     queryKey: ["ramal-info", endpointId],
@@ -557,15 +575,26 @@ function Softphone({
                       </p>
                     </div>
 
-                    {/* Controles */}
+                    {/* Controles da chamada */}
                     <div className="grid grid-cols-2 gap-3">
-                      <Button type="button" variant="outline" className="h-12">
-                        <Volume2 className="mr-2 h-4 w-4" />
-                        Áudio
+                      <Button
+                        type="button"
+                        variant={isMuted ? "default" : "outline"}
+                        className="h-12"
+                        onClick={toggleMute}
+                      >
+                        {isMuted ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+                        {isMuted ? "Ativar microfone" : "Silenciar"}
                       </Button>
 
-                      <Button type="button" variant="outline" className="h-12">
-                        Teclado
+                      <Button
+                        type="button"
+                        variant={isOnHold ? "default" : "outline"}
+                        className="h-12"
+                        onClick={toggleHold}
+                      >
+                        {isOnHold ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
+                        {isOnHold ? "Retomar" : "Colocar em espera"}
                       </Button>
                     </div>
 
@@ -620,6 +649,47 @@ function Softphone({
                 </CardContent>
               )}
             </Card>
+
+            {callState === "idle" && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <div>
+                      <CardTitle className="text-base">Conferências</CardTitle>
+                      <CardDescription>Entre em uma sala disponível do seu cliente</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {carregandoConferencias ? (
+                    <p className="py-3 text-center text-sm text-muted-foreground">Carregando salas…</p>
+                  ) : conferencias.length ? (
+                    conferencias.map((sala) => (
+                      <div key={sala.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{sala.nome}</p>
+                          <p className="text-xs text-muted-foreground">Ramal {sala.ramal}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={!isRegistered}
+                          onClick={() => call(sala.ramal)}
+                        >
+                          <Phone className="mr-2 h-4 w-4" />
+                          Entrar
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="py-3 text-center text-sm text-muted-foreground">
+                      Nenhuma conferência disponível.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Sair */}
             <Button type="button" variant="ghost" className="mt-4 w-full" onClick={handleLogout}>
