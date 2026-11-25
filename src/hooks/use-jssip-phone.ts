@@ -244,6 +244,23 @@ export function useJsSipPhone(creds: SipCreds | null) {
     sessionRef.current?.sendDTMF(digit);
   }, []);
 
+  const blindTransfer = useCallback((extension: string) => {
+    const session = sessionRef.current;
+    const destino = String(extension || "").trim();
+    if (!session || !session.isEstablished() || !/^\d{3,6}$/.test(destino)) {
+      return false;
+    }
+
+    try {
+      // Mesmo código de transferência cega usado pelo softphone: # + ramal.
+      session.sendDTMF(`#${destino}`);
+      return true;
+    } catch (error) {
+      console.error("[JsSIP] Falha ao enviar transferência cega:", error);
+      return false;
+    }
+  }, []);
+
   const toggleMute = useCallback(() => {
     const session = sessionRef.current;
     if (!session || !session.isEstablished()) return;
@@ -366,6 +383,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
     isOnHold,
     toggleMute,
     toggleHold,
+    blindTransfer,
     unregister,
   };
 }
