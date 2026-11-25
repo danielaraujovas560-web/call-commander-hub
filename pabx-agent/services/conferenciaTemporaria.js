@@ -230,13 +230,13 @@ async function realizarConversao(sessao) {
       action: "Originate",
       actionid: actionId,
       // O contexto resolve automaticamente os dispositivos disponíveis do ramal lógico.
-      channel: \`Local/\${endpointConvidado}@CC-CONFERENCIA-CONVITE/n\`,
+      channel: "Local/" + endpointConvidado + "@CC-CONFERENCIA-CONVITE/n",
       context: "CC-CONFERENCIA-ENTRADA",
       exten: "s",
       priority: 1,
       timeout: 65000,
       async: "true",
-      callerid: \`Conferencia <\${identificacao || "9001"}>\`,
+      callerid: "Conferencia <" + (identificacao || "9001") + ">",
       variable: {
         ...variaveis,
         __CC_SALA: sala,
