@@ -111,6 +111,7 @@ function Softphone({
     isOnHold,
     toggleMute,
     toggleHold,
+    blindTransfer,
     unregister,
   } = useJsSipPhone(sipCreds);
 
@@ -272,6 +273,20 @@ function Softphone({
     }
 
     call(numero);
+  }
+
+  function handleTransferenciaCega() {
+    const destino = ramalTransferencia.trim();
+    if (!/^\d{3,6}$/.test(destino) || callState !== "active" || isOnHold) return;
+
+    const enviado = blindTransfer(destino);
+    if (enviado) {
+      setAvisoConferencia(`Comando de transferência enviado para o ramal ${destino}. Aguarde a conclusão da chamada.`);
+      setErroConferencia("");
+      setRamalTransferencia("");
+    } else {
+      setErroConferencia("Não foi possível enviar o comando de transferência.");
+    }
   }
 
   async function handleIniciarConferenciaTemporaria() {
@@ -726,6 +741,34 @@ function Softphone({
                       )}
                       {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
                       {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
+                    </div>
+
+                    {/* Transferência cega */}
+                    <div className="space-y-3 rounded-lg border p-4 text-left">
+                      <div>
+                        <p className="text-sm font-medium">Transferir chamada</p>
+                        <p className="text-xs text-muted-foreground">
+                          Transfere diretamente para outro ramal usando o código # + ramal.
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          value={ramalTransferencia}
+                          onChange={(e) => setRamalTransferencia(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="Ramal de destino"
+                          inputMode="numeric"
+                          className="min-w-0"
+                          disabled={isOnHold}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleTransferenciaCega}
+                          disabled={!/^\d{3,6}$/.test(ramalTransferencia) || isOnHold}
+                        >
+                          Transferir
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Desligar */}
