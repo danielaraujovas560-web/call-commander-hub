@@ -24,6 +24,8 @@ export function useJsSipPhone(creds: SipCreds | null) {
   const [callState, setCallState] = useState<CallState>("idle");
   const [remoteNumber, setRemoteNumber] = useState("");
   const [callDuration, setCallDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isOnHold, setIsOnHold] = useState(false);
 
   useEffect(() => {
     if (!creds) {
@@ -84,6 +86,8 @@ export function useJsSipPhone(creds: SipCreds | null) {
       }
 
       sessionRef.current = session;
+      setIsMuted(false);
+      setIsOnHold(false);
 
       setRemoteNumber(session.remote_identity?.uri?.user ?? "");
       setCallState(session.direction === "incoming" ? "incoming" : "calling");
@@ -100,8 +104,13 @@ export function useJsSipPhone(creds: SipCreds | null) {
         setCallState("active");
       });
 
+      session.on("hold", () => setIsOnHold(true));
+      session.on("unhold", () => setIsOnHold(false));
+
       const finish = () => {
         setCallState("ended");
+        setIsMuted(false);
+        setIsOnHold(false);
         sessionRef.current = null;
 
         setTimeout(() => {
@@ -235,6 +244,40 @@ export function useJsSipPhone(creds: SipCreds | null) {
     sessionRef.current?.sendDTMF(digit);
   }, []);
 
+  const toggleMute = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session || !session.isEstablished()) return;
+
+    try {
+      if (isMuted) {
+        session.unmute({ audio: true });
+        setIsMuted(false);
+      } else {
+        session.mute({ audio: true });
+        setIsMuted(true);
+      }
+    } catch (error) {
+      console.error("[JsSIP] Falha ao alternar mute:", error);
+    }
+  }, [isMuted]);
+
+  const toggleHold = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session || !session.isEstablished()) return;
+
+    try {
+      if (isOnHold) {
+        session.unhold();
+        setIsOnHold(false);
+      } else {
+        session.hold();
+        setIsOnHold(true);
+      }
+    } catch (error) {
+      console.error("[JsSIP] Falha ao alternar espera:", error);
+    }
+  }, [isOnHold]);
+
   const unregister = useCallback(() => {
     const ua = uaRef.current;
 
@@ -319,6 +362,10 @@ export function useJsSipPhone(creds: SipCreds | null) {
     answer,
     hangup,
     sendDTMF,
+    isMuted,
+    isOnHold,
+    toggleMute,
+    toggleHold,
     unregister,
   };
 }
