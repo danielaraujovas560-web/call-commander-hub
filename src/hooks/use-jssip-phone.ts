@@ -270,7 +270,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
 
   const blindTransfer = useCallback(async (extension: string) => {
     const destino = String(extension || "").trim();
-    if (!/^\d{3,6}$/.test(destino)) return false;
+    if (!/^\d{1,20}$/.test(destino)) return false;
     // Mesmo fluxo do Invertus Softphone: # + ramal.
     return sendDTMFSequence("#" + destino);
   }, [sendDTMFSequence]);
@@ -278,7 +278,7 @@ export function useJsSipPhone(creds: SipCreds | null) {
   const startAttendedTransfer = useCallback(async (extension: string) => {
     const destino = String(extension || "").trim();
     const session = sessionRef.current;
-    if (!session || !session.isEstablished() || !/^\d{3,6}$/.test(destino)) return false;
+    if (!session || !session.isEstablished() || !/^\d{1,20}$/.test(destino)) return false;
 
     // O Asterisk assume a consulta; não abrimos uma segunda sessão JsSIP.
     if (!await sendDTMFSequence("*1")) return false;
