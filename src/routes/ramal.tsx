@@ -289,7 +289,7 @@ function Softphone({
 
   async function handleTransferenciaCega() {
     const destino = ramalTransferencia.trim();
-    if (!/^\d{3,6}$/.test(destino) || callState !== "active" || isOnHold || processandoTransferencia) return;
+    if (!/^\d{1,20}$/.test(destino) || callState !== "active" || isOnHold || processandoTransferencia) return;
 
     setProcessandoTransferencia(true);
     setErroConferencia("");
@@ -309,7 +309,7 @@ function Softphone({
 
   async function handleIniciarTransferenciaAssistida() {
     const destino = ramalTransferencia.trim();
-    if (!/^\d{3,6}$/.test(destino) || callState !== "active" || isOnHold || processandoTransferencia) return;
+    if (!/^\d{1,20}$/.test(destino) || callState !== "active" || isOnHold || processandoTransferencia) return;
 
     setProcessandoTransferencia(true);
     setErroConferencia("");
@@ -359,7 +359,7 @@ function Softphone({
   }
   async function handleIniciarConferenciaTemporaria() {
     const ramal = ramalConvidado.trim();
-    if (!/^\d{3,6}$/.test(ramal) || callState !== "active" || isOnHold) return;
+    if (!/^\d{1,20}$/.test(ramal) || callState !== "active" || isOnHold) return;
 
     setIniciandoConferencia(true);
     setErroConferencia("");
@@ -385,7 +385,7 @@ function Softphone({
 
   async function handleConvidarParaSala(sala: string) {
     const ramal = ramalConvidado.trim();
-    if (!/^\d{3,6}$/.test(ramal)) return;
+    if (!/^\d{1,20}$/.test(ramal)) return;
 
     setConvidandoRamal(true);
     setErroConferencia("");
