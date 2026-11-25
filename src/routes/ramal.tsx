@@ -523,6 +523,12 @@ function Softphone({
                       }}
                       placeholder="Digite um número"
                       inputMode="tel"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCall();
+                        }
+                      }}
                       className="h-14 text-center text-2xl font-medium tracking-wider"
                     />
 
