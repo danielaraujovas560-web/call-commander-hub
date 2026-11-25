@@ -1,6 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+export type RamalAgendaItem = {
+  ramal: string;
+  nome: string;
+};
+
+export const getRamalAgenda = createServerFn({ method: "GET" })
+  .validator((data: unknown) =>
+    z.object({ ramalToken: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { agentFetch } = await import("./agent.server");
+    const response = await agentFetch<{ ramais: RamalAgendaItem[] }>(
+      "/ramais-agenda",
+      { bearerToken: data.ramalToken },
+    );
+    return response.ramais ?? [];
+  });
+
 export type ConferenciaAgendaItem = {
   id: number;
   nome: string;
