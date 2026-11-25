@@ -789,7 +789,11 @@ function Softphone({
                         type="button"
                         variant={painelAcao === "conferencia" ? "default" : "outline"}
                         className="h-12"
-                        onClick={() => setPainelAcao((atual) => atual === "conferencia" ? null : "conferencia")}
+                        onClick={() => {
+                          setErroConferencia("");
+                          setAvisoConferencia("");
+                          setPainelAcao((atual) => atual === "conferencia" ? null : "conferencia");
+                        }}
                         disabled={isOnHold}
                       >
                         <Users className="mr-2 h-4 w-4" />
@@ -799,7 +803,11 @@ function Softphone({
                         type="button"
                         variant={painelAcao === "transferencia" ? "default" : "outline"}
                         className="h-12"
-                        onClick={() => setPainelAcao((atual) => atual === "transferencia" ? null : "transferencia")}
+                        onClick={() => {
+                          setErroConferencia("");
+                          setAvisoConferencia("");
+                          setPainelAcao((atual) => atual === "transferencia" ? null : "transferencia");
+                        }}
                         disabled={isOnHold}
                       >
                         <ArrowLeftRight className="mr-2 h-4 w-4" />
@@ -842,8 +850,6 @@ function Softphone({
                         {isOnHold && (
                           <p className="text-xs text-muted-foreground">Retome a chamada antes de iniciar a conferência.</p>
                         )}
-                        {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
-                        {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
                       </div>
                     )}
 
@@ -908,10 +914,11 @@ function Softphone({
                             </div>
                           </div>
                         )}
-                        {erroConferencia && <p role="alert" className="text-xs text-destructive">{erroConferencia}</p>}
-                        {avisoConferencia && <p role="status" className="text-xs text-emerald-600">{avisoConferencia}</p>}
                       </div>
                     )}
+
+                    {erroConferencia && <p role="alert" className="text-xs text-destructive text-left">{erroConferencia}</p>}
+                    {avisoConferencia && <p role="status" className="text-xs text-emerald-600 text-left">{avisoConferencia}</p>}
 
                     {/* Desligar */}
                     <Button
