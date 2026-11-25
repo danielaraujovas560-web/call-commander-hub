@@ -297,7 +297,7 @@ function Softphone({
     try {
       const enviado = await blindTransfer(destino);
       if (!enviado) throw new Error("Não foi possível enviar o comando de transferência.");
-      setAvisoConferencia(\`Comando de transferência cega enviado para o ramal \${destino}.\`);
+      setAvisoConferencia("Comando de transferência cega enviado para o ramal " + destino + ".");
       setRamalTransferencia("");
       setPainelAcao(null);
     } catch (error) {
@@ -318,7 +318,7 @@ function Softphone({
       const enviado = await startAttendedTransfer(destino);
       if (!enviado) throw new Error("Não foi possível iniciar a consulta com o ramal.");
       setTransferenciaAssistidaAtiva(true);
-      setAvisoConferencia(\`Consulta iniciada para o ramal \${destino}. Converse com ele antes de concluir.\`);
+      setAvisoConferencia("Consulta iniciada para o ramal " + destino + ". Converse com ele antes de concluir.");
       setRamalTransferencia("");
     } catch (error) {
       setErroConferencia(error instanceof Error ? error.message : "Falha na transferência assistida.");
