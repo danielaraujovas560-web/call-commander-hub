@@ -821,15 +821,17 @@ function Softphone({
                         {isMuted ? "Ativar microfone" : "Silenciar"}
                       </Button>
 
-                      <Button
-                        type="button"
-                        variant={isOnHold ? "default" : "outline"}
-                        className="h-12"
-                        onClick={toggleHold}
-                      >
-                        {isOnHold ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
-                        {isOnHold ? "Retomar" : "Colocar em espera"}
-                      </Button>
+                      {!emConferencia && (
+                        <Button
+                          type="button"
+                          variant={isOnHold ? "default" : "outline"}
+                          className="h-12"
+                          onClick={toggleHold}
+                        >
+                          {isOnHold ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
+                          {isOnHold ? "Retomar" : "Colocar em espera"}
+                        </Button>
+                      )}
                     </div>
 
                     <Button
@@ -864,8 +866,27 @@ function Softphone({
                             </div>
                           ))}
                         </div>
+                        <div className="flex gap-2">
+                          <Input
+                            value={ramalConvidado}
+                            onChange={(event) => setRamalConvidado(event.target.value.replace(/\D/g, "").slice(0, 20))}
+                            placeholder="Ramal para convidar"
+                            inputMode="numeric"
+                            aria-label="Ramal para convidar à conferência"
+                            className="min-w-0"
+                            disabled={convidandoRamal}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => void handleConvidarParaSala(minhaConferencia.sala)}
+                            disabled={!/^\d{3,20}$/.test(ramalConvidado) || convidandoRamal}
+                          >
+                            {convidandoRamal ? "Chamando…" : "Convidar"}
+                          </Button>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          Para sair da conferência, use Desligar. A sala permanece ativa para os demais participantes.
+                          Para sair, use Desligar. A sala permanece ativa para os demais participantes.
                         </p>
                       </div>
                     ) : (
