@@ -1,6 +1,6 @@
 {
   "name": "pabx-agent",
-  "version": "1.0.0",
+  "version": "5.1.0",
   "description": "Mini-agente HTTP local que expõe ramais/troncos do Asterisk (realtime) ao painel Lovable.",
   "main": "server.js",
   "scripts": {

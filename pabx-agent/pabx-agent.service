@@ -1,0 +1,23 @@
+[Unit]
+Description=PABX Agent (Comunicação backend Principal)
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=daniel
+RuntimeDirectory=pabx-agent
+RuntimeDirectoryMode=0700
+Environment=PABXCTL_SOCKET=/run/pabx-agent/control.sock
+Environment=PABX_ENV=production
+WorkingDirectory=/home/daniel/call-commander-hub/pabx-agent
+EnvironmentFile=/home/daniel/call-commander-hub/pabx-agent/.env
+Environment=FIREBASE_INVERTUS_APPLICATION=/home/daniel/call-commander-hub/pabx-agent/secrets/firebase/invertus/service-account.json
+Environment=FIREBASE_ALPHA_APPLICATION=/home/daniel/call-commander-hub/pabx-agent/secrets/firebase/alpha/service-account.json
+ExecStart=/usr/bin/node /home/daniel/call-commander-hub/pabx-agent/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

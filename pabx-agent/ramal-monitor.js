@@ -90,6 +90,20 @@ function extrairEndpoint(nomeCanal = "") {
   return normalizarEndpoint(nome) || null;
 }
 
+// Normaliza o número discado para publicação no monitor.
+function limparNumeroDiscado(valor = "") {
+  const numero = String(valor).trim();
+
+  if (!numero || numero === "s") return null;
+
+  const limpo = numero
+    .replace(/^PJSIP\//i, "")
+    .split("@")[0]
+    .replace(/-[0-9a-f]+$/i, "");
+
+  return /^\+?\d{1,20}$/.test(limpo) ? limpo : null;
+}
+
 // Um canal ativo prova que o dispositivo físico está presente.
 // O estado continua indexado pelo ramal lógico no frontend.
 function marcarPresencaDoCanal(tenantId, nomeCanal) {

@@ -1,0 +1,17 @@
+[Unit]
+Description=Painel PABX Virtual
+After=network.target
+
+[Service]
+Type=simple
+User=daniel
+WorkingDirectory=/home/daniel/call-commander-hub
+EnvironmentFile=/home/daniel/call-commander-hub/.env
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=always
+RestartSec=5
+
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
