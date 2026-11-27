@@ -34,8 +34,8 @@ router.post("/clientes", requireAdmin, async (req, res) => {
     await conn.beginTransaction();
     const id = randomUUID();
     await conn.query(
-      `INSERT INTO clientes (id, user_id, tenant_id, cnpj, razao_social, email, login, quantidade_ramais)
-       VALUES (?, NULL, ?, ?, ?, ?, NULL, ?)`,
+      `INSERT INTO clientes (id, tenant_id, cnpj, razao_social, email, login, quantidade_ramais)
+       VALUES (?, ?, ?, ?, ?, NULL, ?)`,
       [id, Number(tenant_id), cnpj, razao_social, email, Number(quantidade_ramais) || 0],
     );
     await conn.query(
